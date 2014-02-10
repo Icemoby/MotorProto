@@ -154,7 +154,7 @@ properties
         end
         
         %% Other Methods
-        function algorithm = configureAlgorithm(THIS, solverType, varargin)
+        function algorithm = configureAlgorithm(this, solverType, varargin)
             %configureAlgorithm - Setup/change the selected solver
             % A = configureAlgorithm(MP, S, 'parameter1', value1, ...) 
             % changes the active solver stored in the MP.Algorithm property
@@ -167,10 +167,10 @@ properties
             % See also MotorProto, Solver
             
             algorithm      = Solver.configureSolver(solverType, varargin{:});
-            THIS.Algorithm = algorithm;
+            this.Algorithm = algorithm;
         end
         
-        function solution = run(THIS, x0)
+        function solution = run(this, x0)
             %run - Runs the simulation using the active model and algorithm
             % S = run(MP) runs the simulation using the model and solver
             % specified in the MotorProto object MP and stores the solution in
@@ -186,12 +186,12 @@ properties
             % See also MotorProto, Solution, Solver, IPM_Machine_Tutorial
             
             if nargin == 2
-                THIS.Solution = THIS.Algorithm.solve(THIS.Model, x0);
+                this.Solution = this.Algorithm.solve(this.Model, x0);
             else
-                THIS.Solution = THIS.Algorithm.solve(THIS.Model);
+                this.Solution = this.Algorithm.solve(this.Model);
             end
             
-            solution = THIS.Solution;
+            solution = this.Solution;
         end
     end
     

@@ -96,11 +96,14 @@ properties:
 %}
 
     properties
-        WindingType         = 'Distributed'
-        ConductorType       = 'Homogenized'
-        ConductorDynamics   = DynamicsTypes.Static;        
+        WindingType         = WindingTypes.Distributed
+        ConductorType       = ConductorTypes.Homogenized;
+        ConductorDynamics   = DynamicsTypes.Static;      
+        
         Shape
+        
         ConductorBoundaries = Slot.setProperty([-inf inf]);
+        Layers              = Slot.setProperty(1);
         Turns               = Slot.setProperty(1);
     end
     
@@ -122,11 +125,6 @@ properties:
         ConductorConfigurations = [HomogenizedConductor, CircularWire];
     end
     
-    properties (Hidden, Constant, GetAccess = protected)
-        Homogenized = 1;
-        Circular    = 2;
-    end
-    
     methods
         %% Constructor
         function this = Slot(varargin)
@@ -139,25 +137,22 @@ properties:
         
         %% Setters
         function this = set.WindingType(this, value)
-            switch lower(value)
-                case 'concentrated'
-                    error('MotorProto:Slot', 'No implementation for concentrated windings');
-                    this.WiningType = 'Concentrated';
-                case 'distributed'
-                    this.WindingType = 'Distributed';
-                otherwise
-                    error('MotorProto:Slot', 'Unknown WindingType %s', value);
+            if isa(value, 'WindingTypes')
+                this.WindingType = type;
+            elseif ischar(value)
+                this.WindingType = WindingTypes.(value);
+            else
+                this.WindingType = WindingTypes(value);
             end
         end
         
         function this = set.ConductorType(this, value)
-            switch lower(value)
-                case 'homogenized'
-                    this.ConductorType = 'Homogenized';
-                case 'circular'
-                    this.ConductorType = 'Circular';
-                otherwise
-                    error('MotorProto:Slot', 'Unknown WireType %s', value);
+            if isa(value, 'ConductorTypes')
+                this.ConductorType = type;
+            elseif ischar(value)
+                this.ConductorType = ConductorTypes.(value);
+            else
+                this.ConductorType = ConductorTypes(value);
             end
         end
             
@@ -184,12 +179,16 @@ properties:
             assert(numel(value) == 1, 'MotorProto:Slot', 'Slot.Turns must be a scalar');
             this.Turns = this.setProperty(value);
         end
+        
+        function this = set.Layers(this, value)
+            assert(numel(value) == 1, 'MotorProto:Slot', 'Slot.Layers must be a scalar');
+            this.Layers = this.setProperty(value);
+        end
 
         %% Getters
         function value = get.Conductor(this)
             conductorType  = this.ConductorType;
-            conductorConst = this.(conductorType);
-            value          = this.ConductorConfigurations(conductorConst);
+            value          = this.ConductorConfigurations(conductorType);
         end
         
         function value = get.ConductorBoundaries(this)
@@ -198,6 +197,10 @@ properties:
         
         function value = get.Turns(this)
             value = this.Turns.Value;
+        end      
+        
+        function value = get.Layers(this)
+            value = this.Layers.Value;
         end
         
         %% Other
@@ -262,7 +265,7 @@ properties:
             %
             % See also Slot, Wire, slotTemplate
 
-            [conductors, nonConductors, connectionMatrix] = this.Conductor.build(this.Shape, this.ConductorBoundaries, this.Turns, this.ConductorDynamics, label);
+            [conductors, nonConductors, connectionMatrix] = this.Conductor.build(this.Shape, this.ConductorBoundaries, this.Turns, this.Layers, this.ConductorDynamics, this.WindingType, label);
         end
     end
 end

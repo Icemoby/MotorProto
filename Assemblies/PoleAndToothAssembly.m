@@ -75,7 +75,7 @@ properties:
         end
         
         function value = get.SolutionHalfWaveSymmetry(~)
-            warning('Use HalfWaveSymmetry instead');
+            warning('Use HasHalfWaveSymmetry instead');
         	value = true;
         end
     end

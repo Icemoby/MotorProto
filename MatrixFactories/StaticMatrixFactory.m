@@ -59,10 +59,15 @@ classdef StaticMatrixFactory < MatrixFactory
                         [nSeries, nParallel]   = size(connectionMatrices{k});
                         maxEntries             = maxEntries + nSeries * nParallel * nPhases;
                         connectionRegions      = components(connectionMatrices{k});
-                        connectionGeometry     = [connectionRegions.Geometry];
                         connectionMaterial     = [connectionRegions.Material];
                         connectionConductivity = [connectionMaterial.sigma];
-                        connectionArea         = [connectionGeometry.area];
+                        connectionArea         = zeros(1,nSeries*nParallel);
+                        for kk = 1:(nSeries*nParallel)
+                            kRegion            = find(connectionRegions(kk) == regions);
+                         	iElement           = (elRegion == kRegion);
+                          	connectionArea(kk) = sum(elAreas(iElement));
+                        end
+                        
                         connectionResistance   = assembly.Length.Value ./ (connectionConductivity .* connectionArea);
                         connectionResistance   = reshape(connectionResistance, nSeries, nParallel);
                         
@@ -439,8 +444,16 @@ classdef StaticMatrixFactory < MatrixFactory
             nonlinearFunction = cell2mat(nonlinearFunction);
         end
         
-        function                     conductivityMatrix = C(this, t, h)
-        	conductivityMatrix = this.Conductivity.El2El;
+        function                     conductivityMatrix = C(this, ~, ~)
+            assembly           = this.Assemblies_;
+            nAssemblies        = numel(assembly);
+            conductivityMatrix = cell(nAssemblies,nAssemblies);
+           
+            for i = 1:nAssemblies
+                conductivityMatrix{i,i} =   this.Mass.Conductivity(i).El2El;
+            end
+
+            conductivityMatrix = blkdiag(conductivityMatrix{:});
         end
         
         function                      exogenousFunction = f(this, t, h)
@@ -468,7 +481,7 @@ classdef StaticMatrixFactory < MatrixFactory
         end
         
         %% Postprocessing functions
-        function [y, y_t] = doPostProcessing(this, x, ~)
+        function [y, y_t] = doPostProcessing(this, x, fe)
             if ~iscell(x)
                 [n,m] = size(x);
                 x     = mat2cell(x, n, ones(1,m));
@@ -480,12 +493,7 @@ classdef StaticMatrixFactory < MatrixFactory
             if nTimes > 1
                 x_t    = x(:, 1:(nTimes - 1));
                 x_t    = cell2mat(x_t);
-                fe     = [this.Assemblies_.ElectricalFrequency];
-                fe     = [fe.Value];
-
-                sameFrequency = (abs(fe - mean(fe)) < sqrt(eps));
-                assert(all(sameFrequency), 'MotorProto:StaticMatrixFactory', 'All electrical frequencies must be the same');
-                fe           = mean(fe);
+                
                 hMax         = (nTimes - 1) / 2 - 1;
                 h            = [1:(hMax+1), (hMax+3):(2*hMax + 2)];
                 nyqEl        = hMax + 2;

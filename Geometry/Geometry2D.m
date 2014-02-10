@@ -229,7 +229,7 @@ properties:
     end
     
     properties         
-        PlotStyle       = {[0.5 0.5 0.5]};
+        PlotStyle       = {'w'};
         PlotResolution  = 100;
         Base            = 'center'
     end
@@ -258,8 +258,20 @@ properties:
             %
             % See also Geometry2D
             curveArray       = this.Curves;
+            
+            %% Remove ~Zero Length Curves
+            dl          = curveArray.length;
+            deps        = sqrt(eps) * max(dl);
+            isZero      = (dl < deps);
+            
+            if any(isZero)
+                warning('Zero length curves will be removed. Check geometry definition');
+            end
+            
+            curveArray  = curveArray(~isZero);
+            this.Curves = curveArray;
+            
             nCurves          = numel(curveArray);
-            %orientationArray = zeros(nCurves,1);
             
             X0 = [curveArray.vX0].';
             X1 = [curveArray.vX1].';
@@ -271,8 +283,9 @@ properties:
             scaleFactor       = max(max(endpointDistances));
             [thisCurve,...
                 nextCurve]    = find(endpointDistances < sqrt(eps)*scaleFactor);
+            
             nextCurve         = nextCurve(thisCurve);
-            thisCurve         = thisCurve(thisCurve);
+            %thisCurve         = thisCurve(thisCurve);
             isAssigned        = false(nCurves,1);
             domainArray       = cell(1,nCurves);
             k                 = 0;
@@ -366,9 +379,9 @@ properties:
                         'Open regions not supported');
                 wNumber = real(wNumber);
 
-                isSimple = all(abs(wNumber(~OnI) - round(wNumber(~OnI))) < sqrt(eps))...
-                           & ~ (  any(wNumber < -0.5)...
-                                & any(wNumber >  0.5));
+                isSimple = all(abs(wNumber(~OnI) - round(wNumber(~OnI))) < (sqrt(eps)))...
+                           & ~ (  any(wNumber(~OnI) < -0.5)...
+                                & any(wNumber(~OnI) >  0.5));
                 assert(isSimple,...
                         'MotorProto:Geometry2D',...
                         'Self intersecting regions are not supported');

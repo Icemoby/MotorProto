@@ -12,5 +12,6 @@ classdef IronExampleMaterial < NonlinearMaterial
 
         RemanentFluxDensity = 0;
         Conductivity        = 0;
+        Density             = 7874;
     end
 end

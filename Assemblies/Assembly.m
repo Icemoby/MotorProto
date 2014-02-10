@@ -96,6 +96,11 @@ properties:
         Sources
     end
     
+    properties (SetAccess = private, Dependent, Abstract)
+        Mass
+    end
+    
+    
     properties (SetAccess = protected)
         DomainHull
     end

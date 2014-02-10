@@ -875,8 +875,10 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
         SI = SI([includeEndpointJ, isIntersectionPoint]);
         SJ = SJ([includeEndpointI, isIntersectionPoint]);         
         
-        [nTestPoints,~] = size(XTest);
-        nTestPoints     = nTestPoints + 2;
+%         [nTestPoints,~] = size(XTest);
+%         nTestPoints     = nTestPoints + 2;
+
+        [~,nTestPoints] = size(isOnI);
         
      	II              = I(:,ones(1,nTestPoints));
         JJ              = J(:,ones(1,nTestPoints));
@@ -888,7 +890,7 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
             XY          = [X Y];
             XY          = sortrows(XY);
             D           = sqrt(sum(diff(XY).^2,2));
-            scaleFactor = max(D);
+            scaleFactor = max([thisI.bbRadius,thisJ.bbRadius]);
             isUnique    = [true;D > scaleFactor * sqrt(eps)];
             X           = XY(isUnique,1);
             Y           = XY(isUnique,2);
@@ -906,6 +908,10 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
                 if nRows > 1
                     SIOut{i} = SIOut{i}.';
                 end
+%                 s        = sort(SIOut{i});
+%                 D        = diff(s);
+%                 isUnique = [true, D > sqrt(eps)];
+%                 SIOut{i} = s(isUnique);
             end
         end
         
@@ -921,6 +927,10 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
                 if nRows > 1
                     SJOut{j} = SJOut{j}.';
                 end
+%                 s        = sort(SJOut{j});
+%                 D        = diff(s);
+%                 isUnique = [true, D > sqrt(eps)];
+%                 SJOut{j} = s(isUnique);
             end
         end
         
@@ -1011,34 +1021,44 @@ function [X,Y,isValid] = arcArcPossibleIntersectionPoints(arcI,arcJ,I,J)
         posJ  = posJ(J,:);
 
         %% Test for intersections
-        dXC = posI(:,2)-posJ(:,2);
-        dYC = posI(:,1)-posJ(:,1);
-        dRC = sqrt(dXC.^2+dYC.^2);
-                           
-        API = atan2(dXC,dYC);
-        APJ = atan2(-dXC,-dYC);
+        dXC = posI(:,1)-posJ(:,1);
+        dYC = posI(:,2)-posJ(:,2);
+        dRC = hypot(dXC,dYC);
+        
+        API = atan2(-dYC,-dXC);
+        APJ = atan2(dYC,dXC);
 
         dAI = acos((radJ.^2 - dRC.^2 - radI.^2) ./ (-2 * radI .* dRC) );
         dAJ = acos((radI.^2 - dRC.^2 - radJ.^2) ./ (-2 * radJ .* dRC) );
 
         aTestIp = API+dAI;
         aTestIm = API-dAI;        
-        aTestJm = APJ-dAJ;
-        aTestJp = APJ+dAJ;
-        
-        X = [(posI(:,1) +posJ(:,1) +radI.*cos(aTestIp) +radJ.*cos(aTestJm))/2,...
-             (posI(:,1) +posJ(:,1) +radI.*cos(aTestIm) +radJ.*cos(aTestJp))/2];
-        Y = [(posI(:,2) +posJ(:,2) +radI.*sin(aTestIp) +radJ.*sin(aTestJm))/2,...
-        	 (posI(:,2) +posJ(:,2) +radI.*sin(aTestIm) +radJ.*sin(aTestJp))/2];
+        aTestJm = APJ+dAJ;
+        aTestJp = APJ-dAJ;
+%         
+%         X = [(posI(:,1) +posJ(:,1) +radI.*cos(aTestIp) +radJ.*cos(aTestJm))/2,...
+%              (posI(:,1) +posJ(:,1) +radI.*cos(aTestIm) +radJ.*cos(aTestJp))/2];
+%         Y = [(posI(:,2) +posJ(:,2) +radI.*sin(aTestIp) +radJ.*sin(aTestJm))/2,...
+%         	 (posI(:,2) +posJ(:,2) +radI.*sin(aTestIm) +radJ.*sin(aTestJp))/2];
+%         
+       	X = [(posJ(:,1)+radJ.*cos(aTestJm))+(posI(:,1)+radI.*cos(aTestIm)),...
+             (posJ(:,1)+radJ.*cos(aTestJp))+(posI(:,1)+radI.*cos(aTestIp))]/2;
+         
+        Y = [(posJ(:,2)+radJ.*sin(aTestJm))+(posI(:,2)+radI.*sin(aTestIm)),...
+        	 (posJ(:,2)+radJ.*sin(aTestJp))+(posI(:,2)+radI.*sin(aTestIp))]/2;
          
         X = real(X);
         Y = real(Y);
+        
         %% The arcs cannot intersect if the have the same center
         scaleFactor = max(max(radI),max(radJ));
         isValid     = dRC  > sqrt(eps) * scaleFactor;
-        isValid     = [isValid, isValid];  
-        X           = real(X);
-        Y           = real(Y);
+        isValid     = [isValid, isValid];
+        
+%         %% Remove Possible NaN/Inf Values
+%         I      = any(isinf(X)|isinf(Y)|isnan(X)|isnan(Y),2);
+%         X(I,:) = [];
+%         Y(I,:) = [];
 end
 
 function [X,Y,isValid] = arcLinePossibleIntersectionPoints(arcI,lineJ,I,J)
@@ -1116,567 +1136,3 @@ function [X,Y,isValid] = arcLinePossibleIntersectionPoints(arcI,lineJ,I,J)
     X                   = [xChordCenter+dxChord,xChordCenter-dxChord];
     Y                   = [yChordCenter+dyChord,yChordCenter-dyChord];
 end
-
-%% function [X,Y,S,L] = lineLineIntersection(this,I,J)
-%     if nargin == 2
-%         this = [this,I];
-%         I    = 1;
-%         J    = 2;
-%     end
-%     selection = unique([I;J]);
-%     L         = selection;
-%     nSelect   = numel(selection);
-%     if nSelect > 0
-%         n     = numel(I);
-%         X     = zeros(n,1);
-%         Y     = zeros(n,1);
-%         S1    = zeros(n,2);
-%         S2    = zeros(n,2);
-%         xTest = zeros(n,1);
-%         yTest = zeros(n,1);
-% 
-%         %% Get endpoints            
-%         XI  = horzcat([this(I).vX0].',[this(I).vX1].');
-%         YI  = horzcat([this(I).vY0].',[this(I).vY1].');    
-%         XJ  = horzcat([this(J).vX0].',[this(J).vX1].');
-%         YJ  = horzcat([this(J).vY0].',[this(J).vY1].');
-%         
-%         dxI = XI(:,2) - XI(:,1);
-%         dyI = YI(:,2) - YI(:,1);
-% 
-%         dxJ = XJ(:,2) - XJ(:,1);
-%         dyJ = YJ(:,2) - YJ(:,1);
-%         
-%         areParallel = abs(dxI.*dyJ-dxJ.*dyI) < sqrt(eps);
-% 
-%         %% Check for line/line intersection
-%         nTestPoints = 1;
-%         slopeI         = dyI ./ dxI;
-%         slopeJ         = dyJ ./ dxJ;
-% 
-%         isVertI        = abs(slopeI) > sqrt(1/eps);
-%         isVertJ        = abs(slopeJ) > sqrt(1/eps);
-%         notVert        = ~(isVertI|isVertJ);
-%         interceptI     = ((YI(:,1)+YI(:,2))-slopeI.*(XI(:,1)+XI(:,2)))/2;
-%         interceptJ     = ((YJ(:,1)+YJ(:,2))-slopeJ.*(XJ(:,1)+XJ(:,2)))/2;
-% 
-%         xTest(isVertI) = (XI(isVertI,1)+XI(isVertI,2))/2;
-%         yTest(isVertI) = slopeJ(isVertI).*xTest(isVertI)+interceptJ(isVertI);
-% 
-%         xTest(isVertJ) = (XJ(isVertJ,1)+XJ(isVertJ,2))/2;
-%         yTest(isVertJ) = slopeJ(isVertJ).*xTest(isVertJ)+interceptJ(isVertJ);
-% 
-%         xTest(notVert) =  (interceptJ(notVert) - interceptI(notVert))...
-%                         ./(slopeI(notVert)     - slopeJ(notVert));
-%         yTest(notVert) = ( (slopeI(notVert)+slopeJ(notVert)).*xTest(notVert)...
-%                           +(interceptI(notVert)+interceptJ(notVert)))/2;
-% 
-%         [SI,OnI]       = getLineParameter(XI(:,1),YI(:,1),dxI,dyI,[XJ,xTest],[YJ,yTest]);
-%         [SJ,OnJ]       = getLineParameter(XJ(:,1),YJ(:,1),dxJ,dyJ,[XI,xTest],[YI,yTest]);
-%         
-%         %% Assigned Outputs
-%         endpointI  = OnI(:,1:2);
-%         endpointJ  = OnJ(:,1:2);
-%         intersects = OnI(:,3:end) & OnJ(:,3:end) & ~areParallel;
-%         
-%         if nSelect == 2
-%             XI    = XI.';
-%             XJ    = XJ.';
-%             YI    = YI.';
-%             YJ    = YJ.';
-%             xTest = xTest.';
-%             yTest = yTest.';
-%         end
-%         
-%         %% ASSIGN OUTPUTS
-%         X = vertcat(XI(endpointJ),...
-%                     XJ(endpointI),...
-%                     xTest(intersects));
-%         [nRows,~] = size(X);
-%         if nRows == 1
-%             X = X.';
-%         end
-%         
-%         Y = vertcat(YI(endpointJ),...
-%                     YJ(endpointI),...
-%                     yTest(intersects));
-%         [nRows,~] = size(Y);
-%         if nRows == 1
-%             Y = Y.';
-%         end
-%         
-%         S1 = SI([endpointI,intersects]);
-%         [nRows,~] = size(S1);
-%         if nRows == 1
-%             S1 = S1.';
-%         end
-%                  
-%         I1 = repmat(I,2,1);
-%         I2 = repmat(I,nTestPoints,1);
-%         II = vertcat(I1(endpointI),...
-%                      I2(intersects));
-%                  
-%         S2 = SJ([endpointJ,intersects]);
-%         [nRows,~] = size(S2);
-%         if nRows == 1
-%             S2 = S2.';
-%         end
-%                  
-%      	J1 = repmat(J,2,1);
-%         J2 = repmat(J,nTestPoints,1);
-%         JJ = vertcat(J1(endpointJ),...
-%                      J2(intersects));
-% 
-%         if numel(X) > 1
-%             XY          = [X Y];
-%             XY          = sortrows(XY);
-%             D           = sqrt(sum(diff(XY).^2,2));
-%             scaleFactor = max(D);
-%             isUnique    = [true;D > scaleFactor * sqrt(eps)];
-%             X           = XY(isUnique,1);
-%             Y           = XY(isUnique,2);
-%         end
-%         
-%         S = cell(numel(this),1);
-%         
-%         for kSelect = 1:nSelect
-%             i        = II == selection(kSelect);
-%             j        = JJ == selection(kSelect);
-%             s        = [S1(i);S2(j)];
-%             s        = sort(s);
-%             ds       = [1;diff(s)];
-%             ds       = abs(ds);
-%             willKeep = ds > sqrt(eps) & s > 0 & s < 1;
-%             S{L(kSelect)} = s(willKeep);
-%         end
-% 
-%         if nargin == 2
-%             S1 = S{1};
-%             S2 = S{2};
-%             n1 = numel(S1);
-%             n2 = numel(S2);
-%             if n1 == 0 && n2 == 0
-%                 S = [0,0];
-%             elseif n1 ~= n2
-%                 S = horzcat(...
-%                         vertcat(zeros(n2-n1,1),S1),...
-%                         vertcat(S2,zeros(n1-n2,1))...
-%                         );
-%             else
-%                 S = [S1,S2];
-%             end
-%         end
-%     else
-%         X = [];
-%         Y = [];
-%         S = cell(numel(this),1);
-%     end
-% end
-% 
-% function [X,Y,S,L] = arcArcIntersection(this,I,J)
-%     %% INITIALIZE
-%     if nargin == 2
-%         this = [this,I];
-%         I    = 1;
-%         J    = 2;
-%     end
-%     
-%     selection = unique([I;J]);
-%     L         = selection;
-%     nSelect   = numel(selection);
-%     if nSelect > 0
-%         %% GET DATA
-%         RadI = [this(I).vRadius].';
-%         PI   = [this(I).vPosition];
-%         PI   = [PI(1:2:(2*numel(I)));PI(2:2:(2*numel(I)))].';
-%         AI   = [this(I).vAngle].';
-%         RotI = [this(I).vRotation].';
-% 
-%         XI   = horzcat([this(I).vX0].',[this(I).vX1].');
-%         YI   = horzcat([this(I).vY0].',[this(I).vY1].');
-%         
-%         RadJ = [this(J).vRadius].';
-%         PJ   = [this(J).vPosition];
-%         PJ   = [PJ(1:2:(2*numel(J)));PJ(2:2:(2*numel(J)))].';
-%         AJ   = [this(J).vAngle].';
-%         RotJ = [this(J).vRotation].';
-% 
-%         XJ  = horzcat([this(J).vX0].',[this(J).vX1].');
-%         YJ  = horzcat([this(J).vY0].',[this(J).vY1].');
-% 
-%         %% TEST ENDPOINTS
-%         scaleFactor     = max(max(RadI),max(RadJ));
-%         centerDistance  = sqrt( (PI(:,1)-PJ(:,1)).^2 + (PI(:,2)-PJ(:,2)).^2);
-%         radiiDifference = abs(RadI - RadJ);
-%         isParallel      =  centerDistance  < sqrt(eps) * scaleFactor...
-%                          & radiiDifference < sqrt(eps) * scaleFactor;
-%         
-%         %% TEST FOR INTERSECTION
-%         nTestPoints = 2;
-%         isParallel  = repmat(isParallel,1,nTestPoints); 
-%         API = atan2(PI(:,2)-PJ(:,2),PI(:,1) - PJ(:,1));
-%         APJ = atan2(PJ(:,2)-PI(:,2),PJ(:,1) - PI(:,1));
-% 
-%         dAI = acos((RadJ.^2 - centerDistance.^2 - RadI.^2)...
-%                                             ./ (-2 * RadI .* centerDistance) );
-%         dAJ = acos((RadI.^2 - centerDistance.^2 - RadJ.^2)...
-%                                             ./ (-2 * RadJ .* centerDistance) );
-% 
-%         aTestI1 = API+dAI;
-%         aTestI2 = API-dAI;        
-%         aTestJ1 = APJ-dAJ;
-%         aTestJ2 = APJ+dAJ;
-%         
-%         xTest   = [(PI(:,1) + PJ(:,1) + RadI.*cos(aTestI1) + RadJ.*cos(aTestJ1))/2,...
-%                    (PI(:,1) + PJ(:,1) + RadI.*cos(aTestI2) + RadJ.*cos(aTestJ2))/2];
-%         yTest   = [(PI(:,2) + PJ(:,2) + RadI.*sin(aTestI1) + RadJ.*sin(aTestJ1))/2,...
-%         	       (PI(:,2) + PJ(:,2) + RadI.*sin(aTestI2) + RadJ.*sin(aTestJ2))/2];
-%         
-%         isImag  =   abs(imag(xTest)) > sqrt(eps)*abs(xTest)...
-%                   | abs(imag(yTest)) > sqrt(eps)*abs(yTest);
-%               
-%         xTest   = real(xTest);
-%         yTest   = real(yTest);
-%         
-%         [SI,OnI] = getArcParameter(RadI,AI,PI,RotI,[XJ,xTest],[YJ,yTest]);
-%         [SJ,OnJ] = getArcParameter(RadJ,AJ,PJ,RotJ,[XI,xTest],[YI,yTest]);
-%         
-%         endpointI  = OnI(:,1:2);
-%         endpointJ  = OnJ(:,1:2);
-%         intersects = OnI(:,3:end) & OnJ(:,3:end) & ~isImag & ~isParallel;
-%         
-%         if nSelect == 2
-%             XI    = XI.';
-%             XJ    = XJ.';
-%             YI    = YI.';
-%             YJ    = YJ.';
-%             xTest = xTest.';
-%             yTest = yTest.';
-%         end
-%         
-%         %% ASSIGN OUTPUTS
-%         X = vertcat(XI(endpointJ),...
-%                     XJ(endpointI),...
-%                     xTest(intersects));
-%         [nRows,~] = size(X);
-%         if nRows == 1
-%             X = X.';
-%         end
-%         
-%         Y = vertcat(YI(endpointJ),...
-%                     YJ(endpointI),...
-%                     yTest(intersects));
-%         [nRows,~] = size(Y);
-%         if nRows == 1
-%             Y = Y.';
-%         end
-%         
-%         S1 = SI([endpointI,intersects]);
-%         [nRows,~] = size(S1);
-%         if nRows == 1
-%             S1 = S1.';
-%         end
-%                  
-%         I1 = repmat(I,2,1);
-%         I2 = repmat(I,nTestPoints,1);
-%         II = vertcat(I1(endpointI),...
-%                      I2(intersects));
-%                  
-%         S2 = SJ([endpointJ,intersects]);
-%         [nRows,~] = size(S2);
-%         if nRows == 1
-%             S2 = S2.';
-%         end
-%                  
-%      	J1 = repmat(J,2,1);
-%         J2 = repmat(J,nTestPoints,1);
-%         JJ = vertcat(J1(endpointJ),...
-%                      J2(intersects));
-% 
-%         if numel(X) > 1
-%             XY          = [X Y];
-%             XY          = sortrows(XY);
-%             D           = sqrt(sum(diff(XY).^2,2));
-%             scaleFactor = max(D);
-%             isUnique    = [true;D > scaleFactor * sqrt(eps)];
-%             X           = XY(isUnique,1);
-%             Y           = XY(isUnique,2);
-%         end
-%         
-%         S = cell(numel(this),1);
-%         
-%         for kSelect = 1:nSelect
-%             i        = II == selection(kSelect);
-%             j        = JJ == selection(kSelect);
-%             s        = [S1(i);S2(j)];
-%             s        = sort(s);
-%             ds       = [1;diff(s)];
-%             ds       = abs(ds);
-%             willKeep = ds > sqrt(eps) & s > 0 & s < 1;
-%             S{L(kSelect)} = s(willKeep);
-%         end
-% 
-%         if nargin == 2
-%             S1 = S{1};
-%             S2 = S{2};
-%             n1 = numel(S1);
-%             n2 = numel(S2);
-%             if n1 == 0 && n2 == 0
-%                 S = [0,0];
-%             elseif n1 ~= n2
-%                 S = horzcat(...
-%                         vertcat(zeros(n2-n1,1),S1),...
-%                         vertcat(S2,zeros(n1-n2,1))...
-%                         );
-%             else
-%                 S = [S1,S2];
-%             end
-%         end
-%     else
-%         X = [];
-%         Y = [];
-%         S = cell(numel(this),1);
-%     end
-% end
-% 
-% function [X,Y,S,L] = arcLineIntersection(this,I,J)
-%     %% INITIALIZE
-%     if nargin == 2
-%         this = [this,I];
-%         I    = 1;
-%         J    = 2;
-%     end
-%     
-%     selection = unique([I;J]);
-%     L         = selection;
-%     nSelect   = numel(selection);
-%     if nSelect > 0
-%         %% GET DATA
-%         RadI = [this(I).vRadius].';
-%         PI   = [this(I).vPosition];
-%         PI   = [PI(1:2:(2*numel(I)));PI(2:2:(2*numel(I)))].';
-%         AI   = [this(I).vAngle].';
-%         RotI = [this(I).vRotation].';
-% 
-%         XI   = horzcat([this(I).vX0].',[this(I).vX1].');
-%         YI   = horzcat([this(I).vY0].',[this(I).vY1].');
-% 
-%         XJ  = horzcat([this(J).vX0].',[this(J).vX1].');
-%         YJ  = horzcat([this(J).vY0].',[this(J).vY1].');
-%         
-%         %% TEST FOR INTERSECTION
-%         dxJ          = XJ(:,2) - XJ(:,1);
-%         dyJ          = YJ(:,2) - YJ(:,1);
-%         xChordCenter = zeros(size(dxJ));
-%         yChordCenter = zeros(size(dyJ));
-%         
-%         isVert               = (abs(dxJ) < sqrt(eps) * abs(dyJ));
-%         xChordCenter(isVert) = mean(XJ(isVert,2));
-%         yChordCenter(isVert) = PI(isVert,2);
-%         
-%         isHorz               = (abs(dyJ) < sqrt(eps) * abs(dxJ));
-%         xChordCenter(isHorz) = PI(isHorz,1); mean(XJ(isHorz,2));
-%         yChordCenter(isHorz) = mean(YJ(isHorz,2));        
-%         
-%         %calculate chord center
-%         isNorm               = ~(isVert | isHorz);
-%         if any(isNorm)
-%             lineSlope            = dyJ(isNorm) ./ dxJ(isNorm);
-%             lineB                = (  YJ(isNorm,1)...
-%                                      +YJ(isNorm,2)...
-%                                      -lineSlope.*XJ(isNorm,1)...
-%                                      -lineSlope.*XJ(isNorm,2)    )/2;
-%             arcSlope             = -dxJ(isNorm) ./ dyJ(isNorm);
-%             arcB                 = PI(isNorm,2) - (arcSlope.*PI(isNorm,1));
-%             xChordCenter(isNorm) = (arcB - lineB) ./ (lineSlope - arcSlope);
-%             yChordCenter(isNorm) =  (lineSlope .* xChordCenter(isNorm) + lineB ) / 2 ...
-%                                   + (arcSlope .* xChordCenter(isNorm) + arcB )   / 2;
-%         else
-%             lineSlope = 0;
-%         end
-%         
-%         %Calculate Chord Length
-%         deltaTangent        = sqrt( (xChordCenter-PI(:,1)).^2 ...
-%                                    +(yChordCenter-PI(:,2)).^2);           
-%      	chordLength         = 2 * sqrt(RadI.^2 - deltaTangent.^2);
-%         isZero              = abs(chordLength) < sqrt(eps);
-%         chordLength(isZero) = 0;
-%         isImag              = abs(imag(chordLength)) > sqrt(eps);
-%         isImag              = [isImag,isImag];
-%         chordLength         = real(chordLength);
-%         dxChord             = zeros(size(xChordCenter));
-%         dyChord             = zeros(size(xChordCenter));
-%         dxChord(isNorm)     = chordLength(isNorm) ./ (sqrt(1+lineSlope.^2)) / 2;
-%         dyChord(isNorm)     = lineSlope .* dxChord(isNorm);
-%         dxChord(isVert)     = 0;
-%         dxChord(isHorz)     = chordLength(isHorz) / 2;
-%         dyChord(isVert)     = chordLength(isVert) / 2;
-%         dyChord(isHorz)     = 0;
-%         
-%         xTest               = [xChordCenter+dxChord,xChordCenter-dxChord];
-%         yTest               = [yChordCenter+dyChord,yChordCenter-dyChord];
-%         nTestPoints         = 2;
-%         
-%         [SI,OnI] = getArcParameter(RadI,AI,PI,RotI         ,[XJ,xTest],[YJ,yTest]);
-%         [SJ,OnJ] = getLineParameter(XJ(:,1),YJ(:,1),dxJ,dyJ,[XI,xTest],[YI,yTest]);
-%         
-%         %% RESHAPE
-%         endpointI  = OnI(:,1:2);
-%         endpointJ  = OnJ(:,1:2);
-%         intersects = OnI(:,3:end) & OnJ(:,3:end) & ~isImag;
-%         
-%         if nSelect == 2
-%             XI    = XI.';
-%             XJ    = XJ.';
-%             YI    = YI.';
-%             YJ    = YJ.';
-%             xTest = xTest.';
-%             yTest = yTest.';
-%         end
-%         
-%         %% ASSIGN OUTPUTS
-%         X = vertcat(XI(endpointJ),...
-%                     XJ(endpointI),...
-%                     xTest(intersects));
-%         [nRows,~] = size(X);
-%         if nRows == 1
-%             X = X.';
-%         end
-%         
-%         Y = vertcat(YI(endpointJ),...
-%                     YJ(endpointI),...
-%                     yTest(intersects));
-%         [nRows,~] = size(Y);
-%         if nRows == 1
-%             Y = Y.';
-%         end
-%         
-%         S1 = SI([endpointI,intersects]);
-%         [nRows,~] = size(S1);
-%         if nRows == 1
-%             S1 = S1.';
-%         end
-%                  
-%         I1 = repmat(I,2,1);
-%         I2 = repmat(I,nTestPoints,1);
-%         II = vertcat(I1(endpointI),...
-%                      I2(intersects));
-%                  
-%         S2 = SJ([endpointJ,intersects]);
-%         [nRows,~] = size(S2);
-%         if nRows == 1
-%             S2 = S2.';
-%         end
-%                  
-%      	J1 = repmat(J,2,1);
-%         J2 = repmat(J,nTestPoints,1);
-%         JJ = vertcat(J1(endpointJ),...
-%                      J2(intersects));
-% 
-%         if numel(X) > 1
-%             XY          = [X Y];
-%             XY          = sortrows(XY);
-%             D           = sqrt(sum(diff(XY).^2,2));
-%             scaleFactor = max(D);
-%             isUnique    = [true;D > scaleFactor * sqrt(eps)];
-%             X           = XY(isUnique,1);
-%             Y           = XY(isUnique,2);
-%         end
-%         
-%         S = cell(numel(this),1);
-%         
-%         for kSelect = 1:nSelect
-%             i        = II == selection(kSelect);
-%             j        = JJ == selection(kSelect);
-%             s        = [S1(i);S2(j)];
-%             s        = sort(s);
-%             ds       = [1;diff(s)];
-%             ds       = abs(ds);
-%             willKeep = ds > sqrt(eps) & s > 0 & s < 1;
-%             S{L(kSelect)} = s(willKeep);
-%         end
-% 
-%         if nargin == 2
-%             S1 = S{1};
-%             S2 = S{2};
-%             n1 = numel(S1);
-%             n2 = numel(S2);
-%             if n1 == 0 && n2 == 0
-%                 S = [0,0];
-%             elseif n1 ~= n2
-%                 S = horzcat(...
-%                         vertcat(zeros(n2-n1,1),S1),...
-%                         vertcat(S2,zeros(n1-n2,1))...
-%                         );
-%             else
-%                 S = [S1,S2];
-%             end
-%         end
-%     else
-%         X = [];
-%         Y = [];
-%         S = cell(numel(this),1);
-%     end
-% end
-% 
-% function [S,On] = getLineParameter(x0,y0,dx,dy,xIn,yIn)
-%     [nr,nc] = size(xIn);
-%     isVert  = abs(dx) < sqrt(eps);
-%     isHorz  = abs(dy) < sqrt(eps);
-%     isNorm  = ~(isHorz | isVert);
-%     
-%     S  = zeros(nr,nc);
-%     On = false(nr,nc);
-%     
-%     Sx           = bsxfun(@minus,xIn,x0);
-%     On(isVert,:) = abs(Sx(isVert,:)) < sqrt(eps);
-%     Sx           = bsxfun(@rdivide,Sx,dx);
-%     S(isHorz,:)  = Sx(isHorz,:);
-%     
-%     Sy           = bsxfun(@minus,yIn,y0);
-%     On(isHorz,:) = abs(Sy(isHorz,:)) < sqrt(eps);
-%     Sy           = bsxfun(@rdivide,Sy,dy);
-%     S(isVert,:)  = Sy(isVert,:);
-%     
-%     S(isNorm,:)  =    (Sx(isNorm,:) + Sy(isNorm,:)) / 2;
-%     On(isNorm,:) = abs(Sx(isNorm,:) - Sy(isNorm,:)) < sqrt(eps);
-%     
-%     nearZero    = abs(S)   < sqrt(eps);
-%     nearOne     = abs(S-1) < sqrt(eps);
-%     S(nearZero) = 0;
-%     S(nearOne)  = 1;
-%     
-%     On          = On & S >= 0 & S <= 1;
-% end
-% 
-% function [S,On] = getArcParameter(rad,ang,pos,rot,xIn,yIn)
-%     %% Shift and rotate inputs
-%     xShifted = bsxfun(@minus,xIn,pos(:,1));
-%     yShifted = bsxfun(@minus,yIn,pos(:,2));
-%     
-%     radiusIn = hypot(xShifted,yShifted);
-%     angleIn  = atan2(yShifted,xShifted);
-%     
-%     minAngle = min(rot,rot+ang);
-%     maxAngle = max(rot,rot+ang);
-%     angleIn  = bsxfun(@minus,angleIn,minAngle);
-%     angleIn  = mod(angleIn,2*pi);
-%     angleIn  = bsxfun(@plus,angleIn,minAngle);
-%     
-%     On       = bsxfun(@lt,angleIn,maxAngle);
-%     dR       = bsxfun(@minus,radiusIn,rad);
-%     onRadius = abs(dR) < sqrt(eps) * max(max(radiusIn));
-%     
-%     S        = bsxfun(@minus,angleIn,rot);
-%     S        = bsxfun(@rdivide,S,ang);
-%     On       = On & onRadius;
-%     
-%     %% snap to end points to avoid numerical difficulties
-%     nearZero = abs(S)   < sqrt(eps);
-%     nearOne  = abs(S-1) < sqrt(eps);
-%     
-%     S(nearZero) = 0;
-%     S(nearOne)  = 1;
-%     
-%     On          = On & S >= 0 & S <= 1;
-% end

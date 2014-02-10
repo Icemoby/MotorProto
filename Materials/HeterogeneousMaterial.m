@@ -17,6 +17,7 @@ classdef HeterogeneousMaterial < MaterialProperty
 
         Linear
         Conductivity
+        Density
         RemanentFluxDensity
     end
     
@@ -31,6 +32,7 @@ classdef HeterogeneousMaterial < MaterialProperty
             this = this@MaterialProperty(varargin{:});
             this = homogenizeProperty(this, 'Linear',              'bool');
             this = homogenizeProperty(this, 'Conductivity',        'mean');
+            this = homogenizeProperty(this, 'Density',             'mean');
             this = homogenizeProperty(this, 'RemanentFluxDensity', 'mean');
         end
         
@@ -42,6 +44,16 @@ classdef HeterogeneousMaterial < MaterialProperty
             s          = 0;
             for i = 1:N
                 s = s + percentage(i) * elementSigma(baseProps(i));
+            end
+        end
+        
+        function d = elementDensity(this, ~)
+            baseProps  = this.BaseProperties;
+            percentage = this.Percentage;
+            N          = numel(baseProps);
+            d          = 0;
+            for i = 1:N
+                d = d + percentage(i) * elementDensity(baseProps(i));
             end
         end
         
@@ -100,7 +112,7 @@ classdef HeterogeneousMaterial < MaterialProperty
                 N          = numel(baseProps);
                 v          = 0;
                 for i = 1:N
-                    v = percentage(i) * baseProps(i).(prop);
+                    v = v + percentage(i) * baseProps(i).(prop);
                 end
             elseif strcmpi(type, 'bool')
                 N          = numel(baseProps);

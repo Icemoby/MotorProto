@@ -229,8 +229,7 @@ classdef RotatingMachineMeshFactory < MeshFactory
             this.ConstrainedEdgePairs = constEdgePairs;
         end
         
-        function this = doPostProcessing(this)
-            this = doPostProcessing@MeshFactory(this);
+        function this = compileBoundaryData(this)
             assembly = this.Assembly;
 
             %% get radial boundary pairs
@@ -244,8 +243,7 @@ classdef RotatingMachineMeshFactory < MeshFactory
             y     = this.Y(edges);
             r     = hypot(x,y);
             
-            isRadEdge    =(abs(r(1,:) - r(2,:)) ...
-                            < (sqrt(eps) * mean(r)));
+            isRadEdge    =(abs(r(1,:) - r(2,:)) < (sqrt(eps) * mean(r)));
             radEdgeRadii = mean(r(:,isRadEdge));
             radEdges     = edges(:, isRadEdge);
             

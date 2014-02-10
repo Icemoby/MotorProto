@@ -61,6 +61,7 @@ properties:
     end
     
     properties (Dependent, SetAccess = private)
+        Mass
         TangentialBoundaries
     end
     
@@ -92,6 +93,17 @@ properties:
             else
                 angles = [];
             end
+        end
+        
+        function mass = get.Mass(this)
+            regions  = this.Regions;
+            nRegions = length(regions);
+            mass     = 0;
+            for i = 1:nRegions
+                mass = mass + regions(i).Geometry.area * regions(i).Material.Density;
+            end
+            mass = mass * this.Length.Value;
+            mass = mass / this.ModeledFraction;
         end
         
         %% Element Functions

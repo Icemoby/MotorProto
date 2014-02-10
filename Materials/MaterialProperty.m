@@ -90,6 +90,7 @@ properties
 
         Linear
         Conductivity
+        Density
         RemanentFluxDensity
     end
     
@@ -308,14 +309,18 @@ properties
         end
         
         function s = sigma(this)
-            %vectorMr - 
-            %
-            % See also MaterialProperty
-
             N = numel(this);
             s = zeros(1, N);
             for i = 1:N
                 s(i) = elementSigma(this(i));
+            end
+        end
+        
+        function d = density(this)
+            N = numel(this);
+            d = zeros(1, N);
+            for i = 1:N
+                d(i) = elementDensity(this(i));
             end
         end
     end

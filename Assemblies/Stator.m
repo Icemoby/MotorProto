@@ -53,7 +53,7 @@ properties:
     SourceTypes;
 %}  
     properties
-        Slot = Slot
+        Slot           = Slot
         ConnectionType = ConnectionTypes.Wye;
     end
     
@@ -64,6 +64,10 @@ properties:
         ConductorMaterial
         InsulatorMaterial
 
+        WindingType
+        Layers
+        Turns
+        
         %% New Symmetry Properties
         SpatialSymmetries
         HasHalfWaveSymmetry
@@ -108,11 +112,35 @@ properties:
         end
         
        	function value = get.SpatialSymmetries(this)
-            value = this.Poles.Value / 2;
+            switch this.WindingType
+                case WindingTypes.Distributed
+                    value = this.Poles.Value / 2;
+                case WindingTypes.Concentrated
+                    value = gcd(this.Poles.Value,this.Teeth.Value);
+                    if (this.Layers == 1) && (value > 1)
+                        value = value / 2;
+                    end
+                otherwise
+                    error('No Implementation');
+            end
         end
         
-        function value = get.HasHalfWaveSymmetry(~)
-            value = true;
+        function value = get.HasHalfWaveSymmetry(this)
+            switch this.WindingType
+                case WindingTypes.Distributed
+                    value = true;
+                case WindingTypes.Concentrated
+                    g         = gcd(this.Poles.Value,this.Teeth.Value);
+                    evenTeeth = (mod(this.Teeth.Value / g, 2) == 0);
+                    oddPoles  = (mod(this.Poles.Value / g, 2) == 1);
+                    if evenTeeth && oddPoles
+                        value = true;
+                    else
+                        value = false;
+                    end
+                otherwise
+                    error('No Implementation');
+            end
         end
         
         function value = get.GeometricSymmetries(this)
@@ -120,7 +148,14 @@ properties:
         end
         
         function value = get.SpaceTimeSymmetries(this)
-            value = this.Poles.Value / 2 * this.Phases.Value;
+            switch this.WindingType
+                case WindingTypes.Distributed
+                    value = this.Poles.Value / 2 * this.Phases.Value;
+                case WindingTypes.Concentrated
+                    error('No Implementation');
+                otherwise
+                    error('No Implementation');
+            end
         end
         
         function value = get.SolutionSpaceTimeSymmetry(this)
@@ -136,6 +171,18 @@ properties:
         
         function value = get.AngularVelocity(~)
             value = 0;
+        end
+       
+        function value = get.WindingType(this)
+            value = this.Slot.WindingType;
+        end
+       
+        function value = get.Layers(this)
+            value = this.Slot.Layers;
+        end
+       
+        function value = get.Turns(this)
+            value = this.Slot.Turns;
         end
         
         %% Setters
@@ -177,6 +224,18 @@ properties:
                 this.ConnectionType = ConnectionTypes(value);
             end
         end
+               
+        function this = set.WindingType(this, value)
+            this.Slot.WindingType = value;
+        end
+               
+        function this = set.Layers(this, value)
+            this.Slot.Layers = value;
+        end
+               
+        function this = set.Turns(this, value)
+            this.Slot.Turns = value;
+        end
         
         function this = set.ConductorDynamics(this, value)
             this.Slot.ConductorDynamics = value;
@@ -195,28 +254,70 @@ properties:
             %% Check Configuration
           	nTeeth = this.Teeth.Value;
             nPoles = this.Poles.Value;
-            assert(mod(nTeeth / nPoles, 3) == 0, 'MotorProto:StatorComponent', ...
-                                               	 'The number of teeth per pole must be an integer multiple of 3. The current value is %d', nPoles/nTeeth);
-            %% Perform Actions
+            switch this.WindingType
+                case WindingTypes.Distributed
+                    assert(mod(nTeeth / nPoles, 3) == 0, 'MotorProto:StatorComponent', 'The number of teeth per pole must be an integer multiple of 3. The current value is %d', nTeeth/nPoles);
+                case WindingTypes.Concentrated
+                    assert(mod(nTeeth , 3) == 0,'MotorProto:StatorComponent', 'The number of teeth must be an integer multiple of 3. The current value is %d', nTeeth);
+                otherwise
+                    error('MotorProto:StatorComponent', 'Unknown WindingType %s', char(stator.WindingType));
+            end
+          	%% Perform Actions
             [conductors, nonConductors, connectionMatrix] = build(this.Slot, this.Name);
         end
         
-        function this = buildPostProcessing(this, connectionMatrix)
-            nTurnsPerSlot      = this.Slot.Turns;
-            nPhases            = this.Phases.Value;
-            nSlotsPerPhase     = this.Teeth.Value / this.Poles.Value / nPhases;
+        function this = buildPostProcessing(this, connectionMatrix, modeledFraction)
+            nPhases = this.Phases.Value;
             
             connectionMatrices = cell(1, nPhases);
             connectionPolarity = cell(1, nPhases);
-            for i = 1:nPhases
-                I                     = (1:nSlotsPerPhase) + (i-1) * nSlotsPerPhase;
-                connectionMatrices{i} = reshape(connectionMatrix(:,:,I), [], nTurnsPerSlot * nSlotsPerPhase).';
-                if mod(i,2) == 1
-                    connectionPolarity{i} =   ones(size(connectionMatrices{i}));
-                else
-                    connectionPolarity{i} = - ones(size(connectionMatrices{i}));
-                end
+            switch this.WindingType
+                case WindingTypes.Distributed
+                    nTurnsPerSlot  = this.Slot.Turns;
+                    nSlotsPerPhase = this.Teeth.Value / this.Poles.Value / nPhases;
+            
+                    for i = 1:nPhases
+                        I                     = (1:nSlotsPerPhase) + (i-1) * nSlotsPerPhase;
+                        connectionMatrices{i} = reshape(connectionMatrix(:,:,I), [], nTurnsPerSlot * nSlotsPerPhase).';
+                        if mod(i,2) == 1
+                            connectionPolarity{i} =   ones(size(connectionMatrices{i}));
+                        else
+                            connectionPolarity{i} = - ones(size(connectionMatrices{i}));
+                        end
+                    end
+                case WindingTypes.Concentrated
+                    W = generateConcentratedWindingLayout(this.Poles.Value,this.Teeth.Value,this.Layers);
+                    
+                    if this.HasHalfWaveSymmetry && (mod(this.Poles.Value * modeledFraction,2) == 1)
+                        I = W(1:(end/2));
+                        J = W((end/2+1):end);
+                        J = (J == mod(I+2,6)+1);
+                        
+                        assert(all(J),'Winding layout does not result in half-wave symmetry');
+                        W = I;
+                        
+                    end
+                    
+                    W = [W;mod(W+nPhases-1,2*nPhases)+1];
+                    W = reshape(W,1,[]).';
+                    
+                    for i = 1:nPhases
+                        if mod(i,2) == 1
+                            Ip = (W == i);
+                            In = (W == (i+nPhases));
+                        else
+                            Ip = (W == (i+nPhases));
+                            In = (W == i);
+                        end
+                        
+                        connectionMatrices{i} = cat(3,connectionMatrix(:,:,Ip),connectionMatrix(:,:,In));
+                        connectionMatrices{i} = reshape(connectionMatrices{i},[],numel(connectionMatrices{i})).';
+                        
+                        connectionPolarity{i} = cat(3,1+0*connectionMatrix(:,:,Ip),-1+0*connectionMatrix(:,:,In));
+                        connectionPolarity{i} = reshape(connectionPolarity{i},[],numel(connectionPolarity{i})).';
+                    end
             end
+
             this.Sources.ConnectionMatrices = connectionMatrices;
             this.Sources.ConnectionPolarity = connectionPolarity;
         end

@@ -50,7 +50,8 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
     
     properties
         UseUniformGrid     = false;
-        UniformGridType    = 'rectangular'
+        UniformGridType    = 'rectangular';
+        ElementOrder       = 1;
         MinimumElementSize = MeshFactory.setProperty(0);
         MaximumElementSize = MeshFactory.setProperty(inf);
     end
@@ -124,12 +125,12 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             
             x = (x(i) + x(j)) / 2 + (r(j) - r(i)) * cos(a) / 2;
             y = (y(i) + y(j)) / 2 + (r(j) - r(i)) * sin(a) / 2;
-            r  = (dr + r(i) + r(j)) / 2;
+            r = (dr + r(i) + r(j)) / 2;
         end
 
         function I = inBoundingBall(this,xIn,yIn)
             [x,y,r] = getBoundingBall(this);
-            dr      = hypot(xIn - x,yIn - y);
+            dr      = hypot(xIn - x, yIn - y);
             I       = (dr < r * (1 + sqrt(eps)));
         end
         
@@ -141,6 +142,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             % See also DiscretizedGeometry
             warning('MotorProto:Verbose', 'There is probably a more elegent way to handle the airgap situation');
             warning('MotorProto:Verbose', 'Add in auxillary boundaries from adjacent annuli');
+            
             nThis =  numel(this);
             for i = 1:nThis
                 %% determine the initial peicewise linear system
@@ -208,8 +210,12 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
 
                 %% finalize the mesh
                 this(i) = removeBoundingBox(this(i),false);
-
+                
                 this(i) = doPostProcessing(this(i));
+
+                this(i) = increaseElementOrder(this(i));
+                
+                this(i) = compileBoundaryData(this(i));
             end
         end
         
@@ -287,7 +293,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
                 isSame(:,sameNode) = false;
                 isSame(:,jNode)    = sameNode;
             end
-            [renumber,keep]  = find(isSame);
+            [renumber,keep] = find(isSame);
             
             for jNode = 1:numel(renumber)
                 iEdge        = (edges == renumber(jNode));
@@ -321,8 +327,8 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             edgeBound      = edgeBound(I);
             
             %% assign outputs
-            this.X              = x;
-            this.Y              = y;
+            this.X = x;
+            this.Y = y;
             
             this.ConstrainedEdges          = edges;
             this.ConstrainedEdgeParameters = edgeParam;
@@ -339,6 +345,8 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             %% Split all discrete boundary edges until non are encroached,
             %  based on the first stage of Ruperts algorithm for creating 
             %  constrained Delaunay Triangulations
+            
+            warning('MotorProto:Verbose','This method can result in a non-terminating loop if two edges share a vertex and make an accute angle');
             
             x      = this.X;
             y      = this.Y;
@@ -369,9 +377,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         end
         
         function this = insertEdgeMidpoints(this)
-            erQueue      = this.EdgeRefinementQueue;
-          	cePairs      = this.ConstrainedEdgePairs;
-            nQueue       = numel(erQueue);
+            erQueue = this.EdgeRefinementQueue;
+          	cePairs = this.ConstrainedEdgePairs;
+            nQueue  = numel(erQueue);
             
             queuePair = false(size(cePairs));
             for i = 1:nQueue
@@ -432,7 +440,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         function this = addUniformGrid(this)
             %% get constrained edge data
         	xe = this.X(this.ConstrainedEdges);
-            dx =  xe(1,:) - xe(2,:);
+            dx = xe(1,:) - xe(2,:);
             
             ye = this.Y(this.ConstrainedEdges);
             dy = ye(1,:) - ye(2,:);
@@ -518,11 +526,11 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             x           = this.X(this.Elements);
             y           = this.Y(this.Elements);
             edgeLength2 = [(x(1,:)-x(2,:)).^2;...
-                                (x(2,:)-x(3,:)).^2;...
-                                (x(3,:)-x(1,:)).^2]...
+                           (x(2,:)-x(3,:)).^2;...
+                           (x(3,:)-x(1,:)).^2]...
                          +[(y(1,:)-y(2,:)).^2;...
-                                (y(2,:)-y(3,:)).^2;...
-                                (y(3,:)-y(1,:)).^2];
+                           (y(2,:)-y(3,:)).^2;...
+                           (y(3,:)-y(1,:)).^2];
                             
             edgeLength  = sqrt(edgeLength2);
             elementAngle = [(edgeLength2(1,:)-edgeLength2(2,:)-edgeLength2(3,:));...
@@ -831,10 +839,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         end
         
         function this = updateBackgroundTriangulation(this)
-            this.BackgroundTriangulation = DelaunayTri(...
-                                            this.X.',...
-                                            this.Y.',...
-                                            this.ConstrainedEdges.');
+            this.BackgroundTriangulation = DelaunayTri(this.X.', this.Y.', this.ConstrainedEdges.');
         end
                 
         function this = removeVertices(this)
@@ -928,11 +933,90 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             end
             
             this.ElementRegions = elementRegion;
-            
-            %% get boundary elements and edges
-            this.BoundaryEdges    = this.BackgroundTriangulation.freeBoundary.';
-            this.BoundaryElements = this.BackgroundTriangulation.edgeAttachments(this.BoundaryEdges.');
-            this.BoundaryElements = [this.BoundaryElements{:}];
+        end
+        
+        function this = increaseElementOrder(this)
+            if this.ElementOrder == 1
+                %% get boundary elements and edges
+                this.BoundaryEdges    = this.BackgroundTriangulation.freeBoundary.';
+                this.BoundaryElements = this.BackgroundTriangulation.edgeAttachments(this.BoundaryEdges.');
+                this.BoundaryElements = [this.BoundaryElements{:}];
+            elseif this.ElementOrder == 2
+                tic
+                %% get edges and elements
+                edges      = this.BackgroundTriangulation.edges;
+                cEdges     = this.ConstrainedEdges;
+                cParam     = this.ConstrainedEdgeParameters;
+                cBound     = this.ConstrainedEdgeBoundaries;
+                boundaries = this.Boundaries;
+                nEdges     = length(edges);
+                edge2El    = this.BackgroundTriangulation.edgeAttachments(edges(:,1),edges(:,2));
+                elements   = this.Elements;
+                nNodes     = length(this.X);
+                nConst     = length(cEdges);
+                
+                %% add edge midpoints to the node list
+                elements = [elements(1,:);0*elements(1,:);
+                              elements(2,:);0*elements(2,:);
+                              elements(3,:);0*elements(3,:)];
+                cEdges   = [cEdges zeros(2,nConst)];
+                cParam   = [cParam zeros(2,nConst)];
+                cBound   = [cBound zeros(1,nConst)];
+                x        = [this.X (this.X(edges(:,1))+this.X(edges(:,2)))/2];
+                y        = [this.Y (this.Y(edges(:,1))+this.Y(edges(:,2)))/2];
+                
+                %% add midpoint nodes to triangles
+                %  adjust the position of constrained nodes
+                for i = 1:nEdges
+                    nNodes = nNodes + 1;
+                    for j = 1:numel(edge2El{i})
+                        k = edge2El{i}(j);
+                        l = [2 0 4] * (  (elements([1 3 5],k) == edges(i,1))...
+                                       + (elements([1 3 5],k) == edges(i,2)));
+
+                        elements(l,k) = nNodes;
+                    end
+                    
+                    c = find(  ((cEdges(1,:) == edges(i,1)) & (cEdges(2,:) == edges(i,2)))...
+                              |((cEdges(1,:) == edges(i,2)) & (cEdges(2,:) == edges(i,1))),1);
+                    
+                    if ~isempty(c)
+                        s  = (cParam(1,c)+cParam(2,c))/2;
+                        xs = boundaries(cBound(c)).x(s);
+                        ys = boundaries(cBound(c)).y(s);
+                        
+                        nConst               = nConst + 1;
+                        cEdges(:,[c nConst]) = [cEdges(1,c) cEdges(2,c);nNodes nNodes];
+                        cParam(:,[c nConst]) = [cParam(1,c) cParam(2,c);s      s     ];
+                        cBound(nConst)       = cBound(c);
+
+                        x(nNodes) = xs;
+                        y(nNodes) = ys;
+                    end
+                end
+                
+                this.X        = x;
+                this.Y        = y;
+                this.Elements = elements;
+               
+                this.ConstrainedEdges          = cEdges;
+                this.ConstrainedEdgeParameters = cParam;
+                this.ConstrainedEdgeBoundaries = cBound;
+               
+                elements2 = [elements(1,:) elements(2,:) elements(4,:) elements(2,:);
+                             elements(2,:) elements(3,:) elements(5,:) elements(4,:);
+                             elements(6,:) elements(4,:) elements(6,:) elements(6,:)];
+                        
+                bt2 = TriRep(elements2.',this.X.',this.Y.');
+               
+                this.BoundaryEdges    = bt2.freeBoundary.';
+                this.BoundaryElements = this.BackgroundTriangulation(1).edgeAttachments(this.BackgroundTriangulation(1).freeBoundary);
+                this.BoundaryElements = [this.BoundaryElements{:}];
+                
+                this = detectEdgePairs(this);
+            else
+                error('MotorProto:MeshFactory','ElementOrder must be less than 3');
+            end
         end
         
         function plot(this)
@@ -1019,6 +1103,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         curves = getAuxillaryBoundaries(this);
         this   = detectBoundaryPairs(this);
         this   = detectEdgePairs(this);
+        this   = compileBoundaryData(this)
     end
     
    	methods (Sealed,Access = protected)

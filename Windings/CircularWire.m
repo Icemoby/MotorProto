@@ -24,15 +24,22 @@ classdef CircularWire < Wire
         end
         
         %% Build
-        function [conductors, nonConductors, connectionMatrix] = build(this, slotShape, conductorBoundaries, nTurns, conductorDynamics, label)
+        function [conductors, nonConductors, connectionMatrix] = build(this, slotShape, conductorBoundaries, nTurns, nLayers, conductorDynamics, windingType, label)
             %% Get parameters
             conductorDiameter   = this.ConductorDiameter;
             insulationThickness = this.InsulationThickness;
             
             %% Calculate x-coordinates which bounds the slot shape
-            outlineCurves       = slotShape.Curves;
-            xMin                = min([outlineCurves.vX0])*0.9;
-            xMax                = max([outlineCurves.vX0])*1.1;
+          	outlineCurves = slotShape.Curves;
+            xMin          = min([outlineCurves.vX0])*0.9;
+            xMax          = max([outlineCurves.vX0])*1.1;
+            
+            if windingType == WindingTypes.Concentrated
+                yMin          = min([outlineCurves.vY0])*1.1;
+                halfSlot      = Geometry2D.draw('Polygon2D','Points',[xMin,yMin;xMax,yMin;xMax,0;xMin,0]);
+                halfSlot      = halfSlot * slotShape;
+                outlineCurves = halfSlot.Curves;
+          	end
             
             %% Draw a line through the center of the slot
             centerLine          = Geometry1D.draw('Polyline','Points',[xMin, 0; xMax, 0]);
@@ -56,8 +63,13 @@ classdef CircularWire < Wire
             xCenter             = linspace(xMin + xOffset, xMax - xOffset, nHorzLayers);
             
             %% Calculate y-coordinates which bound the slot shape
-            yMin                = min([outlineCurves.vY0])*1.1;
-            yMax                = max([outlineCurves.vY0])*1.1;
+           	yMin = min([outlineCurves.vY0]);
+            yMax = max([outlineCurves.vY0]);
+            
+            dy   = (yMax - yMin)*0.1;
+            
+            yMin = yMin-dy;
+            yMax = yMax+dy;
             
             %% Draw a set of verticle lines through the conductors on the center line
             verticalLines       = Polyline.empty(0,nHorzLayers);
@@ -138,6 +150,8 @@ classdef CircularWire < Wire
             yCenter     = cell2mat(yCenter);
             xCenter     = cell2mat(xCenter);
             
+            assert(nConductors > 0,'MotorProto:CircularWire','Not able to place conductors in slot. Check conductor size');
+            
             xcMin       = min(xCenter);
             ycMin       = min(yCenter);
             
@@ -169,9 +183,29 @@ classdef CircularWire < Wire
             end
             
             %% Draw conductors
-            conductorGeometry = Sector.empty(0,nConductors);
+            switch windingType
+                case WindingTypes.Distributed
+                    conductorGeometry = Sector.empty(0,nConductors);
+                case WindingTypes.Concentrated
+                    conductorGeometry = Sector.empty(0,2*nConductors);
+                otherwise
+                    error('');
+            end
+            
             for i = 1:nConductors
-                conductorGeometry(i) = Geometry2D.draw('Sector', 'Radius', [0 conductorDiameter / 2], 'Position', [xCenter(i),yCenter(i)], 'Angle', 2*pi);
+                conductorGeometry(i) = Geometry2D.draw('Sector', 'Radius', [0 conductorDiameter / 2], 'Position', [xCenter(i),yCenter(i)], 'Angle', 2*pi,'PlotStyle',{'y'});
+            end
+            
+            switch windingType
+                case WindingTypes.Concentrated
+                    for i = 1:nConductors
+                        conductorGeometry(i+nConductors) = Geometry2D.draw('Sector', 'Radius', [0 conductorDiameter / 2], 'Position', [xCenter(i),-yCenter(i)], 'Angle', 2*pi,'PlotStyle',{'y'});
+                    end
+                    nConductors = nConductors * 2;
+                case WindingTypes.Distributed
+                    %NOOP
+                otherwise
+                    error('');
             end
             
             %% Assign Regions
@@ -186,6 +220,15 @@ classdef CircularWire < Wire
             
             connectionMatrix = seriesGroups.';
             connectionMatrix = sortrows(connectionMatrix,1:nTurns);
+            
+            switch windingType
+                case WindingTypes.Distributed
+                    %NOOP
+                case WindingTypes.Concentrated
+                    connectionMatrix = cat(3,connectionMatrix,connectionMatrix+nConductors/2);
+                otherwise
+                    error('');
+            end
         end
     end
 end

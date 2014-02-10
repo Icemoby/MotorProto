@@ -26,7 +26,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
             
             local(iMesh).Regions            = zeros(1, nRegions);
             local(iMesh).Regions(isDynamic) = (1:nDynamic) + nUnknowns;
-            
+                
             %% Components
             components       = assembly.Components;
             nComponents      = numel(components);
@@ -50,11 +50,11 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                 local(iMesh).Circuits = [];
             end
             
-            %% Unknow
+            %% Unknowns
             local(iMesh).Unknowns = nUnknowns;
             
             structure.Local = local;
-        end
+        end        
         
         function [structure, newFields, pbcType] = buildReluctivityMatrices(this, structure, iMesh)
             [structure, newFields, pbcType] = buildReluctivityMatrices@StaticMatrixFactory(this, structure, iMesh);
@@ -436,6 +436,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                                     + this.Stiffness.Reluctivity(i).Re2Cr * h ...
                                     + this.Stiffness.Reluctivity(i).Cr2Re * h ...
                                     + this.Stiffness.Reluctivity(i).Cr2Cr * h;
+                
                 if i > 1
                     R = this.Boundary.Radial.R(i).Inner - this.Boundary.Radial.R(i-1).Outer;
                     R = sparse(1:numel(R), 1:numel(R), exp(1i * R * t));

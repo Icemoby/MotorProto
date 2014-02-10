@@ -14,9 +14,8 @@ rotor  = model.newAssembly('SMPM Rotor','SynchronousRotor');
 stator = model.newAssembly('SMPM Stator','Stator');
 
 %% Define General Machine Parameters
-nPoles            = 18;
-nTeethPerPhase    = 2;
-nTeeth            = 3 * nPoles * nTeethPerPhase;
+nPoles            = 90;
+nTeeth            = 108;
 len               = 0.14;
 statorOuterRadius = 0.125;
 statorInnerRadius = 0.0982;
@@ -31,21 +30,21 @@ stator.Poles               = nPoles;
 stator.Teeth               = nTeeth;
 stator.InnerRadius         = statorInnerRadius;
 stator.OuterRadius         = statorOuterRadius;
-stator.DefaultMaterial     = IronExampleMaterial;
+stator.DefaultMaterial     = Steel1010;
 stator.SourceType          = 'VoltageSource';
 stator.ConnectionType      = 'Wye';
 stator.ConductorDynamics   = 'Dynamic';
-stator.WindingType         = 'Distributed';
+stator.WindingType         = 'Concentrated';
 stator.Slot.Turns          = 3;
 
 %%Stranded-Style Conductors
-stator.Slot.ConductorType                 = 'Circular';
-stator.Slot.Conductor.ConductorDiameter   = 0.002;
-stator.Slot.Conductor.InsulationThickness = 0.0004;
+% stator.Slot.ConductorType                 = 'Circular';
+% stator.Slot.Conductor.ConductorDiameter   = 0.002;
+% stator.Slot.Conductor.InsulationThickness = 0.0004;
 
 %%Bus-Bar Style Conductors
-% stator.Slot.ConductorType           = 'Homogenized';
-% stator.Slot.Conductor.PackingFactor = 0.5;
+stator.Slot.ConductorType           = 'Homogenized';
+stator.Slot.Conductor.PackingFactor = 0.5;
 
 %% Define slot geometry
 slotWidth   = 0.5;
@@ -109,56 +108,46 @@ rotor.addRegion('trimLHP', trimLHP, Air, 'Static', 'None');
 
 %% Set mesh parameters
 mesh                       = simulation.Mesh;
-mesh(1).MaximumElementSize = (statorOuterRadius - rotorInnerRadius) / 1;
+mesh(1).MaximumElementSize = (statorOuterRadius - rotorInnerRadius) / 40;
 mesh(2).MaximumElementSize = (statorOuterRadius - rotorInnerRadius) / 40;
-mesh(2).UseUniformGrid = true;
 
 %% Set Excitation
 stator.Sources.ElectricalFrequency = w_r * nPoles / 2;
 
-%% Voltage Source
-stator.SourceType = 'VoltageSource';
-stator.Sources.HarmonicNumbers    = 1;
-stator.Sources.HarmonicAmplitudes = (708-6.71)/70*w_r + 6.71;
-stator.Sources.HarmonicPhases     = -2 * pi * 101 / 360;
-
-%% Current Source
-% stator.SourceType = 'CurrentSource';
+%Voltage Source
+% stator.SourceType = 'VoltageSource';
 % stator.Sources.HarmonicNumbers    = 1;
-% stator.Sources.HarmonicAmplitudes = 150 / sqrt(3);
-% stator.Sources.HarmonicPhases     = pi * (1 + 1/6);
+% stator.Sources.HarmonicAmplitudes = 708;
+% stator.Sources.HarmonicPhases     = -2 * pi * 101 / 360;
 
-%% Configure algorithm
-nTimePoints = 50;
-simulation.configureAlgorithm('HarmonicBalanceDomainDecomposition', 'TimePoints', nTimePoints, 'Verbose', true, 'NewtonTolerance', 1e-2, 'GMRESTolerance', 1e-2);
-solution = simulation.run; 
+%Current Source
+stator.SourceType = 'CurrentSource';
+stator.Sources.HarmonicNumbers    = 1;
+stator.Sources.HarmonicAmplitudes = 150 / sqrt(3);
+stator.Sources.HarmonicPhases     = pi * (1 + 1/6);
 
-% nSlotHarmonics = 4;
-% nTimePoints    = 2 * (2 * nTeethPerPhase * 3 + 1) * nSlotHarmonics + 1;
-%nTimePoints = 3;
-%simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
-%simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false);
-%solution = simulation.run;
- 
-%l = solution.getBulkVariableData('AverageConductionLosses');
-%t = solution.getBulkVariableData('Torque','Harmonic');
+% Configure algorithm
+nTimePoints = 10;
+simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
+% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true);
+% simulation.configureAlgorithm('HarmonicBalanceDomainDecomposition', 'TimePoints', nTimePoints, 'Verbose',true);
+
+solution = simulation.run;
 
 %% Plotting
-% solution.plot('A','Time',1);
-% solution.plot('B','Time',1);
-% solution.plot('H','Time',1);
-% solution.plot('M','Time',1);
-% solution.plot('A','Harmonic',[0, 1]);
-% solution.plot('B','Harmonic',[0, 1]);
-% solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
-% solution.plot('J','Harmonic',1);
-% solution.plot('J','Time',1);
-% 
-% solution.plot('Flux Linkage','Time');
-% solution.plot('Flux Linkage','Harmonic');
-% solution.plot('Torque','Time');
-% solution.plot('Torque','Harmonic');
-% solution.plot('Voltage','Time');
-% solution.plot('Voltage','Harmonic');
-% solution.plot('Current','Time');
-% solution.plot('Current','Harmonic');
+solution.plot('A','Time',1);
+solution.plot('B','Time',1);
+solution.plot('A','Harmonic',[0, model.TemporalSubharmonics]);
+solution.plot('B','Harmonic',[0,  model.TemporalSubharmonics]);
+solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
+solution.plot('J','Harmonic', model.TemporalSubharmonics);
+solution.plot('J','Time',1);
+
+solution.plot('Flux Linkage','Time');
+solution.plot('Flux Linkage','Harmonic');
+solution.plot('Torque','Time');
+solution.plot('Torque','Harmonic');
+solution.plot('Voltage','Time');
+solution.plot('Voltage','Harmonic');
+solution.plot('Current','Time');
+solution.plot('Current','Harmonic');

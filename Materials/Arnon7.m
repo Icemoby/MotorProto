@@ -18,5 +18,6 @@ classdef Arnon7 < NonlinearMaterial
        
         RemanentFluxDensity = 0;
         Conductivity        = 0;
+        Density             = 7650;
     end
 end

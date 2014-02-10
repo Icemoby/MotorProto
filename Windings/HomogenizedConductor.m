@@ -59,7 +59,7 @@ properties:
         end
         
         %% Build
-        function [conductors, nonConductors, connectionMatrix] = build(this, slotShape, conductorBoundaries, nTurns, conductorDynamics, label)
+        function [conductors, nonConductors, connectionMatrix] = build(this, slotShape, conductorBoundaries, nTurns, nLayers, conductorDynamics, windingType, label)
            	 %% Turn Division by Sequential-Quadratic-Interpolation
             
             %% Get Bounding Box of slotShape
@@ -153,44 +153,69 @@ properties:
             x  = [(xBounds(1)*3+xBounds(2))/4 (xBounds(1)+xBounds(2))/2 (xBounds(1)+xBounds(2)*3)/4];
             a  = zeros(1,3);
             for i = 1:3
-                testRegion = Geometry2D.draw('Polygon2D','Points', [xMin, yMin; (x(1)*(4 - i) + x(2)*i) / 4, yMin; x(i), yMax; xMin, yMax]);
+                testRegion = Geometry2D.draw('Polygon2D','Points', [xMin, yMin;x(i), yMin; x(i), yMax; xMin, yMax]);
                 testTurn   = slotShape * testRegion;
                 a(i)       = area(testTurn);
             end
             
             %% Divide Conducting Region in Massive Turns
-            conductors = Region2D.empty(0, nTurns);
+            conductorGeometry = Polygon2D.empty(0, nTurns);
             for i = 1:nTurns
                 aNew = 0;
                 while abs(aNew - dA) > dA * sqrt(eps)
                     p      = polyfit(x,a,2);
                     p(end) = p(end) - i*dA;
                     
-                    xMax = real(roots(p));
-                    
-                    isInRange = (xMax > xBounds(1)) & (xMax < xBounds(2));
-                    if any(isInRange)
-                        xMax = max(xMax(isInRange));
+                    if i == nTurns
+                        xMax = max(xBounds) * 2;
                     else
-                        xMax = xBounds(2);
+                        xMax = real(roots(p));
+
+                        isInRange = (xMax > xBounds(1)) & (xMax < xBounds(2));
+                        if any(isInRange)
+                            xMax = max(xMax(isInRange));
+                        else
+                            xMax = xBounds(2);
+                        end
                     end
                     
-                    testRegion        = Geometry2D.draw('Polygon2D', 'Points', [xMin, yMin; xMax, yMin; xMax, yMax; xMin, yMax]);
-                    conductorGeometry = conductingRegion * testRegion;
-                    aNew              = area(conductorGeometry);
+                    testRegion           = Geometry2D.draw('Polygon2D', 'Points', [xMin, yMin; xMax, yMin; xMax, yMax; xMin, yMax]);
+                    conductorGeometry(i) = conductingRegion * testRegion;
+                    aNew                 = area(conductorGeometry(i));
                     
                     if abs(aNew - dA) > dA * sqrt(eps)
                         x = [x(2:3) xMax];
                         a = [a(2:3) (i-1)*dA + aNew];
                     end
                 end
-                conductors(i) = Region2D('Geometry', conductorGeometry, 'Material', this.HomogenizedMaterial, 'Dynamics', conductorDynamics,...
-                                         'Name', [label, ' C', num2str(i)]);
                 xMin = xMax;
             end
             
-            %% Define Connection Matrix
-            connectionMatrix = (1:nTurns);
+            if (nLayers == 2) && (windingType == WindingTypes.Concentrated)
+                conductors = Region2D.empty(0, 2 * nTurns);
+                testRegion = Geometry2D.draw('Polygon2D','Points',[xBounds(1), 0; xBounds(2), 0; xBounds(2), yBounds(2); xBounds(1), yBounds(2)]);
+                
+                for i = 1:nTurns
+                    conductors(i) = Region2D('Geometry', conductorGeometry(i) * testRegion, 'Material', this.HomogenizedMaterial, 'Dynamics', conductorDynamics,'Name', [label, ' C', num2str(i)]);
+                end
+                
+                for i = (nTurns+1):(2*nTurns)
+                    conductors(i) = Region2D('Geometry', conductorGeometry(i-nTurns) - testRegion, 'Material', this.HomogenizedMaterial, 'Dynamics', conductorDynamics,'Name', [label, ' C', num2str(i)]);
+                end
+                
+                connectionMatrix        = zeros(nTurns,1,2);
+                connectionMatrix(:,1,1) = (1:nTurns)';
+                connectionMatrix(:,1,2) = ((nTurns+1):(2*nTurns))';
+            elseif nLayers == 1
+                conductors = Region2D.empty(0, nTurns);
+                for i = 1:nTurns
+                    conductors(i) = Region2D('Geometry', conductorGeometry(i), 'Material', this.HomogenizedMaterial, 'Dynamics', conductorDynamics,'Name', [label, ' C', num2str(i)]);
+                end
+                
+             	connectionMatrix = (1:nTurns)';
+            else
+                error('Number of winding Layers must be equal to 1 or 2');
+            end
         end
     end
 end

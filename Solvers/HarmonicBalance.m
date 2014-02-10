@@ -53,7 +53,7 @@ properties:
             
             %% Configure algorithm
           	maxNIt = this.MaxNewtonIterations.Value;
-            resTol = this.NewtonTolerance;
+            resTol = this.NewtonTolerance.Value;
             
             %% Get harmonics
             [t,h]      = matrixFactory.getTimePoints(this.TimePoints.Value);
@@ -98,6 +98,7 @@ properties:
             
             %% End Simulation Time
             this.SimulationTime = toc;
+            this.SimulationTime
             
             %% Post Processing
             [this.X, this.X_t] = matrixFactory.doPostProcessing(x, t, h);

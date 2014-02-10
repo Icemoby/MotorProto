@@ -36,9 +36,9 @@ properties:
 %}
 
     properties
-        ShootingTolerance     = ShootingNewton.setProperty(sqrt(eps));
-        NewtonTolerance       = ShootingNewton.setProperty(sqrt(eps));
-        GMRESTolerance        = ShootingNewton.setProperty(sqrt(eps));
+        ShootingTolerance     = ShootingNewton.setProperty(1e-6);
+        NewtonTolerance       = ShootingNewton.setProperty(1e-6);
+        GMRESTolerance        = ShootingNewton.setProperty(1e-7);
         MaxShootingIterations = ShootingNewton.setProperty(100);
         MaxNewtonIterations   = ShootingNewton.setProperty(100);
         MaxGMRESIterations    = ShootingNewton.setProperty(100);
@@ -106,7 +106,7 @@ properties:
             verbose        = this.Verbose;
             
             %% Initialize
-            times      = matrixFactory.getTimePoints(this.TimePoints.Value);
+            times      = model.getTimePoints(this.TimePoints.Value);
             this.Times = times;
             nUnknowns  = length(matrixFactory.f(times(1)));   
             nTimes     = numel(times);
@@ -160,8 +160,10 @@ properties:
                         ha = h * A(s, s);
                         
                         %% Get initial guess
-                        if iShooting == 1 || (false && this.TransientSolver)
+                        if iShooting == 1
                             v{s,i} = x{i - 1} + ha * x_t{i-1};
+                        elseif this.TransientSolver
+                            v{s,i} = 0 * x{i - 1};
                         end
                         
                         %% Create part of the stage derivative estimate
@@ -220,11 +222,15 @@ properties:
                 if verbose
                     ShootingResidual = shootingErr
                 end
-                
+
                 if shootingErr > shootingTol && maxGMRESItt > 0 && ~this.TransientSolver
                     if storeLDL
                         f = @(y)(ShootingNewton.NSTFJMVP(v,times,matrixFactory,A,b,c,y,L,D,P,S,R));
-                        [dx,~,~,~] = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);
+                        if verbose
+                            dx = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);
+                        else
+                            [dx,~,~,~] = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);
+                        end
                     else
                         f = @(y)(ShootingNewton.NSTFJMVP(v,times,matrixFactory,A,b,c,y));
                         [dx,~,~,itter] = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);

@@ -67,7 +67,7 @@ properties:
             verbose = this.Verbose;
             
             %% Get times points
-            t = matrixFactory.getTimePoints(this.TimePoints.Value);
+            t = model.getTimePoints(this.TimePoints.Value);
             
             if this.TimePoints.Value == 1
                 t = t(1);
@@ -103,7 +103,7 @@ properties:
                 if verbose
                     Time = i
                 end
-
+                
                 while nIter < maxNIt && relRes > nrrTol
                     [G, g] = matrixFactory.G(t(i), x{i});
                     

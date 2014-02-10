@@ -12,5 +12,6 @@ classdef Steel1010 < NonlinearMaterial
 
         RemanentFluxDensity = 0;
         Conductivity        = 0;
+        Density             = 7870;
     end
 end
