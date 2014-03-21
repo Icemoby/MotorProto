@@ -67,27 +67,27 @@ stator.Sources.HarmonicAmplitudes = 225 / sqrt(3);
 stator.Sources.HarmonicPhases     = 0;
 
 %% Configure algorithm
-timePointsPerPeriod = 10;
-simulation.configureAlgorithm('Static', 'TimePoints', timePointsPerPeriod, 'Verbose', true);
+% timePointsPerPeriod = 10;
+% simulation.configureAlgorithm('Static', 'TimePoints', timePointsPerPeriod, 'Verbose', true);
 % simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true,'ShootingTolerance',1e-4);
-solution = simulation.run;
+% solution = simulation.run;
 
 %% Plotting
 % solution.plot('A','Time',1);
 % solution.plot('B','Time',1);
-solution.plot('H','Time',1);
-solution.plot('H','Harmonic',0);
+% solution.plot('H','Time',1);
+% solution.plot('H','Harmonic',0);
 % solution.plot('A','Harmonic',[0, model.TemporalSubharmonics]);
-solution.plot('B','Harmonic',[0, model.TemporalSubharmonics]);
+% solution.plot('B','Harmonic',[0, model.TemporalSubharmonics]);
 % solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
 % solution.plot('J','Harmonic',model.TemporalSubharmonics);
 % solution.plot('J','Time',1);
 % solution.plot('E','Time',1);
 % 
-solution.plot('FluxLinkage','Time');
-solution.plot('FluxLinkage','Harmonic');
-solution.plot('Torque','Time');
-solution.plot('Torque','Harmonic');
+% solution.plot('FluxLinkage','Time');
+% solution.plot('FluxLinkage','Harmonic');
+% solution.plot('Torque','Time');
+% solution.plot('Torque','Harmonic');
 % solution.plot('Voltage','Time');
 % solution.plot('Voltage','Harmonic');
 % solution.plot('Current','Time');
@@ -95,19 +95,19 @@ solution.plot('Torque','Harmonic');
 
 %% Data
 % solution.getContinuumVariableData('H','Time',1)
-H      = getPMFieldIntensity(solution,pmMaterial);
+% H      = getPMFieldIntensity(solution,pmMaterial);
 
-torque = solution.getBulkVariableData('Torque','Time');
-torque = torque{1};
+% torque = solution.getBulkVariableData('Torque','Time');
+% torque = torque{1};
 %torque = solution.getBulkVariableData('Torque','Harmonic');
 
-flux_linkage = solution.getBulkVariableData('FluxLinkage','Time');
-flux_linkage = flux_linkage{1}{1};
+% flux_linkage = solution.getBulkVariableData('FluxLinkage','Time');
+% flux_linkage = flux_linkage{1}{1};
 %flux_linkage = solution.getBulkVariableData('Flux Linkage','Harmonic');
 
-mass       = solution.Model.Mass;
-statorMass = solution.Model.Assemblies(1).Mass;
-rotorMass  = solution.Model.Assemblies(2).Mass;
+% mass       = solution.Model.Mass;
+% statorMass = solution.Model.Assemblies(1).Mass;
+% rotorMass  = solution.Model.Assemblies(2).Mass;
 
 % model.build;
 % model.plot;

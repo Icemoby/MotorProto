@@ -89,11 +89,13 @@ properties:
         Components   = Component.empty(1,0);        
         IsRegion     = false(1,0);
         IsSource     = false(1,0);
+        IsCircuit    = false(1,0);
     end
     
     properties (SetAccess = private, Dependent)
         Regions
         Sources
+        Circuits
     end
     
     properties (SetAccess = private, Dependent, Abstract)
@@ -128,6 +130,10 @@ properties:
         
         function sources = get.Sources(this)
             sources = this.Components(this.IsSource);
+        end
+        
+        function circuits = get.Circuits(this)
+            circuits = this.Components(this.IsCircuit);
         end
         
         %% Setters
@@ -207,6 +213,22 @@ properties:
             [this.Components, newNames]          = this.Components.add(newSource);
             this.IsRegion(end+1:end+nNewSources) = false;
             this.IsSource(end+1:end+nNewSources) = true;
+            this.IsCircuit(end+1:end+nNewSources) = false;
+        end
+        
+        function [this, newNames] = addCircuit(this, arg1, arg2, varargin)
+            if nargin == 2
+                newCircuit = arg1;
+            else
+                typeIn    = arg1;
+                nameIn    = arg2;
+                newCircuit = Component.newComponent(typeIn, nameIn, 'IsUserDefined', true, varargin{:});
+            end
+            nNewCircuits                         = numel(newCircuit);
+            [this.Components, newNames]          = this.Components.add(newCircuit);
+            this.IsRegion(end+1:end+nNewCircuits) = false;
+            this.IsSource(end+1:end+nNewCircuits) = false;
+            this.IsCircuit(end+1:end+nNewCircuits) = true;
         end
         
         %% Component Removal
@@ -226,6 +248,7 @@ properties:
             [this.Components, isRemoved] = remove(this.Components, nameIn);
             this.IsRegion(isRemoved)     = [];
             this.IsSource(isRemoved)     = [];
+            this.IsCircuit(isRemoved)    = [];
             this.InputRegions            = remove(this.InputRegions, nameIn);
         end
         
@@ -235,16 +258,21 @@ properties:
             [this.Components, isRemoved] = remove(this.Components, names);
             this.IsRegion(isRemoved) = [];
             this.IsSource(isRemoved) = [];
+            this.IsCircuit(isRemoved) = [];
             
             names = {this.InputRegions.Name};
             names = names(~[this.InputRegions.IsUserDefined]);
             this.InputRegions = remove(this.InputRegions, names);
         end
         
-        %% Component Editing
-        function this = editSource(this, nameIn, varargin)
-            this.Sources = edit(this.Sources, nameIn, varargin{:});
-        end
+%         %% Component Editing
+%         function this = editSource(this, nameIn, varargin)
+%             this.Sources = edit(this.Sources, nameIn, varargin{:});
+%         end
+%         
+%         function this = editCircuit(this, nameIn, varargin)
+%             this.Circuits = edit(this.Circuits, nameIn, varargin{:});
+%         end
         
         %% Index Functions
         function J = convertComponentIndex(this, property, I)
@@ -304,6 +332,22 @@ properties:
             [this.Components, newNames]          = this.Components.add(newSource);
             this.IsRegion(end+1:end+nNewSources) = false;
             this.IsSource(end+1:end+nNewSources) = true;
+            this.IsCircuit(end+1:end+nNewSources) = false;
+        end
+        
+     	function [this, newNames] = addModelCircuit(this, arg1, arg2, varargin)
+            if nargin == 2
+                newCircuit = arg1;
+            else
+                typeIn = arg1;
+                nameIn = arg2;
+                newCircuit = ComponentAggregator.newComponent(typeIn, nameIn, 'IsUserDefined', false, varargin{:});
+            end
+            nNewCircuits                          = numel(newCircuit);
+            [this.Components, newNames]          = this.Components.add(newCircuit);
+            this.IsRegion(end+1:end+nNewCircuits) = false;
+            this.IsSource(end+1:end+nNewCircuits) = false;
+            this.IsCircuit(end+1:end+nNewCircuits) = true;
         end
         
         function [this, newNames] = addModelRegion(this, arg1, geometry, material, dynamics, source)
@@ -318,6 +362,7 @@ properties:
             [this.Components, newNames]          = this.Components.add(newRegion);
             this.IsRegion(end+1:end+nNewRegions) = true;
             this.IsSource(end+1:end+nNewRegions) = false;
+            this.IsCircuit(end+1:end+nNewRegions) = false;
         end
     end
     

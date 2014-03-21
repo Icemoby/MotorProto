@@ -80,14 +80,14 @@ properties:
                     C1         = matrixFactory.C;
                     f          = matrixFactory.f(t);
 
-                    %    
-                    %K = this.addMatrices(K1,K2);
+                       
+                    K = this.addMatrices(K1,K2);
 
                     [I1,I2,Ib] = matrixFactory.getDomainVectors;
 
                     Ik      = I1 | I2;
-                    %
-                    %[Ek,~] = this.extensionMatrices(Ik,false & Ik, Ib);
+                    
+                    [Ek,~] = this.extensionMatrices(Ik,false & Ik, Ib);
 
                     [K1n,K1ii,K1ib,K1bi,K1bb] = this.splitMatrix(K1,I1,Ib);
                     [C1n,C1ii,C1ib,C1bi,C1bb] = this.splitMatrix(C1,I1,Ib);
@@ -116,8 +116,8 @@ properties:
                     tic
                     while (itter < 20) && (relres > this.NewtonTolerance)
                         %% Factor Nonlinear
-                        %
-                        %Gk = this.addMatrices(G,K);
+                        
+                        Gk = this.addMatrices(G,K);
                         Go = this.averageMatrices(G);
                         G  = this.addMatrices(G,K2);
 
@@ -125,10 +125,10 @@ properties:
 
                         [M2s] = this.factorTimeDomainMatrices(K2ii,K2n);
 
-                        %
-                        %[Gk,~,~,~,~] = this.splitMatrix(Gk,Ik,Ib);
-                        %
-                        %[~,Mk]       = this.factorTimeDomainMatrices([],Gk);
+                        
+                        [Gk,~,~,~,~] = this.splitMatrix(Gk,Ik,Ib);
+                        
+                        [~,Mk]       = this.factorTimeDomainMatrices([],Gk);
                         
                         Mo           = this.factorOverlapMatrices(Ko,Go,Co,Po,omega);
 
@@ -137,8 +137,8 @@ properties:
 
                         %% GMRES Schur Complement Solve
                         A  = @(x)(this.MVP(x,M1s,K1ib,K1bi,K1bb,C1ii,C1ib,C1bi,C1bb,omega,M2s,K2ib,K2bi,K2bb));
-                        %M  = @(x)(this.PCk(x,Ek,Mk));
-                        M  = @(x)(0*x);
+                        M  = @(x)(this.PCk(x,Ek,Mk));
+                        %M  = @(x)(0*x);
                         M  = @(x)(this.PCo(x,A,M,omega,Mo,Eo,E2To,To,Ro,T2Eo));
                         AM = @(x)(A(M(x)));
                         dy = gmres(AM,yb(:),[],this.GMRESTolerance,300);

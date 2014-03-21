@@ -1606,8 +1606,10 @@ classdef MatrixFactory
             ppMatrices  = this.PostProcessing;
             
             for i = 1:nAssemblies                
-                source    = assembly(i).Sources;
-                hasSource = (numel(source) > 0);
+                source     = assembly(i).Sources;
+                hasSource  = (numel(source) > 0);
+                circuit    = assembly(i).Circuits;
+                hasCircuit = (numel(circuit) > 0);
                 if hasSource
                     figTitles{i} = [source.Name ' Phase'];
                     
@@ -1631,6 +1633,22 @@ classdef MatrixFactory
                         v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
                     end
                     v{i}         = num2cell(v{i},2);
+                elseif hasCircuit
+                    figTitles{i} = [circuit.Name];
+                    figLabels{i} = circuit.TerminalNames;
+                    
+                    v{i} = ppMatrices(i).X2V * x{i,1};
+                    v{i} = v{i} + ppMatrices(i).X_t2V * x_t{i,1};
+                    v{i} = repmat(v{i},1,Nt);
+                    for j = 2:Nt
+                        v{i}(:,j) = ppMatrices(i).X2V * x{i,j};
+                        v{i}(:,j) = v{i}(:,j) + ppMatrices(i).X_t2V * x_t{i,j}; 
+                    end
+                
+                    if strcmpi(dataType,'harmonic')
+                        v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                    end
+                    v{i} = num2cell(v{i},2);
                 else
                     remove(i) = true;
                 end
@@ -1655,6 +1673,8 @@ classdef MatrixFactory
             for i = 1:nAssemblies                
                 source    = assembly(i).Sources;
                 hasSource = (numel(source) > 0);
+                circuit   = assembly(i).Circuits;
+                hasCircuit = (numel(circuit) > 0);
                 if hasSource
                     figTitles{i} = [source.Name];
                     
@@ -1662,6 +1682,25 @@ classdef MatrixFactory
                     figLabels{i} = cell(1,nPhases);
                     for j = 1:nPhases
                         figLabels{i}{j} = ['Phase ' char(num2str('A')+j-1)];
+                    end
+                    
+                    lambda{i} = ppMatrices(i).X2Lambda * x{i,1};
+                    lambda{i} = repmat(lambda{i},1,Nt);
+                    for j = 2:Nt
+                        lambda{i}(:,j) = ppMatrices(i).X2Lambda * x{i,j};
+                    end
+                
+                    if strcmpi(dataType,'harmonic')
+                        lambda{i} = fft(lambda{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                    end
+                    lambda{i} = num2cell(lambda{i},2);
+                elseif hasCircuit
+                    figTitles{i}  = [circuit.Name];
+                    terminalNames = circuit.TerminalNames;
+                    nTerminals    = numel(terminalNames);
+                    figLabels{i}  = cell(1,nTerminals);
+                    for j = 1:nTerminals
+                        figLabels{i}{j} = terminalNames{j};
                     end
                     
                     lambda{i} = ppMatrices(i).X2Lambda * x{i,1};
@@ -1698,7 +1737,9 @@ classdef MatrixFactory
             
             for j = 1:nAssemblies
                 source    = assembly(j).Sources;
+                circuit   = assembly(j).Circuits;
                 hasSource = (numel(source) > 0);
+                hasCircuit = (numel(circuit) > 0);
                 if hasSource
                     figTitles{j} = [source.Name ' Phase'];
                     
@@ -1716,6 +1757,27 @@ classdef MatrixFactory
                         i{j}(:,k) = ppMatrices(j).X2I * x{j,k};
                         i{j}(:,k) = i{j}(:,k) + ppMatrices(j).X_t2I * x_t{j,k};
                         i{j}(:,k) = i{j}(:,k) + ppMatrices(j).F2I * source.f(t(k));
+                    end
+                    
+                    if strcmpi(dataType,'harmonic')
+                        i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                    end
+                    i{j} = num2cell(i{j},2);
+                elseif hasCircuit
+                    figTitles{j}  = [circuit.Name];
+                    terminalNames = circuit.TerminalNames;
+                    nTerminals    = numel(terminalNames);
+                    figLabels{j}  = cell(1,nTerminals);
+                    for k = 1:nTerminals
+                        figLabels{j}{k} = terminalNames{k};
+                    end
+                    
+                    i{j} = ppMatrices(j).X2I * x{j,1};
+                    i{j} = i{j} + ppMatrices(j).X_t2I * x_t{j,1};
+                    i{j} = repmat(i{j},1,Nt);
+                    for k = 2:Nt
+                        i{j}(:,k) = ppMatrices(j).X2I * x{j,k};
+                        i{j}(:,k) = i{j}(:,k) + ppMatrices(j).X_t2I * x_t{j,k};
                     end
                     
                     if strcmpi(dataType,'harmonic')

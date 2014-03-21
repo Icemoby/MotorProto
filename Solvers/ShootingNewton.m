@@ -38,7 +38,7 @@ properties:
     properties
         ShootingTolerance     = ShootingNewton.setProperty(1e-6);
         NewtonTolerance       = ShootingNewton.setProperty(1e-6);
-        GMRESTolerance        = ShootingNewton.setProperty(1e-7);
+        GMRESTolerance        = ShootingNewton.setProperty(1e-6);
         MaxShootingIterations = ShootingNewton.setProperty(100);
         MaxNewtonIterations   = ShootingNewton.setProperty(100);
         MaxGMRESIterations    = ShootingNewton.setProperty(100);
@@ -94,29 +94,32 @@ properties:
             this.Matrices = matrixFactory;
             
             %% Get Algorithm Parameters
-          	maxShootingItt = this.MaxShootingIterations.Value;
-            maxNewtonItt   = this.MaxNewtonIterations.Value;
-            maxGMRESItt    = this.MaxGMRESIterations.Value;
+          	maxShootingIter = this.MaxShootingIterations.Value;
+            maxNewtonIter   = this.MaxNewtonIterations.Value;
+            maxGMRESIter    = this.MaxGMRESIterations.Value;
             shootingTol    = this.ShootingTolerance.Value;
             newtonTol      = this.NewtonTolerance.Value;
             gmresTol       = this.GMRESTolerance.Value;
             nStages        = this.RungeKuttaStages;
             [A,b,c]        = this.getButcherTable(nStages);
-            storeLDL       = this.StoreDecompositions;
-            verbose        = this.Verbose;
+            
+            alpha = inv(A);
+            gamma = sum(alpha,2);
             
             %% Initialize
             times      = model.getTimePoints(this.TimePoints.Value);
             this.Times = times;
             nUnknowns  = length(matrixFactory.f(times(1)));   
-            nTimes     = numel(times);
-            x          = cell(1, nTimes);
-            v          = cell(nStages, nTimes);
-            d          = cell(1, nStages);
-            x_t        = cell(1, nTimes);
+            nTimes     = numel(times) - 1;
+            
+            x          = cell(1, nTimes+1);
+            x_t        = cell(1, nTimes+1);
+            y          = cell(nStages, nTimes+1);
             
             if nargin < 3 || isempty(x0)
                 x{1} = zeros(nUnknowns, 1);
+                y{end,1} = zeros(nUnknowns, 1);
+                d_ik = 0 * y{end,1};
             else
                 nAssemblies = numel(x0);
                 x{1} = cell(nAssemblies, 1);
@@ -124,180 +127,214 @@ properties:
                     x{1}{i} = matrixFactory.PostProcessing(i).Full2Reduced * x0{i};
                 end
                 x{1} = cell2mat(x{1});
+                y{end,1} = x{1};
+                d_ik = 0 * y{end,1};%d_ik = x_t{1}
             end
             
-            v{end,1} = zeros(nUnknowns, 1);
-            v{end,1} = zeros(nUnknowns, 1);
-            d{end}   = zeros(nUnknowns, 1);
-            x_t{1}   = zeros(nUnknowns, 1);
-            
-            if storeLDL
-                L = cell(1, nTimes*nStages);
-                D = cell(1, nTimes*nStages);
-                S = cell(1, nTimes*nStages);
-                P = cell(1, nTimes*nStages);
-                R = cell(1, nTimes*nStages);
+            if this.StoreDecompositions
+                Ca = cell(nStages, nStages, nTimes);
+                Cg = cell(nStages, nTimes);
+                L = cell(nStages, nTimes);
+                D = cell(nStages, nTimes);
+                S = cell(nStages, nTimes);
+                P = cell(nStages, nTimes);
             end
             
             iLinear     = 0;
-            iShooting   = 1;
-            shootingErr = 1;
+            iShooting   = 0;
+            shootingRes = 1;
             
-            %% Begin Simulation Time
+            %%Begin Simulation Timing
+            if this.Verbose
+                display(sprintf('Shooting-Newton %d/%d\n',nStages,nTimes));
+            end
+            
             tic
-            while shootingErr > shootingTol && iShooting <= maxShootingItt
-                for i = 2:nTimes
-                    if verbose
-                        sprintf('Shooting Iteration %d, Time %d', iShooting, i)
-                    end
-                        
-                    %% For each time
-                    h    = times(i) - times(i - 1);
-                    x{i} = x{i - 1};
-                    for s = 1:nStages
+            while shootingRes > shootingTol && iShooting <= maxShootingIter
+                iShooting = iShooting + 1;
+                for k = 1:nTimes
+                    hk  = times(k+1) - times(k);
+                    for i = 1:nStages
                         %% Calculate stage times
-                        t  = times(i - 1) + h * c(s);
-                        ha = h * A(s, s);
+                        t_ik = times(k) + c(i) * hk;
+                        h_ik = hk / alpha(i,i);
                         
                         %% Get initial guess
-                        if iShooting == 1
-                            v{s,i} = x{i - 1} + ha * x_t{i-1};
-                        elseif this.TransientSolver
-                            v{s,i} = 0 * x{i - 1};
+                        if i == 1
+                            y{1, k+1} = y{nStages, k} + hk * c(i) * d_ik;
+                        else
+                            y{i, k+1} = y{i-1, k+1} + hk * (c(i) - c(i-1)) * d_ik;
                         end
                         
-                        %% Create part of the stage derivative estimate
-                        dPart = x{i - 1};
-                        for j = 1:(s - 1);
-                            dPart = dPart + A(s,j) * d{j};
+                        for j = 1:i
+                            Ca{i,j,k} = matrixFactory.C(t_ik, hk / alpha(i,j), h_ik);
                         end
+                        Cg{i,k} = matrixFactory.C(t_ik, hk / gamma(i), h_ik);
                         
-                        %% Create constant matrices
-                        f  = matrixFactory.f(t, ha);
-                        K  = matrixFactory.K(t, ha);
-                        C  = matrixFactory.C(t, ha);
+                        f_ik = matrixFactory.f(t_ik, h_ik);
+                        K_ik = matrixFactory.K(t_ik, h_ik);
                         
                         %% Perform newton - raphson itteration
-                        iNewton   = 1;
+                        iNewton   = 0;
                         newtonErr = 1;
-                        while newtonErr > newtonTol && iNewton < maxNewtonItt
-                            [G,g]     = matrixFactory.G(t, v{s,i});
+                        while newtonErr > newtonTol && iNewton < maxNewtonIter
+                            iNewton = iNewton + 1;
+                            [G_ik, g_ik] = matrixFactory.G(t_ik, y{i,k+1});
+                            J_ik = K_ik + Ca{i,i,k} + G_ik;
+
+                            r_ik = K_ik * y{i,k+1} + g_ik - f_ik;
+                            for j = 1:i
+                                r_ik = r_ik + Ca{i,j,k} * y{j,k+1};
+                            end
+                            r_ik = r_ik - Cg{i,k} * y{nStages, k};
                             
-                            J         = K + C + G;
+                            if this.StoreDecompositions && ~this.TransientSolver
+                                [L_ik, D_ik, P_ik, S_ik] = ldl(J_ik);
+                                r_ik = S_ik  * r_ik;
+                                r_ik = P_ik' * r_ik;
+                                r_ik = L_ik  \ r_ik;
+                                r_ik = D_ik  \ r_ik;
+                                r_ik = L_ik' \ r_ik;
+                                r_ik = P_ik  * r_ik;
+                                r_ik = S_ik  * r_ik;
+                                y{i,k+1} = y{i,k+1} - r_ik;
+                            else
+                                r_ik = J_ik \ r_ik;
+                                y{i,k+1} = y{i,k+1} - r_ik;
+                            end
                             
-                            d{s}      = v{s, i} - dPart;
-                            r         = C * d{s} + K * v{s,i} + g - f;
-                            dv        = J \ r;
-                            v{s,i}    = v{s,i} - dv;
-                            
-                            iNewton   = iNewton + 1;
-                            newtonErr = norm(r) / norm(g - f);
+                            newtonErr = norm(r_ik) / norm(g_ik - f_ik);
+                        end
+                        
+                        d_ik = (-gamma(i) / hk) * y{end,k};
+                        for j = 1:i
+                            d_ik = d_ik + (alpha(i,j) / hk) * y{j,k+1};
                         end
                         
                         iLinear = iLinear + iNewton;
-                        if storeLDL
-                            [L{i}, D{i}, P{i}, S{i}] = ldl(J);
-                            R{i} = -(K + G) / h / A(s, s);
-                            iLinear = iLinear + 1;
+                        if this.StoreDecompositions && ~this.TransientSolver
+                            L{i,k} = L_ik;
+                            D{i,k} = D_ik;
+                            P{i,k} = P_ik;
+                            S{i,k} = S_ik;
                         end
-                        
-                        d{s} = d{s} / A(s,s);
                     end
-                    
-                    x{i}   = v{end,i};
-                    x_t{i} = d{end} / h;
                 end
                 
-                x_t{1} = x_t{end};
-                for s = 1:nStages
-                    v{s, 1} = v{s, end};
-                end
+                r = y{end,end}-y{end,1};
+                shootingRes = norm(r) / norm(y{end,end});
                 
-                r  = x{end} - x{1};
-                sf = sum(abs(J), 2);
-                shootingErr = norm(r .* sf) / norm(x{end} .* sf);
+                this.ConvergenceHistory(end+1) = shootingRes;
                 
-                this.ConvergenceHistory(end+1) = shootingErr;
-                
-                if verbose
-                    ShootingResidual = shootingErr
+                if this.Verbose
+                    display(sprintf('Iteration %d, Residual = %0.3g', iShooting, shootingRes));
                 end
 
-                if shootingErr > shootingTol && maxGMRESItt > 0 && ~this.TransientSolver
-                    if storeLDL
-                        f = @(y)(ShootingNewton.NSTFJMVP(v,times,matrixFactory,A,b,c,y,L,D,P,S,R));
-                        if verbose
-                            dx = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);
+                if shootingRes > shootingTol && ~this.TransientSolver
+                    if this.StoreDecompositions
+                        f = @ShootingNewton.LDLStoredMVP;
+                        if this.Verbose
+                            dy = gmres(f, r, maxGMRESIter, gmresTol, 1, [], [], r, Ca, Cg, L, D, P, S);
+                            display(sprintf(' '));
                         else
-                            [dx,~,~,~] = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);
+                            [dy,~,~,~] = gmres(f, r, maxGMRESIter, gmresTol, 1, [], [], r, Ca, Cg, L, D, P, S);
                         end
                     else
-                        f = @(y)(ShootingNewton.NSTFJMVP(v,times,matrixFactory,A,b,c,y));
-                        [dx,~,~,itter] = gmres(f, r, maxGMRESItt, gmresTol, 1, [], [], r);
-                        iLinear = iLinear + itter(1) * itter(2) * nStages * nTimes;
+                        f = @(z)(ShootingNewton.UnstoredMVP(z,y,times,alpha,gamma,c,matrixFactory));
+                        [dy,~,~,iter] = gmres(f, r, maxGMRESIter, gmresTol, 1, [], [], r);
+                        iLinear = iLinear + iter(1) * iter(2) * nStages * nTimes;
                     end
-                    x{1} = x{1} - dx;
-                else
-                    x{1} = x{end};
+                    y{end,1} = y{end,1} - dy;
+                elseif this.TransientSolver
+                    y{end,1} = y{end,end};
+                    display(sprintf(' '));
                 end
-                iShooting = iShooting + 1;
             end
             this.LinearSolves       = iLinear;
-            this.ShootingIterations = iShooting;
+            this.ShootingIterations = iShooting;            
+            
+            for k = 1:nTimes
+                hk = times(k+1) - times(k);
+                
+                x{k} = y{end,k};
+                
+                x_t{k+1} = (- gamma(end) / hk) * y{end,k};
+                for i = 1:nStages
+                    x_t{k+1} = x_t{k+1} + (alpha(end,i) / hk) * y{i,k+1};
+                end
+            end
+            x{end} = x{1};
+            x_t{1} = x_t{end};
             
             %% End Simulation Time
             this.SimulationTime = toc;
             
-            if verbose
-                SimulationTime = this.SimulationTime
+            if this.Verbose
+                display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));
             end
             
             %% Save the solution
-            [this.X, this.X_t] = matrixFactory.doPostProcessing(x,x_t);
-            solution           = Solution(this);
+%             if this.StoreDecompositions
+%                 clearvars Ca Cg L D P S
+%             end
+            
+            [x, x_t] = matrixFactory.doPostProcessing(x, x_t);
+            this.X   = x;
+            this.X_t = x_t;
+            solution = Solution(this);
         end
     end
     
     methods (Static)
-        function mvp = NSTFJMVP(v,times,matrixFactory,A,b,c,r,L,D,P,S,R)
-            %% Nonlinear State Transition Function Jacobian Matrix-Vector Product
-            if nargin <= 7
-                matricesAreStored = false;
-            else
-                matricesAreStored = true;
-            end
+        function mvp = LDLStoredMVP(z_s0,Ca,Cg,L,D,P,S)
+            [nStages, nTimes] = size(Cg);
             
-            nTimes  = length(times);
-            nStages = length(b);
-            w       = cell(nStages, nTimes);
-            y       = cell(1, nTimes);
-            y{1}    = r;
-            for i = 2:nTimes
-                h = times(i) - times(i - 1);
-                y{i} = y{i - 1};
-                for s = 1:nStages         
-                    rhs = y{i - 1};
-                    for j = 1:(s - 1);
-                        rhs = rhs + h * A(s, j) * w{j,i};
+            z_sk = z_s0;
+            z = cell(nStages, 1);
+            for k = 1:nTimes
+                for i = 1:nStages         
+                    rhs = Cg{i,k} * z_sk;
+                    for j = 1:(i - 1);
+                        rhs = rhs - Ca{i,j,k} * z{j};
                     end
+                    z{i} = S{i,k}*(P{i,k}*(L{i,k}'\(D{i,k}\(L{i,k}\(P{i,k}'*(S{i,k}*rhs))))));
+                end
+                z_sk = z{end};
+            end
+            mvp = z_sk - z_s0;
+        end
+        
+        function mvp = UnstoredMVP(z_s0,y,times,alpha,gamma,c,matrixFactory)
+            [nStages, nTimes] = size(y);
+            nTimes = nTimes - 1;
+            
+            Ca = cell(nStages, 1);
+            z = cell(nStages, nTimes+1);
+            z{end,1} = z_s0;
+            for k = 1:nTimes
+                hk = times(k+1) - times(k);
+                for i = 1:nStages
+                    t_ik = times(k) + c(i) * hk;
+                    h_ik = hk / alpha(i,i);
                     
-                    if matricesAreStored
-                        w{s,i} = S{i}*P{i}*(L{i}'\(D{i}\(L{i}\(P{i}'*S{i}*R{i}*rhs))));
-                    else
-                        t      = times(i - 1) + h * c(s);
-                        ha     = h * A(s, s);
-                        K      = matrixFactory.K(t, ha);
-                        C      = matrixFactory.C(t, ha);
-                        G      = matrixFactory.G(t, v{s, i});
-                        J      = K + C + G;
-                        rhs    = -((K + G) * rhs) / h / A(s, s);
-                        w{s,i} = J \ rhs;
+                    for j = 1:i
+                        Ca{j} = matrixFactory.C(t_ik, hk / alpha(i,j), h_ik);
                     end
+                    Cg = matrixFactory.C(t_ik, hk / gamma(i), h_ik);
                     
-                    y{i}   = y{i} + h * b(s) * w{s,i};
+                    r_ik = Cg * z{end, k};
+                    for j = 1:(i-1)
+                        r_ik = r_ik - Ca{j} * z{j,k+1};
+                    end
+
+                  	K_ik = matrixFactory.K(t_ik, h_ik);
+                    G_ik = matrixFactory.G(t_ik, y{i,k+1});
+                    J_ik = K_ik + Ca{i} + G_ik;
+                    
+                    z{i,k+1} = J_ik \ r_ik;
                 end
             end
-            mvp = y{end} - y{1};
+            mvp = z{end,end} - z{end,1};
         end
         
         function [A,b,c] = getButcherTable(nStages)
@@ -305,18 +342,13 @@ properties:
                 case 1
                     A = 1;
                 case 2
-                    A = [6 - 3*sqrt(2), 0;
-                         3*sqrt(2),     6 - 3*sqrt(2)] / 6;
-                case 3
-                    l = 0.435866521508459;
-                    A = [l,                  0,               0;
-                         (1-l)/2,            l,               0;
-                         (-6*l^2+16*l-1)/4, (6*l^2-20*l+5)/4, l];
+                    A = [4 0;
+                         9 3]/12;
                 case 4
-                    A = [6 - 3*sqrt(2),   0,               0,           0;
-                         3 * sqrt(2),     6 - 3 * sqrt(2), 0,           0;
-                         30 - 18*sqrt(2), 24 * sqrt(2)-36, 6-3*sqrt(2), 0;
-                         2 * sqrt(2) + 1, sqrt(2) - 2,     1,           6-3*sqrt(2)] / 6;
+                  	A = [2  0 0 0;
+                         3  3 0 0;
+                         2 -2 4 0;
+                         0  0 9 3]/12;
             end
             b = A(end, :);
             c = sum(A, 2);

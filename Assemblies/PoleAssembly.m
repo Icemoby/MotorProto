@@ -75,20 +75,20 @@ properties:
             value = this.Poles.Value / 2;
         end
         
-        function intOut = get.GeometryFrequency(this)
-            warning('Use GeometricSymmetries instead');
-        	intOut = this.Poles.Value;
-        end
-        
-        function intOut = get.SolutionSpatialFrequency(this)
-            warning('Use SpatialSymmetries instead');
-        	intOut = this.Poles.Value  / 2;
-        end
-        
-        function boolOut = get.SolutionHalfWaveSymmetry(~)
-            warning('Use HalfWaveSymmetry instead');
-            boolOut = true;
-        end
+%         function intOut = get.GeometryFrequency(this)
+%             warning('Use GeometricSymmetries instead');
+%         	intOut = this.Poles.Value;
+%         end
+%         
+%         function intOut = get.SolutionSpatialFrequency(this)
+%             warning('Use SpatialSymmetries instead');
+%         	intOut = this.Poles.Value  / 2;
+%         end
+%         
+%         function boolOut = get.SolutionHalfWaveSymmetry(~)
+%             warning('Use HalfWaveSymmetry instead');
+%             boolOut = true;
+%         end
     end
     
    	methods (Static)

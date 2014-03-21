@@ -122,7 +122,7 @@ properties:
     end
     
     properties (Hidden, Access = protected)
-        ConductorConfigurations = [HomogenizedConductor, CircularWire];
+        ConductorConfigurations
     end
     
     methods
@@ -133,6 +133,8 @@ properties:
                     this.(varargin{i}) = varargin{i+1};
                 end
             end
+            
+            this.ConductorConfigurations = [HomogenizedConductor, CircularWire];
         end
         
         %% Setters

@@ -53,7 +53,7 @@ properties:
     SourceTypes;
 %}  
     properties
-        Slot           = Slot
+        Slot
         ConnectionType = ConnectionTypes.Wye;
     end
     
@@ -87,6 +87,10 @@ properties:
             
             if isempty(this.Sources)
                 this.SourceType = SourceTypes.CurrentSource;
+            end
+            
+            if isempty(this.Slot)
+                this.Slot = Slot;
             end
         end
         

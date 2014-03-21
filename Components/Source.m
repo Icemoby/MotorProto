@@ -86,13 +86,19 @@ classdef Source < Component
             end
             
             w = 2 * pi * this.ElectricalFrequency.Value;
-            A = this.HarmonicAmplitudes.Value(J);
-            p = this.HarmonicPhases.Value(J);
+            A = this.HarmonicAmplitudes.Value(:,J);
+            p = this.HarmonicPhases.Value(:,J);
             s = -(0:(m-1)) * 2 * pi / m;
             I = ones(1,numel(t));
             
-            for i = 1:m
-                waveform(i,:) = A * cos(w * n' * t + (p' - n' * s(i)) * I);
+            if numel(A) == 1
+                for i = 1:m
+                    waveform(i,:) = A * cos(w * n' * t + (p' - n' * s(i)) * I);
+                end
+            else
+                for i = 1:m
+                    waveform(i,:) = A(i,:) * cos(w * n' * t + (p(i,:)' - n' * s(i)) * I);
+                end
             end
         end
     end

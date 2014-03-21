@@ -23,10 +23,12 @@ classdef StaticMatrixFactory < MatrixFactory
                 components   = assembly.Components;
                 regions      = assembly.Regions;
                 sources      = assembly.Sources;
+                circuits     = assembly.Circuits;
                 
                 nUnknowns    = index.Local(i).Unknowns;
                 nComponents  = numel(components);
                 nSources     = numel(sources);
+                nCircuits    = numel(circuits);
                 
                 I            = speye(nUnknowns, nUnknowns);
                 
@@ -273,7 +275,8 @@ classdef StaticMatrixFactory < MatrixFactory
                     postProcessing(i).F2E = F2E;
                     postProcessing(i).F2V = F2V;
                     postProcessing(i).F2I = F2I;
-                    
+                elseif nCircuits > 0
+                    error('TODO')
                 else
                     postProcessing(i).F2J = sparse(length(mesh(i).Elements), 0);
                     postProcessing(i).F2E = sparse(length(mesh(i).Elements), 0);
@@ -282,24 +285,24 @@ classdef StaticMatrixFactory < MatrixFactory
                 end
                 
                 %% Solution Contribution Matrices
-                %	Electric Field
+                %Electric Field
                 postProcessing(i).X2E          = sparse(nElements,nUnknowns);
                 [postProcessing(i).X_t2E{1:3}] = deal(sparse(nElements,nUnknowns));  
                 
-                %   Current Density
+                %Current Density
                 postProcessing(i).X2J          = sparse(nElements,nUnknowns);
                 [postProcessing(i).X_t2J{1:3}] = deal(sparse(nElements,nUnknowns));
                 
                 if nSources > 0
                     nPhases = sources.Phases.Value;
-                    %   Voltage
+                    %Voltage
                     postProcessing(i).X2V   = sparse(nPhases, nUnknowns);
                     
-                    %   Current
+                    %Current
                     postProcessing(i).X2I   = sparse(nPhases, nUnknowns);
                     postProcessing(i).X_t2I = sparse(nPhases, nUnknowns);
                     
-                    %   Flux Linkage
+                    %Flux Linkage
                     rows = zeros(1,0);
                     cols = zeros(1,0);
                     vals = zeros(1,0);
@@ -341,14 +344,14 @@ classdef StaticMatrixFactory < MatrixFactory
                     postProcessing(i).X2Lambda = sparse(rows, cols, vals, nPhases, nUnknowns);
                     postProcessing(i).X_t2V    = sparse(rows, cols, vals, nPhases, nUnknowns);
                 else
-                    %   Voltage
+                    %Voltage
                     postProcessing(i).X2V   = sparse(0, nUnknowns);
                     
-                    %   Current
+                    %Current
                     postProcessing(i).X2I   = sparse(0, nUnknowns);
                     postProcessing(i).X_t2I = sparse(0, nUnknowns);
                     
-                    %   Flux Linkage
+                    %Flux Linkage
                     postProcessing(i).X2Lambda = sparse(0, nUnknowns);
                     postProcessing(i).X_t2V    = sparse(0, nUnknowns);
                     

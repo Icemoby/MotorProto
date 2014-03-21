@@ -62,6 +62,12 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
 %           When OuterSlotShape = 'straight', controls the transition from the
 %           body of the tooth to the backiron.
 %
+%       'AirgapLocation'
+%           {'inside'} | 'outside'
+%           Specifies the location of the airgap relative to the annulus
+%           containing the slot. This parameter controls the placement of
+%           the slot notch NCG.
+%
 %       Note: When both InnerSlotShape and OuterSlotShape are selected as
 %       'straight', it is required that InnerSlotLength + OuterSlotLength < NS.
 %
@@ -107,16 +113,18 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
     
     assert(NL + SL < 1, 'MotorProto:slotTemplate', 'It is required that NL + SL < 1');
         
+    assert(SL > NL, 'MotorProto:slotTemplate', 'It is required that SL > NL');
+    
     %% Draw notch
     dr = RO - RI;
     da = 2 * pi / NS;
     
     switch lower(results.AirgapLocation)
         case 'inside'
-            notch = Geometry2D.draw('Sector', 'Radius',     [RI, RI / 2 + RO / 2],...
+            notch = Geometry2D.draw('Sector', 'Radius',     [RI, RI + (RO-RI) * SL / 2],...
                                               'Rotation', - da * NW / 2, 'Angle', da * NW);
         case 'outside'
-            notch = Geometry2D.draw('Sector', 'Radius',     [RI / 2 + RO / 2, RO],...
+            notch = Geometry2D.draw('Sector', 'Radius',     [RO - (RO-RI) * SL / 2, RO],...
                                               'Rotation', - da * NW / 2, 'Angle', da * NW);
     end
 
