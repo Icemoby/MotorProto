@@ -359,6 +359,15 @@ classdef MatrixFactory
             
             %% Build Matrices
             mesh      = this.Mesh_(iMesh);
+            regions   = mesh.Regions;
+            nRegions  = length(regions);
+            mu        = mu_o*ones(nRegions,1);
+            for iRegion = 1:nRegions
+                if regions(iRegion).Material.Linear
+                    mu(iRegion) = regions(iRegion).Material.Permeability;
+                end
+            end
+            mu        = mu(mesh.ElementRegions);
             el        = mesh.Elements.';
            	x         = mesh.X(el);
             y         = mesh.Y(el);
@@ -372,7 +381,7 @@ classdef MatrixFactory
                 
                 dLdX = -[y(I,2) - y(I,3), y(I,3) - y(I,1), y(I,1) - y(I,2)];
                 dLdY = -[x(I,2) - x(I,3), x(I,3) - x(I,1), x(I,1) - x(I,2)];
-                den  =  (2*(x(I,1).*y(I,2) - x(I,1).*y(I,3) - y(I,1).*x(I,2) + y(I,1).*x(I,3) + x(I,2).*y(I,3) - y(I,2).*x(I,3))*mu_o);
+                den  =  (2*(x(I,1).*y(I,2) - x(I,1).*y(I,3) - y(I,1).*x(I,2) + y(I,1).*x(I,3) + x(I,2).*y(I,3) - y(I,2).*x(I,3)).*mu(I));
 
                 val = [ dLdX(:,1).*dLdX(:,1)+dLdY(:,1).*dLdY(:,1),...
                         dLdX(:,1).*dLdX(:,2)+dLdY(:,1).*dLdY(:,2),...
