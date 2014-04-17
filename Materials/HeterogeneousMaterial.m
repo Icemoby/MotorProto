@@ -17,6 +17,7 @@ classdef HeterogeneousMaterial < MaterialProperty
 
         Linear
         Conductivity
+        Permeability
         Density
         RemanentFluxDensity
     end
@@ -31,6 +32,7 @@ classdef HeterogeneousMaterial < MaterialProperty
         function this = HeterogeneousMaterial(varargin)
             this = this@MaterialProperty(varargin{:});
             this = homogenizeProperty(this, 'Linear',              'bool');
+            this = homogenizeProperty(this, 'Permeability',        'mean');
             this = homogenizeProperty(this, 'Conductivity',        'mean');
             this = homogenizeProperty(this, 'Density',             'mean');
             this = homogenizeProperty(this, 'RemanentFluxDensity', 'mean');
