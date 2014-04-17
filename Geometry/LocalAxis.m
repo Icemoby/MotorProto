@@ -1,9 +1,9 @@
-classdef LocalAxis < Parameterizable
+classdef LocalAxis
     properties (SetAccess = protected)
-        InitialPosition = LocalAxis.setProperty([0 0]);
-        InitialAngle    = LocalAxis.setProperty(0);
-        RotationAngle   = LocalAxis.setProperty(0);
-        RotationAxis    = LocalAxis.setProperty([0 0]);
+        InitialPosition = [0 0];
+        InitialAngle    = 0;
+        RotationAngle   = 0;
+        RotationAxis    = [0 0];
     end
     
     properties (Dependent)
@@ -33,18 +33,9 @@ classdef LocalAxis < Parameterizable
             end
         end
         
-        %% Set Methods
-        function this = set.InitialAngle(this,angleIn)
-            this.InitialAngle = this.setProperty(angleIn);
-        end
-        
-        function this = set.InitialPosition(this,positionIn)
-            this.InitialPosition = this.setProperty(positionIn);
-        end
-        
         function this = set.Rotation(this,rotationAngle)
-        	this.InitialAngle  = LocalAxis.setProperty(rotationAngle);
-            this.RotationAngle = LocalAxis.setProperty(0);
+        	this.InitialAngle  = rotationAngle;
+            this.RotationAngle = 0;
          	this.cRotation     = calculateRotation(this);
         end
         
@@ -53,8 +44,8 @@ classdef LocalAxis < Parameterizable
         end
         
         function this = set.Position(this,rotationAxis)
-        	this.InitialPosition = LocalAxis.setProperty(rotationAxis);
-            this.RotationAxis    = LocalAxis.setProperty([NaN NaN]);
+        	this.InitialPosition = rotationAxis;
+            this.RotationAxis    = [NaN NaN];
             this.cPosition       = calculatePosition(this);
         end
         
@@ -68,15 +59,15 @@ classdef LocalAxis < Parameterizable
         
         %% Cache Methods
         function angleOut = calculateRotation(this)
-            angleOut = this.InitialAngle.Value + sum([this.RotationAngle.Value]);
+            angleOut = this.InitialAngle + sum([this.RotationAngle]);
             angleOut = mod(angleOut+pi,2*pi)-pi;
         end
         
         function positionOut = calculatePosition(this)
-            positionOut   = this.InitialPosition.Value;
-            rotationAngle = [this.RotationAngle.Value];
+            positionOut   = this.InitialPosition;
+            rotationAngle = [this.RotationAngle];
             nRotations    = numel(rotationAngle);
-            rotationAxis  = reshape([this.RotationAxis.Value],[],nRotations).';
+            rotationAxis  = reshape([this.RotationAxis],[],nRotations).';
             for iRotation = 1:nRotations
                 currentAxis    = rotationAxis(iRotation,:);
                 if any(isnan(currentAxis))
@@ -97,46 +88,40 @@ classdef LocalAxis < Parameterizable
             axisIn  = varargin{end};
             
             nThis    = numel(this);
-            thisSize = size(this);
+            thisSize = numel(this);
             
             nAngles             = numel(angleIn);
-            newAngle(1,nAngles) = LocalAxis.setProperty(angleIn(end));
+            newAngle(1,nAngles) = angleIn(end);
             if nAngles == 1
-                newAngle = repmat(newAngle,thisSize);
+                newAngle = repmat(newAngle, 1, thisSize);
             else
                 for iAngle = 1:(nAngles - 1)
-                    newAngle(1,iAngle) = LocalAxis.setProperty(angleIn(iAngle));
+                    newAngle(1,iAngle) = angleIn(iAngle);
                 end
             end
-            angleIn = [newAngle.Value];
+            angleIn = newAngle;
             newAngle = num2cell(newAngle);
             
-            nAxis            = numel(axisIn) / 2;
-            newAxis(1,nAxis) = LocalAxis.setProperty(axisIn(end,:));
+            nAxis = numel(axisIn) / 2;
             if nAxis == 1
-                newAxis = repmat(newAxis,thisSize);
+                newAxis = repmat(axisIn, thisSize, 1);
             else
+                newAxis = zeros(nAxis,2);
                 for iAngle = 1:(nAxis - 1)
-                    newAxis(1,iAngle) = LocalAxis.setProperty(axisIn(iAngle,:));
+                    newAxis(1,iAngle) = axisIn(iAngle,:);
                 end
+                newAxis(end,:) = axisIn(end,:);
             end
-            axisIn  = [newAxis.Value];
-            axisIn  = reshape(axisIn,2,[]).';
-            newAxis = num2cell(newAxis);
+            axisIn  = newAxis;
+            newAxis = mat2cell(newAxis,ones(thisSize,1),2).';
             
             %%
             newRotationAngle     = {this.RotationAngle};
-            newRotationAngle     = cellfun(@(x,y)(vertcat(x,y)),...
-                                            newRotationAngle,...
-                                            newAngle,...
-                                            'UniformOutput',false);
+            newRotationAngle     = cellfun(@(x,y)(vertcat(x,y)), newRotationAngle, newAngle, 'UniformOutput',false);
             [this.RotationAngle] = deal(newRotationAngle{:});            
                 
             newRotationAxis     = {this.RotationAxis};
-            newRotationAxis     = cellfun(@(x,y)(vertcat(x,y)),...
-                                            newRotationAxis,...
-                                            newAxis,...
-                                            'UniformOutput',false);
+            newRotationAxis     = cellfun(@(x,y)(vertcat(x,y)), newRotationAxis, newAxis, 'UniformOutput',false);
             [this.RotationAxis] = deal(newRotationAxis{:});
             
          	%% Calculate the new angle

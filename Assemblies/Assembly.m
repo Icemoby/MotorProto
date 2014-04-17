@@ -1,4 +1,4 @@
-classdef Assembly < Parameterizable & Nameable
+classdef Assembly < Nameable
     %Assembly.m An abstract class for all Assembly objects
     %   Assembly objects represent high level logical units of a device, e.g.
     %   Stators and Rotors of electrical machines. Their main purpose is

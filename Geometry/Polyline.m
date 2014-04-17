@@ -64,8 +64,8 @@ classdef (Sealed) Polyline < Geometry1D
         end
 
         function this = set.Points(this,pointsIn)
-            this.pPoints  = this.setProperty(pointsIn);
-            this.vPoints  = this.pPoints.Value;
+            this.pPoints  = pointsIn;
+            this.vPoints  = this.pPoints;
             
             if this.fCachingEnabled;
                 this = updateCache(this);
@@ -91,12 +91,12 @@ classdef (Sealed) Polyline < Geometry1D
                 points_ = points_(end:-1:1,:);
             end
             
-            rotation_   = this.Rotation.Value;
+            rotation_   = this.Rotation;
             rotMat      = [  cos(rotation_) sin(rotation_);
                             -sin(rotation_) cos(rotation_)];
             
             points_ = points_*rotMat;
-            position_ = this.Position.Value;
+            position_ = this.Position;
             
             switch typeIn
                 case 'x'

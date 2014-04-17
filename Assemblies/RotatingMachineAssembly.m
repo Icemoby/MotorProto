@@ -38,8 +38,8 @@ properties:
 %}
 
     properties
-        ElectricalFrequency = RotatingMachineAssembly.setProperty(60);
-        InitialAngle        = RotatingMachineAssembly.setProperty(0);
+        ElectricalFrequency = 60;
+        InitialAngle        = 0;
     end
     
     properties (Abstract, Dependent)
@@ -58,15 +58,6 @@ properties:
         %% Constructor
         function this = RotatingMachineAssembly(varargin)
             this = this@CylindricalAssembly(varargin{:});
-        end
-
-        %% Setters
-        function this = set.ElectricalFrequency(this, value)
-            this.ElectricalFrequency = this.setProperty(value);
-        end
-        
-        function this = set.InitialAngle(this, value)
-            this.InitialAngle = this.setProperty(value);
         end
         
         %% Getters
@@ -147,7 +138,7 @@ properties:
                 regions                 = copy(regions);
                 [regions.IsUserDefined] = deal(false);
                 
-                angles = 2 * pi / this.GeometricSymmetries * ((1:nCopies) - 0.5) + this.InitialAngle.Value;
+                angles = 2 * pi / this.GeometricSymmetries * ((1:nCopies) - 0.5) + this.InitialAngle;
                 angles = repmat(angles, nRegions,1);
                 angles = reshape(angles, nRegions * nCopies, 1).';
                 
@@ -192,8 +183,8 @@ properties:
             %% Build the domain hull
             nRegions = nRegions * nCopies;
             ang      = 2 * pi * modeledFraction;
-            rot      = this.InitialAngle.Value;
-            rad      = [this.InnerRadius.Value, this.OuterRadius.Value];
+            rot      = this.InitialAngle;
+            rad      = [this.InnerRadius, this.OuterRadius];
           	dgOut    = Geometry2D.draw('Sector', 'Radius', rad, 'Angle', ang, 'Rotation', rot, 'PlotStyle', {'b'});
             this.DomainHull = copy(dgOut);
             if nRegions > 0
@@ -228,14 +219,13 @@ properties:
             
             %% Calculate Electrical Frequency
             f           = [this.ElectricalFrequency];
-            f           = [f.Value];
             assert(all(abs(f - f(1))) < sqrt(eps) * f(1), 'MotorProto:RotatingMachineAssembly', 'All assembly electrical frequencies must be the same');
             T           = 1 / mean(f);
             
             %% Calculate Fundamental Period (possibly subharmonic)
             Np = zeros(1,nAssemblies);
             for i = 1:nAssemblies
-                Np(i) = this(i).Poles.Value;
+                Np(i) = this(i).Poles;
             end
             assert(all(abs(Np - Np(1)) < sqrt(eps) * Np(1)));
             Np = Np(1);

@@ -36,9 +36,9 @@ properties:
 %}
     properties
         %% Basic Geometry Properties
-        InnerRadius = CylindricalAssembly.setProperty(0)
-        OuterRadius = CylindricalAssembly.setProperty(1)
-        Length      = CylindricalAssembly.setProperty(1)
+        InnerRadius = 0;
+        OuterRadius = 1;
+        Length      = 1;
     end
     
 	properties (Abstract,Dependent)
@@ -71,23 +71,10 @@ properties:
             this = this@Assembly(varargin{:});
         end
         
-        %% Setters
-        function set.InnerRadius(this,radiusIn)
-            this.InnerRadius = this.setProperty(radiusIn);
-        end
-        
-        function set.OuterRadius(this,radiusIn)
-            this.OuterRadius = this.setProperty(radiusIn);
-        end
-        
-        function set.Length(this,lengthIn)
-            this.Length = this.setProperty(lengthIn);
-        end
-        
         %% Getters
         function angles = get.TangentialBoundaries(this)
             if ~isempty(this.DomainHull)
-                da     = this.DomainHull.Angle.Value;
+                da     = this.DomainHull.Angle;
                 a      = this.DomainHull.Rotation;
                 angles = [a,a + da];
             else
@@ -102,7 +89,7 @@ properties:
             for i = 1:nRegions
                 mass = mass + regions(i).Geometry.area * regions(i).Material.Density;
             end
-            mass = mass * this.Length.Value;
+            mass = mass * this.Length;
             mass = mass / this.ModeledFraction;
         end
         
@@ -121,7 +108,7 @@ properties:
         end
         
         function hull = makeElementDomainHull(this)
-            r    = [this.InnerRadius.Value, this.OuterRadius.Value];
+            r    = [this.InnerRadius, this.OuterRadius];
             a    = 2 * pi / this.GeometricSymmetries;
             hull = Geometry2D.draw('Sector', 'Radius', r, 'Angle', a, 'Rotation', -a/2);
         end

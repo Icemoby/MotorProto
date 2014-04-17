@@ -1,28 +1,10 @@
 classdef CircularWire < Wire
     properties
-        ConductorDiameter   = CircularWire.setProperty(0);
-        InsulationThickness = CircularWire.setProperty(0);
+        ConductorDiameter   = 0;
+        InsulationThickness = 0;
     end
     
     methods
-        %% Setters
-        function this = set.ConductorDiameter(this, value)
-            this.ConductorDiameter = this.setProperty(value);
-        end
-        
-        function this = set.InsulationThickness(this, value)
-            this.InsulationThickness = this.setProperty(value);
-        end
-        
-        %% Getters
-        function value = get.ConductorDiameter(this)
-            value = this.ConductorDiameter.Value;
-        end
-        
-        function value = get.InsulationThickness(this)
-            value = this.InsulationThickness.Value;
-        end
-        
         %% Build
         function [conductors, nonConductors, connectionMatrix] = build(this, slotShape, conductorBoundaries, nTurns, nLayers, conductorDynamics, windingType, label)
             %% Get parameters

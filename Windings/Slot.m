@@ -1,4 +1,4 @@
-classdef Slot < Parameterizable
+classdef Slot
     %Slot.m A concrete class representing Slots with a number of conductors
     %   Slot objects are objects with a set of properties to control various
     %   slot configurations.
@@ -102,9 +102,9 @@ properties:
         
         Shape
         
-        ConductorBoundaries = Slot.setProperty([-inf inf]);
-        Layers              = Slot.setProperty(1);
-        Turns               = Slot.setProperty(1);
+        ConductorBoundaries = [-inf inf];
+        Layers              = 1;
+        Turns               = 1;
     end
     
     properties (Hidden)
@@ -174,35 +174,23 @@ properties:
         
         function this = set.ConductorBoundaries(this, value)
             assert(numel(value) == 2, 'MotorProto:Slot', 'Slot.ConductorBoundaries must be a 2-element vector');
-            this.ConductorBoundaries = this.setProperty(value);
+            this.ConductorBoundaries = value;
         end
         
         function this = set.Turns(this, value)
             assert(numel(value) == 1, 'MotorProto:Slot', 'Slot.Turns must be a scalar');
-            this.Turns = this.setProperty(value);
+            this.Turns = value;
         end
         
         function this = set.Layers(this, value)
             assert(numel(value) == 1, 'MotorProto:Slot', 'Slot.Layers must be a scalar');
-            this.Layers = this.setProperty(value);
+            this.Layers = value;
         end
 
         %% Getters
         function value = get.Conductor(this)
             conductorType  = this.ConductorType;
             value          = this.ConductorConfigurations(conductorType);
-        end
-        
-        function value = get.ConductorBoundaries(this)
-        	value = this.ConductorBoundaries.Value;
-        end
-        
-        function value = get.Turns(this)
-            value = this.Turns.Value;
-        end      
-        
-        function value = get.Layers(this)
-            value = this.Layers.Value;
         end
         
         %% Other

@@ -131,7 +131,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                 [rows, cols, vals]       = sources.circuitMatrix(assembly.ConnectionType);
                 rows                     = ind.Circuits(rows);
                 cols                     = ind.Circuits(cols);
-                vals                     = vals / assembly.Length.Value * assembly.ModeledFraction;
+                vals                     = vals / assembly.Length * assembly.ModeledFraction;
                 reluctivity(iMesh).Cr2Cr = sparse(rows, cols, vals, nUnknowns, nUnknowns);
                 
                 [rows, cols, vals]       = sources.scalarPotential2CircuitMatrix;
@@ -144,7 +144,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                 %[rows, cols, vals]       = circuits.circuitMatrix;
                 %rows                     = ind.Circuits(rows);
                 %cols                     = ind.Circuits(cols);
-                %vals                     = vals / assembly.Length.Value * assembly.ModeledFraction;
+                %vals                     = vals / assembly.Length * assembly.ModeledFraction;
                 %reluctivity(iMesh).Cr2Cr = sparse(rows, cols, vals, nUnknowns, nUnknowns);
                 reluctivity(iMesh).Cr2Cr = sparse(nUnknowns, nUnknowns);
                 
@@ -236,7 +236,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
             nSources  = numel(sources);
             
             if nSources > 0
-                sr2el = sparse(nUnknowns, sources.Phases.Value);
+                sr2el = sparse(nUnknowns, sources.Phases);
             else
                 sr2el = sparse(nUnknowns, 0);
             end
@@ -248,7 +248,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
             nSources  = numel(sources);
             
             if nSources > 0
-                sr2re = sparse(nUnknowns, sources.Phases.Value);
+                sr2re = sparse(nUnknowns, sources.Phases);
             else
                 sr2re = sparse(nUnknowns, 0);
             end
@@ -264,8 +264,8 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
             if nSources > 0
                 [rows, cols, vals] = sources.source2CircuitMatrix(assembly.ConnectionType);
                 rows  = ind.Circuits(rows);
-                vals  = vals / assembly.Length.Value * assembly.ModeledFraction;
-                sr2cr = sparse(rows, cols, vals, nUnknowns, sources.Phases.Value);
+                vals  = vals / assembly.Length * assembly.ModeledFraction;
+                sr2cr = sparse(rows, cols, vals, nUnknowns, sources.Phases);
             else
                 sr2cr = sparse(nUnknowns, 0);
             end
@@ -338,10 +338,10 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                 postProcessing(i).X2J = x2j;
 
                 if nSources > 0
-                    postProcessing(i).F2E = sparse(nEls, sources.Phases.Value);
-                    postProcessing(i).F2J = sparse(nEls, sources.Phases.Value);
-                    postProcessing(i).F2V = sparse(sources.Phases.Value, sources.Phases.Value);
-                    postProcessing(i).F2I = sparse(sources.Phases.Value, sources.Phases.Value);
+                    postProcessing(i).F2E = sparse(nEls, sources.Phases);
+                    postProcessing(i).F2J = sparse(nEls, sources.Phases);
+                    postProcessing(i).F2V = sparse(sources.Phases, sources.Phases);
+                    postProcessing(i).F2I = sparse(sources.Phases, sources.Phases);
                 else
                     postProcessing(i).F2E = sparse(nEls, 0);
                     postProcessing(i).F2J = sparse(nEls, 0);
@@ -350,7 +350,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                 end
 
                 if nSources > 0
-                    nPhases = sources.Phases.Value;
+                    nPhases = sources.Phases;
                     %   Voltage, Current from grad(Phi)
                     rowsP  = zeros(1,0);
                     colsP  = zeros(1,0);
@@ -392,7 +392,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                                 %% grad(Phi)
                                 rowsP(indP(2)+1)  = j;
                                 colsP(indP(2)+1)  = index.Local(i).Components(connectionMatrices{j}(k,l));
-                                valsPV(indP(2)+1) = connectionPolarity{j}(k, l) * assembly.Length.Value / assembly.ModeledFraction;
+                                valsPV(indP(2)+1) = connectionPolarity{j}(k, l) * assembly.Length / assembly.ModeledFraction;
                                 valsPI(indP(2)+1) = connectionPolarity{j}(k, l) * sum(elAreas(K)) * materials(m).sigma;
                                 indP(2)           = indP(2) + 1;
                                 
@@ -400,7 +400,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                                 I         = indA(2)+1:indA(2)+3*N;
                                 rowsA(I)  = j;
                                 colsA(I)  = nodes;
-                                valsAF(I) = connectionPolarity{j}(k,l) * areas * assembly.Length.Value / (3 * assembly.ModeledFraction);
+                                valsAF(I) = connectionPolarity{j}(k,l) * areas * assembly.Length / (3 * assembly.ModeledFraction);
                                 valsAI(I) = connectionPolarity{j}(k,l) * areas * materials(m).sigma / 3;
                                 indA(2)   = indA(2) + 3*N;
                             end
@@ -458,7 +458,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                                 %% grad(Phi)
                                 rowsP(indP(2)+1)  = j;
                                 colsP(indP(2)+1)  = index.Local(i).Components(connectionMatrices{j}(k,l));
-                                valsPV(indP(2)+1) = connectionPolarity{j}(k, l) * assembly.Length.Value / assembly.ModeledFraction;
+                                valsPV(indP(2)+1) = connectionPolarity{j}(k, l) * assembly.Length / assembly.ModeledFraction;
                                 valsPI(indP(2)+1) = connectionPolarity{j}(k, l) * sum(elAreas(K)) * materials(m).sigma;
                                 indP(2)           = indP(2) + 1;
                                 
@@ -466,7 +466,7 @@ classdef DynamicMatrixFactory < StaticMatrixFactory
                                 I         = indA(2)+1:indA(2)+3*N;
                                 rowsA(I)  = j;
                                 colsA(I)  = nodes;
-                                valsAF(I) = connectionPolarity{j}(k,l) * (areas / 3) * assembly.Length.Value / (assembly.ModeledFraction);
+                                valsAF(I) = connectionPolarity{j}(k,l) * (areas / 3) * assembly.Length / (assembly.ModeledFraction);
                                 valsAI(I) = connectionPolarity{j}(k,l) * (areas / 3) * materials(m).sigma;
                                 indA(2)   = indA(2) + 3*N;
                             end

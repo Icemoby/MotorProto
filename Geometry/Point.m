@@ -65,15 +65,6 @@ properties:
             this = this@Geometry0D(varargin{:});
         end
         
-        %% Set Methods
-        function this = set.X(this,definitionIn)
-            this.X = this.setProperty(definitionIn);
-        end
-        
-        function this = set.Y(this,definitionIn)
-            this.Y = this.setProperty(definitionIn);
-        end
-        
         %% Parameterizable methods
         function this = refresh(this)
             warning('Point:refresh','Replace "refresh" with "rebuild."');

@@ -61,7 +61,7 @@ properties:
         %% Getters
         function value = get.SolutionSpaceTimeSymmetry(this)
             warning('MotorProto:Verbose', 'Use SpaceTimeSymmetries instead')
-            value = [this.Poles.Value, inf];
+            value = [this.Poles, inf];
         end
         
         function value = get.SolutionSpaceTimeCoefficients(this)
@@ -71,7 +71,7 @@ properties:
         function value = get.AngularVelocity(this)
             switch this.OperatingMode
                 case 'synchronous'
-                    value = 4 * pi * this.ElectricalFrequency.Value / this.Poles.Value;
+                    value = 4 * pi * this.ElectricalFrequency / this.Poles;
                 case 'locked'
                     value = 0;
             end

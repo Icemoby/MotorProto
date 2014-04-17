@@ -592,7 +592,7 @@ classdef MatrixFactory
 
 %             %% Create Source to Current Density Conversion Matrix
 %             for i = 1:nSources
-%                 nPhases            = sources(i).Phases.Value;
+%                 nPhases            = sources(i).Phases;
 %                 connectionMatrices = sources(i).ConnectionMatrices;
 %                 connectionPolarity = sources(i).ConnectionPolarity;
 %                 
@@ -608,7 +608,7 @@ classdef MatrixFactory
 %                     connectionMaterial     = [connectionRegions.Material];
 %                     connectionConductivity = [connectionMaterial.Conductivity];
 %                     connectionArea         = [connectionGeometry.area];
-%                     connectionResistance   = assembly.Length.Value ./ (connectionConductivity .* connectionArea);
+%                     connectionResistance   = assembly.Length ./ (connectionConductivity .* connectionArea);
 %                     connectionResistance   = reshape(connectionResistance, nSeries, nParallel);
 %                     
 %                     seriesResistance       = sum(connectionResistance, 1);
@@ -636,7 +636,7 @@ classdef MatrixFactory
 %                                 
 %                                 rows(I) = reshape(connectionMatrices{j}, 1, []);
 %                                 cols(I) = k;
-%                                 vals(I) = reshape(connectionPolarity{j}, 1, []) .* (connectionConductivity / assembly.Length.Value / nSeries * assembly.ModeledFraction);
+%                                 vals(I) = reshape(connectionPolarity{j}, 1, []) .* (connectionConductivity / assembly.Length / nSeries * assembly.ModeledFraction);
 %                                 if j ~= k
 %                                     vals(I) = vals(I) * (  - parallelResistance / phaseResistance(k));
 %                                 else
@@ -652,7 +652,7 @@ classdef MatrixFactory
 %                             rows(I) = reshape(connectionMatrices{j}, 1, []);
 %                             cols(I) = j;
 %                             vals(I) = reshape(connectionPolarity{j}, 1, []) / phaseResistance(j);
-%                             vals(I) = vals(I) .* (connectionConductivity / assembly.Length.Value / nSeries * assembly.ModeledFraction);
+%                             vals(I) = vals(I) .* (connectionConductivity / assembly.Length / nSeries * assembly.ModeledFraction);
 %                             
 %                             ind = ind + nSeries * nParallel;
 %                             
@@ -664,7 +664,7 @@ classdef MatrixFactory
 %                             rows(I) = reshape(connectionMatrices{j}, 1, []);
 %                             cols(I) = k;
 %                             vals(I) = - reshape(connectionPolarity{j}, 1, []) / phaseResistance(j);
-%                             vals(I) = vals(I) .* (connectionConductivity / assembly.Length.Value / nSeries * assembly.ModeledFraction);
+%                             vals(I) = vals(I) .* (connectionConductivity / assembly.Length / nSeries * assembly.ModeledFraction);
 %                             
 %                             ind = ind + nSeries * nParallel;
 %                         else
@@ -1211,7 +1211,7 @@ classdef MatrixFactory
             labels = zeros(1,nMesh);
             for i = 1:nMesh
                 l{i}      = sum([pHarmonics{i,:}],2);
-                labels(i) = mesh(i).ElementAreas * l{i} * this.Model_.Assemblies(i).Length.Value / this.Model_.Assemblies(i).ModeledFraction;
+                labels(i) = mesh(i).ElementAreas * l{i} * this.Model_.Assemblies(i).Length / this.Model_.Assemblies(i).ModeledFraction;
             end
         end
                 
@@ -1302,7 +1302,7 @@ classdef MatrixFactory
                     nMesh  = numel(mesh);
                     l      = zeros(1,nMesh);
                     for i = 1:nMesh
-                        l(i) = mesh(i).ElementAreas * sum([pHarmonics{i,:}],2) * this.Model_.Assemblies(i).Length.Value / this.Model_.Assemblies(i).ModeledFraction;
+                        l(i) = mesh(i).ElementAreas * sum([pHarmonics{i,:}],2) * this.Model_.Assemblies(i).Length / this.Model_.Assemblies(i).ModeledFraction;
                     end
             
                     l         = {l};
@@ -1380,7 +1380,7 @@ classdef MatrixFactory
                     end
                 end
                 
-                l(p,:) = l(p,:) * this.Model_.Assemblies(p).Length.Value / this.Model_.Assemblies(p).ModeledFraction;
+                l(p,:) = l(p,:) * this.Model_.Assemblies(p).Length / this.Model_.Assemblies(p).ModeledFraction;
             end
             
             if strcmpi(dataType,'harmonic')
@@ -1475,7 +1475,7 @@ classdef MatrixFactory
                                     l(k) = l(k) + c*j1(:,j)'*(ela.*e1(:,i));
                                 end
                             end
-                        	l(k) = l(k) * this.Model_.Assemblies(1).Length.Value / this.Model_.SpaceModelFraction;
+                        	l(k) = l(k) * this.Model_.Assemblies(1).Length / this.Model_.SpaceModelFraction;
                         end
                     end
                  	l         = {l};
@@ -1500,8 +1500,8 @@ classdef MatrixFactory
             tau  = zeros(2,length(t));
             nh   = this.getRadialBoundaryHarmonics(2);
             nh   = nh{1}.';
-            r    = this.Assemblies_(2).InnerRadius.Value;
-            l    = this.Assemblies_(2).Length.Value;
+            r    = this.Assemblies_(2).InnerRadius;
+            l    = this.Assemblies_(2).Length;
             Nt   = length(t);
                 
             if iscell(D(1).Outer)
@@ -1622,7 +1622,7 @@ classdef MatrixFactory
                 if hasSource
                     figTitles{i} = [source.Name ' Phase'];
                     
-                    nPhases      = source.Phases.Value;
+                    nPhases      = source.Phases;
                     figLabels{i} = cell(1,nPhases);
                     for j = 1:nPhases
                         figLabels{i}{j} = ['Phase ' char(num2str('A')+j-1)];
@@ -1687,7 +1687,7 @@ classdef MatrixFactory
                 if hasSource
                     figTitles{i} = [source.Name];
                     
-                    nPhases      = source.Phases.Value;
+                    nPhases      = source.Phases;
                     figLabels{i} = cell(1,nPhases);
                     for j = 1:nPhases
                         figLabels{i}{j} = ['Phase ' char(num2str('A')+j-1)];
@@ -1752,7 +1752,7 @@ classdef MatrixFactory
                 if hasSource
                     figTitles{j} = [source.Name ' Phase'];
                     
-                    nPhases      = source.Phases.Value;
+                    nPhases      = source.Phases;
                     figLabels{j} = cell(1,nPhases);
                     for k = 1:nPhases
                         figLabels{j}{k} = ['Phase ' char(num2str('A')+k-1)];

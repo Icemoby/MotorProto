@@ -1,4 +1,4 @@
-classdef Solver < Parameterizable
+classdef Solver
     %Solver.m Base class for all solvers.
     %
     % Solver properties:
@@ -39,8 +39,8 @@ properties:
     end
     
     properties
-        TimePoints = Solver.setProperty(0);
-        Times      = Solver.setProperty(0);
+        TimePoints = 0;
+        Times      = 0;
         
         Verbose    = false;
     end
@@ -65,27 +65,12 @@ properties:
                     solverOut = solverOut.configureSolver(varargin{:});
                 end
             else
-                error(  'MotorProto:Solver:invalidObjectType',...
-                        '%s is not a recognized Solver subclass',solverType);
+                error('MotorProto:Solver:invalidObjectType', '%s is not a recognized Solver subclass',solverType);
             end
         end
     end
     
     methods
-        %% Setters
-        function this = set.Times(this, times)
-            this.Times = this.setProperty(times);
-        end
-        
-        function this = set.TimePoints(this, Nt)
-            this.TimePoints = this.setProperty(Nt);
-        end
-        
-        %% Getters
-        function value = get.Times(this)
-            value = sort(this.Times.Value);
-        end
-        
         function value = get.Harmonics(this)
             if ~isempty(this.Matrices)
                 value = this.Matrices.getHarmonics(this.Times);

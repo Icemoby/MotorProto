@@ -36,8 +36,8 @@ properties:
     Teeth;
 %}
     properties
-        Poles = PoleAndToothAssembly.setProperty(4);
-        Teeth = PoleAndToothAssembly.setProperty(12);
+        Poles = 4;
+        Teeth = 12;
     end
 
   	properties (Dependent)
@@ -53,25 +53,16 @@ properties:
      	function this = PoleAndToothAssembly(varargin)
             this = this@RotatingMachineAssembly(varargin{:});
         end
-        
-        %% Setters
-        function set.Teeth(this,valueIn)
-            this.Teeth = PoleAndToothAssembly.setProperty(valueIn);
-        end       
-        
-        function set.Poles(this,valueIn)
-            this.Poles = PoleAndToothAssembly.setProperty(valueIn);
-        end
 
         %% Getters
         function value = get.GeometryFrequency(this)
             warning('Use GeometricSymmetries instead');
-        	value = this.Teeth.Value;
+        	value = this.Teeth;
         end
 
         function value = get.SolutionSpatialFrequency(this)
             warning('Use SpatialSymmetries instead');
-        	value = this.Poles.Value  / 2;
+        	value = this.Poles  / 2;
         end
         
         function value = get.SolutionHalfWaveSymmetry(~)

@@ -34,7 +34,7 @@ properties:
 %}
     
     properties
-        PackingFactor = HomogenizedConductor.setProperty(1);
+        PackingFactor = 1;
     end
     
     properties (Dependent)
@@ -42,16 +42,6 @@ properties:
     end
     
     methods
-        %% Setters
-        function this = set.PackingFactor(this, value)
-            this.PackingFactor = this.setProperty(value);
-        end
-        
-        %% Getters
-        function value = get.PackingFactor(this)
-            value = this.PackingFactor.Value;
-        end
-        
         function value = get.HomogenizedMaterial(this)
             m     = [this.ConductorMaterial, this.InsulatorMaterial];
             p     = [this.PackingFactor, 1 - this.PackingFactor];

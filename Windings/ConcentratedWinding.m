@@ -10,10 +10,10 @@ classdef ConcentratedWinding < Winding
     methods
         function windingDiagram = get.WindingDiagram(this)
             %% Get parameters
-            Q = this.Slots.Value;
-            p = this.PolePairs.Value;
-            m = this.Phases.Value;
-            l = this.Layers.Value;
+            Q = this.Slots;
+            p = this.PolePairs;
+            m = this.Phases;
+            l = this.Layers;
             
             %% Account for maximum number of symmetries
             t = gcd(Q,p);
@@ -35,7 +35,7 @@ classdef ConcentratedWinding < Winding
                 for j = 1:m
                     
                 end
-                a = a_ph / 2 + a_sh
+                a = a_ph / 2 + a_sh;
             end
 
             char(windingDiagram)

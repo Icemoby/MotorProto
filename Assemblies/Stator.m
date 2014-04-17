@@ -118,9 +118,9 @@ properties:
        	function value = get.SpatialSymmetries(this)
             switch this.WindingType
                 case WindingTypes.Distributed
-                    value = this.Poles.Value / 2;
+                    value = this.Poles / 2;
                 case WindingTypes.Concentrated
-                    value = gcd(this.Poles.Value,this.Teeth.Value);
+                    value = gcd(this.Poles,this.Teeth);
                     if (this.Layers == 1) && (value > 1)
                         value = value / 2;
                     end
@@ -134,9 +134,9 @@ properties:
                 case WindingTypes.Distributed
                     value = true;
                 case WindingTypes.Concentrated
-                    g         = gcd(this.Poles.Value,this.Teeth.Value);
-                    evenTeeth = (mod(this.Teeth.Value / g, 2) == 0);
-                    oddPoles  = (mod(this.Poles.Value / g, 2) == 1);
+                    g         = gcd(this.Poles,this.Teeth);
+                    evenTeeth = (mod(this.Teeth / g, 2) == 0);
+                    oddPoles  = (mod(this.Poles / g, 2) == 1);
                     if evenTeeth && oddPoles
                         value = true;
                     else
@@ -148,13 +148,13 @@ properties:
         end
         
         function value = get.GeometricSymmetries(this)
-            value = this.Teeth.Value;
+            value = this.Teeth;
         end
         
         function value = get.SpaceTimeSymmetries(this)
             switch this.WindingType
                 case WindingTypes.Distributed
-                    value = this.Poles.Value / 2 * this.Phases.Value;
+                    value = this.Poles / 2 * this.Phases;
                 case WindingTypes.Concentrated
                     error('No Implementation');
                 otherwise
@@ -164,12 +164,11 @@ properties:
         
         function value = get.SolutionSpaceTimeSymmetry(this)
             warning('MotorProto:Verbose','Use SpaceTimeSymmetries instead');
-            value = [this.Teeth.Value / 3, 3];
+            value = [this.Teeth / 3, 3];
         end
         
         function value = get.SolutionSpaceTimeCoefficients(this)
             warning('MotorProto:Verbose', 'Combine this property and solutionspacetimesymmetry into a single property or multiple non-array properties');
-%             value = [1, 6, 6];
             value = [1, 6, 2];
         end
         
@@ -256,8 +255,8 @@ properties:
         %% Others
         function [conductors, nonConductors, connectionMatrix] = buildPreProcessing(this)
             %% Check Configuration
-          	nTeeth = this.Teeth.Value;
-            nPoles = this.Poles.Value;
+          	nTeeth = this.Teeth;
+            nPoles = this.Poles;
             switch this.WindingType
                 case WindingTypes.Distributed
                     assert(mod(nTeeth / nPoles, 3) == 0, 'MotorProto:StatorComponent', 'The number of teeth per pole must be an integer multiple of 3. The current value is %d', nTeeth/nPoles);
@@ -271,14 +270,14 @@ properties:
         end
         
         function this = buildPostProcessing(this, connectionMatrix, modeledFraction)
-            nPhases = this.Phases.Value;
+            nPhases = this.Phases;
             
             connectionMatrices = cell(1, nPhases);
             connectionPolarity = cell(1, nPhases);
             switch this.WindingType
                 case WindingTypes.Distributed
                     nTurnsPerSlot  = this.Slot.Turns;
-                    nSlotsPerPhase = this.Teeth.Value / this.Poles.Value / nPhases;
+                    nSlotsPerPhase = this.Teeth / this.Poles / nPhases;
             
                     for i = 1:nPhases
                         I                     = (1:nSlotsPerPhase) + (i-1) * nSlotsPerPhase;
@@ -290,9 +289,9 @@ properties:
                         end
                     end
                 case WindingTypes.Concentrated
-                    W = generateConcentratedWindingLayout(this.Poles.Value,this.Teeth.Value,this.Layers);
+                    W = generateConcentratedWindingLayout(this.Poles, this.Teeth, this.Layers);
                     
-                    if this.HasHalfWaveSymmetry && (mod(this.Poles.Value * modeledFraction,2) == 1)
+                    if this.HasHalfWaveSymmetry && (mod(this.Poles * modeledFraction,2) == 1)
                         I = W(1:(end/2));
                         J = W((end/2+1):end);
                         J = (J == mod(I+2,6)+1);

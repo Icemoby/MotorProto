@@ -49,8 +49,7 @@ classdef RotatingMachineModel < Model
         
         function value = get.TemporalFrequency(this)
             assembly = this.Assemblies;
-            omega    = assembly.ElectricalFrequency;
-            value    = [omega.Value];
+            value    = [assembly.ElectricalFrequency];
             dF       = bsxfun(@minus, value.', value);
             isEqual  = abs(dF) < sqrt(eps) * max(abs(value));
             if all(all(isEqual))

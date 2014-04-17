@@ -57,11 +57,6 @@ classdef (Sealed) Polygon2D < Geometry2D
             end
         end
         
-        %% Set Methods
-        function this = set.Points(this,valueIn)
-            this.Points = this.setProperty(valueIn);
-        end
-        
         %% Parameterization Update Methods
         function this = refresh(this)
             warning('Polygon2D:refresh','Change "refresh" to "update"');
@@ -77,7 +72,7 @@ classdef (Sealed) Polygon2D < Geometry2D
         
         function this = build(this)
             %% get parameters
-            points   = this.Points.Value;
+            points   = this.Points;
             position = this.vPosition;
             rotation = this.vRotation;
             orient   = this.Orientation;

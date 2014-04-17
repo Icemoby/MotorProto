@@ -50,17 +50,17 @@ properties:
             if ~directSolver
                 %% Domain Decomposition
                 if this.Adaptive
-                    Nt        = 2.^(2:ceil(log2(this.TimePoints.Value)));
+                    Nt        = 2.^(2:ceil(log2(this.TimePoints)));
                     nAdaptive = length(Nt);
                 else
-                    Nt        = this.TimePoints.Value;
+                    Nt        = this.TimePoints;
                     nAdaptive = 1;
                 end
                 
                 %% Preprocessing
                 matrixFactory = HarmonicBalanceDomainDecompositionMatrixFactory(copy(model));
                 this.Matrices = matrixFactory;
-                t  = model.getTimePoints(this.TimePoints.Value);
+                t  = model.getTimePoints(this.TimePoints);
                 T  = t(end);
                 f  = 1 / T;
                 w  = 2 * pi * f;
@@ -160,8 +160,8 @@ properties:
                     this.SimulationTime = toc
                 end
             elseif directSolver == 1
-                t          = model.getTimePoints(this.TimePoints.Value);
-                t          = linspace(0,t(end),this.TimePoints.Value+1);
+                t          = model.getTimePoints(this.TimePoints);
+                t          = linspace(0,t(end),this.TimePoints+1);
                 this.Times = t;
 
                 T      = t(end);
@@ -244,8 +244,8 @@ properties:
                 toc
                 x = reshape(x,[],Nt);
             elseif directSolver == 2
-                t          = model.getTimePoints(this.TimePoints.Value);
-                t          = linspace(0,t(end),this.TimePoints.Value+1);
+                t          = model.getTimePoints(this.TimePoints);
+                t          = linspace(0,t(end),this.TimePoints+1);
                 this.Times = t;
 
                 T      = t(end);

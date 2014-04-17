@@ -105,10 +105,6 @@ properties
         Solution
     end
     
-    properties (Hidden, SetAccess = private)
-        Parameters
-    end
-    
     properties (SetAccess = private, Dependent)
         Mesh
         Assemblies
@@ -128,7 +124,6 @@ properties
                 end
                 THIS.Name       = nameIn;
                 THIS.Created    = datestr(now);
-                THIS.Parameters = PARAMETER_LIST;
                 THIS.Model      = RotatingMachineModel;
                 
                 UNIQUE_INSTANCE = THIS;

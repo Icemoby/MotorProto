@@ -1,10 +1,10 @@
 classdef Source < Component
     properties
-        ElectricalFrequency = Source.setProperty(60);      
-        HarmonicNumbers     = Source.setProperty(1);
-        HarmonicAmplitudes  = Source.setProperty(0);
-        HarmonicPhases      = Source.setProperty(0);
-        Phases              = Source.setProperty(3);
+        ElectricalFrequency = 60;      
+        HarmonicNumbers     = 1;
+        HarmonicAmplitudes  = 0;
+        HarmonicPhases      = 0;
+        Phases              = 3;
         
         ConnectionType      = ConnectionTypes.Wye;
         ConnectionMatrices  = {};
@@ -42,27 +42,7 @@ classdef Source < Component
             end
         end
         
-        %% Setters
-        function this = set.ElectricalFrequency(this, value)
-            this.ElectricalFrequency = this.setProperty(value);
-        end
-        
-        function this = set.HarmonicNumbers(this, value)
-            this.HarmonicNumbers = this.setProperty(value);
-        end
-        
-        function this = set.HarmonicAmplitudes(this, value)
-            this.HarmonicAmplitudes = this.setProperty(value);
-        end
-        
-        function this = set.HarmonicPhases(this, value)
-            this.HarmonicPhases = this.setProperty(value);
-        end
-        
-        function this = set.Phases(this, value)
-            this.Phases = this.setProperty(value);
-        end
-        
+        %% Setters        
         function this = set.ConnectionType(this, value)
             if ischar(value)
                 this.ConnectionType = ConnectionTypes.(value);
@@ -74,20 +54,20 @@ classdef Source < Component
     
     methods (Sealed)        
         function waveform = f(this, t, h)
-            m        = this.Phases.Value;
+            m        = this.Phases;
             waveform = zeros(m, numel(t));
             
             if nargin == 2
-                n = this.HarmonicNumbers.Value;
+                n = this.HarmonicNumbers;
                 J = true(size(n));
             else
-                J = ismember(this.HarmonicNumbers.Value, h);
-                n = this.HarmonicNumbers.Value(J);
+                J = ismember(this.HarmonicNumbers, h);
+                n = this.HarmonicNumbers(J);
             end
             
-            w = 2 * pi * this.ElectricalFrequency.Value;
-            A = this.HarmonicAmplitudes.Value(:,J);
-            p = this.HarmonicPhases.Value(:,J);
+            w = 2 * pi * this.ElectricalFrequency;
+            A = this.HarmonicAmplitudes(:,J);
+            p = this.HarmonicPhases(:,J);
             s = -(0:(m-1)) * 2 * pi / m;
             I = ones(1,numel(t));
             

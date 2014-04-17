@@ -1,4 +1,4 @@
-classdef Component < Parameterizable & Nameable
+classdef Component < Nameable
     properties (Hidden)
         IsUserDefined = true;
     end

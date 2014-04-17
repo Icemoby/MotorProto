@@ -75,7 +75,7 @@ properties:
             gamma = sum(alpha,2);
             
             %% Initialize
-            times      = model.getTimePoints(this.TimePoints.Value);
+            times      = model.getTimePoints(this.TimePoints);
             this.Times = times;
             nUnknowns  = length(matrixFactory.f(times(1)));   
             nTimes     = numel(times) - 1;

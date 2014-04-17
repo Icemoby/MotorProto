@@ -81,8 +81,8 @@ classdef (Sealed) Arc < Geometry1D
         end
         
         function this = set.Radius(this,radiusIn)
-            this.pRadius  = this.setProperty(radiusIn);
-            this.vRadius  = this.pRadius.Value;
+            this.pRadius  = radiusIn;
+            this.vRadius  = this.pRadius;
             if this.fCachingEnabled;
                 this          = updateCache(this);
             end
@@ -93,8 +93,8 @@ classdef (Sealed) Arc < Geometry1D
         end
         
         function this = set.Angle(this,angleIn)
-            this.pAngle = this.setProperty(angleIn);
-            this.vAngle = this.pAngle.Value;
+            this.pAngle = angleIn;
+            this.vAngle = this.pAngle;
             if this.fCachingEnabled;
                 this          = updateCache(this);
             end
@@ -114,13 +114,13 @@ classdef (Sealed) Arc < Geometry1D
             switch this.Orientation
                 case true
                     angle_ = this.vAngle;
-                    rotation_ = this.Rotation.Value;
+                    rotation_ = this.Rotation;
                 case false
                     angle_ = -this.vAngle;
-                    rotation_ = this.Rotation.Value-angle_;
+                    rotation_ = this.Rotation-angle_;
             end
             
-            position_ = this.Position.Value;
+            position_ = this.Position;
             
             switch typeIn
                 case 'x'
@@ -233,10 +233,10 @@ classdef (Sealed) Arc < Geometry1D
             switch this.Orientation
                 case true
                     angle_ = this.vAngle;
-                    rotation_ = this.Rotation.Value;
+                    rotation_ = this.Rotation;
                 case false
                     angle_ = -this.vAngle;
-                    rotation_ = this.Rotation.Value-angle_;
+                    rotation_ = this.Rotation-angle_;
             end
             
             dx2Out = -angle_^2*radius_*cos(rotation_+angle_*s);
@@ -248,10 +248,10 @@ classdef (Sealed) Arc < Geometry1D
             switch this.Orientation
                 case true
                     angle_ = this.vAngle;
-                    rotation_ = this.Rotation.Value;
+                    rotation_ = this.Rotation;
                 case false
                     angle_ = -this.vAngle;
-                    rotation_ = this.Rotation.Value-angle_;
+                    rotation_ = this.Rotation-angle_;
             end
             
             dy2Out = -angle_^2*radius_*sin(rotation_+angle_*s);

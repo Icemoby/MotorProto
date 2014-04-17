@@ -24,7 +24,7 @@ classdef AsynchronousRotor < PoleAndToothAssembly
         
         %% Getters       	
         function value = get.SpatialSymmetries(this)
-            value = this.Poles.Value / 2;
+            value = this.Poles / 2;
         end
         
         function value = get.HasHalfWaveSymmetry(~)
@@ -32,16 +32,16 @@ classdef AsynchronousRotor < PoleAndToothAssembly
         end
         
         function value = get.GeometricSymmetries(this)
-            value = this.Teeth.Value;
+            value = this.Teeth;
         end
         
         function value = get.SpaceTimeSymmetries(this)
-            value = this.Poles.Value / 2;
+            value = this.Poles / 2;
         end
         
         function value = get.SolutionSpaceTimeSymmetry(this)
             warning('MotorProto:Verbose', 'Use SpaceTimeSymmetries instead')
-            value = [this.Poles.Value, inf];
+            value = [this.Poles, inf];
         end
         
         function value = get.SolutionSpaceTimeCoefficients(this)
@@ -49,16 +49,11 @@ classdef AsynchronousRotor < PoleAndToothAssembly
         end
         
         function value = get.Slip(this)
-            value = this.Slip.Value;
+            value = this.Slip;
         end
         
         function value = get.AngularVelocity(this)
-        	value = 2 * pi * this.ElectricalFrequency.Value / (this.Poles.Value / 2) * (1 - this.Slip);
-        end
-        
-        %% Setters
-        function this = set.Slip(this, value)
-            this.Slip = AsynchronousRotor.setProperty(value);
+        	value = 2 * pi * this.ElectricalFrequency / (this.Poles / 2) * (1 - this.Slip);
         end
     end
     

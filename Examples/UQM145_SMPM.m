@@ -147,105 +147,112 @@ stator.Sources.HarmonicPhases     = (180+105)*(pi/180);
 % stator.Sources.HarmonicPhases     = angle(i);
 
 % simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
-% solution = simulation.run;
+% solution = simulation.run;%         
+
+nTimePoints = 2^1;
+simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 4, 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
+solution = simulation.run;
+% nTimePoints = 2^9;
+% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 4, 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
+% solution = simulation.run(solution.Algorithm.X(:,1));
 
 % simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 5, 'NewtonTolerance', 1e-3);
 % solution = simulation.run;
 
-N           = 7;
-nStages    	= [1 2 4];
-M           = length(nStages);
-losses      = zeros(N,M,3);
-a_0        	= cell(N,M,3);
-a_1      	= cell(N,M,3);
-x_0        	= cell(N,M,3);
-sim_time  	= zeros(N,M,3);
-n          	= zeros(N,1);
-
-for i = 1:N
-    nTimePoints = 2^(i+3);
-    for j = 1:M
-        %% Shooting Newton
-        k = 1;
-        simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(j), 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
-        solution = simulation.run;
-        
-        l = solution.getBulkVariableData('AverageLosses');
-        losses(i,j,k) = l{1}(1);
-        
-        a = solution.getContinuumVariableData('A','Harmonic',0);
-        a_0{i,j,k} = a{1};
-        
-        a = solution.getContinuumVariableData('A','Harmonic',1);
-        a_1{i,j,k} = a{2};
-        
-        x_0{i,j,k} = solution.Algorithm.X(:,1);
-        
-        sim_time(i,j,k) = solution.Algorithm.SimulationTime;
-        
-        n(i) = length(solution.Algorithm.Times)-1;
-        
-        %% TPFEM
-        k = 2;
-        simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(j), 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 5, 'NewtonTolerance', 1e-6);
-        solution = simulation.run;
-        
-        l = solution.getBulkVariableData('AverageLosses');
-        losses(i,j,k) = l{1}(1);
-        
-        a = solution.getContinuumVariableData('A','Harmonic',0);
-        a_0{i,j,k} = a{1};
-        
-        a = solution.getContinuumVariableData('A','Harmonic',1);
-        a_1{i,j,k} = a{2};
-        
-        x_0{i,j,k} = solution.Algorithm.X(:,1);
-        
-        sim_time(i,j,k) = solution.Algorithm.SimulationTime;
-
-        %% Transient
-        k = 3;
-        simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(j), 'StoreDecompositions', false, 'Verbose', true, 'TransientSolver', true, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-4);
-        solution = simulation.run;
-        
-        l = solution.getBulkVariableData('AverageLosses');
-        losses(i,j,k) = l{1}(1);
-        
-        a = solution.getContinuumVariableData('A','Harmonic',0);
-        a_0{i,j,k} = a{1};
-        
-        a = solution.getContinuumVariableData('A','Harmonic',1);
-        a_1{i,j,k} = a{2};
-        
-        x_0{i,j,k} = solution.Algorithm.X(:,1);
-        
-        sim_time(i,j,k) = solution.Algorithm.SimulationTime;
-        
-        %% Save
-        save('C:\\results','losses','a_0','a_1','x_0','sim_time');
-        pause(1);
-    end
-end
-
-%% Reference Solution
-nTimePoints = 2^((3+N)+4);
-simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(M), 'StoreDecompositions', false, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
-solution = simulation.run(x_0{end,end,1});
-
-l = solution.getBulkVariableData('AverageLosses');
-ref_losses = l{1}(1);
-
-a = solution.getContinuumVariableData('A','Harmonic',0);
-ref_a_0 = a{1};
-
-a = solution.getContinuumVariableData('A','Harmonic',1);
-ref_a_1 = a{2};
-
-ref_x_0 = solution.Algorithm.X(:,1);
-
-ref_sim_time = solution.Algorithm.SimulationTime;
-
-save('C:\\results','losses','a_0','a_1','x_0','sim_time','ref_losses','ref_a_0','ref_a_1','ref_x_0','ref_sim_time');
+% N           = 7;
+% nStages    	= [1 2 4];
+% M           = length(nStages);
+% losses      = zeros(N,M,3);
+% a_0        	= cell(N,M,3);
+% a_1      	= cell(N,M,3);
+% x_0        	= cell(N,M,3);
+% sim_time  	= zeros(N,M,3);
+% n          	= zeros(N,1);
+% 
+% for i = 1:N
+%     nTimePoints = 2^(i+3);
+%     for j = 1:M
+%         %% Shooting Newton
+%         k = 1;
+%         simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(j), 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
+%         solution = simulation.run;
+%         
+%         l = solution.getBulkVariableData('AverageLosses');
+%         losses(i,j,k) = l{1}(1);
+%         
+%         a = solution.getContinuumVariableData('A','Harmonic',0);
+%         a_0{i,j,k} = a{1};
+%         
+%         a = solution.getContinuumVariableData('A','Harmonic',1);
+%         a_1{i,j,k} = a{2};
+%         
+%         x_0{i,j,k} = solution.Algorithm.X(:,1);
+%         
+%         sim_time(i,j,k) = solution.Algorithm.SimulationTime;
+%         
+%         n(i) = length(solution.Algorithm.Times)-1;
+%         
+%         %% TPFEM
+%         k = 2;
+%         simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(j), 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 5, 'NewtonTolerance', 1e-6);
+%         solution = simulation.run;
+%         
+%         l = solution.getBulkVariableData('AverageLosses');
+%         losses(i,j,k) = l{1}(1);
+%         
+%         a = solution.getContinuumVariableData('A','Harmonic',0);
+%         a_0{i,j,k} = a{1};
+%         
+%         a = solution.getContinuumVariableData('A','Harmonic',1);
+%         a_1{i,j,k} = a{2};
+%         
+%         x_0{i,j,k} = solution.Algorithm.X(:,1);
+%         
+%         sim_time(i,j,k) = solution.Algorithm.SimulationTime;
+% 
+%         %% Transient
+%         k = 3;
+%         simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(j), 'StoreDecompositions', false, 'Verbose', true, 'TransientSolver', true, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-4);
+%         solution = simulation.run;
+%         
+%         l = solution.getBulkVariableData('AverageLosses');
+%         losses(i,j,k) = l{1}(1);
+%         
+%         a = solution.getContinuumVariableData('A','Harmonic',0);
+%         a_0{i,j,k} = a{1};
+%         
+%         a = solution.getContinuumVariableData('A','Harmonic',1);
+%         a_1{i,j,k} = a{2};
+%         
+%         x_0{i,j,k} = solution.Algorithm.X(:,1);
+%         
+%         sim_time(i,j,k) = solution.Algorithm.SimulationTime;
+%         
+%         %% Save
+%         save('C:\\results','losses','a_0','a_1','x_0','sim_time');
+%         pause(1);
+%     end
+% end
+% 
+% %% Reference Solution
+% nTimePoints = 2^((3+N)+4);
+% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', nStages(M), 'StoreDecompositions', false, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
+% solution = simulation.run(x_0{end,end,1});
+% 
+% l = solution.getBulkVariableData('AverageLosses');
+% ref_losses = l{1}(1);
+% 
+% a = solution.getContinuumVariableData('A','Harmonic',0);
+% ref_a_0 = a{1};
+% 
+% a = solution.getContinuumVariableData('A','Harmonic',1);
+% ref_a_1 = a{2};
+% 
+% ref_x_0 = solution.Algorithm.X(:,1);
+% 
+% ref_sim_time = solution.Algorithm.SimulationTime;
+% 
+% save('C:\\results','losses','a_0','a_1','x_0','sim_time','ref_losses','ref_a_0','ref_a_1','ref_x_0','ref_sim_time');
 
 % simulation.configureAlgorithm('ShootingNewton', 'TransientSolver', true, 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', false, 'Verbose', true, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-5);
 % solution = simulation.run;

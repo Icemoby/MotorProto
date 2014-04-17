@@ -1,4 +1,4 @@
-classdef (HandleCompatible) Geometry < Parameterizable & matlab.mixin.Heterogeneous
+classdef (HandleCompatible) Geometry <  matlab.mixin.Heterogeneous
     %%Geometry Abstract interface class for geometry objects
     %   This class defines a common interface for all objects representing the
     %   geometry of a model. It cannot be instantiated.

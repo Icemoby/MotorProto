@@ -55,7 +55,7 @@ classdef SelfExcitedSynchronousRotor < PoleAndToothAssembly
         end
         
        	function value = get.SpatialSymmetries(this)
-            value = this.Poles.Value / 2;
+            value = this.Poles / 2;
         end
         
         function value = get.HasHalfWaveSymmetry(~)
@@ -63,17 +63,17 @@ classdef SelfExcitedSynchronousRotor < PoleAndToothAssembly
         end
         
         function value = get.GeometricSymmetries(this)
-            value = this.Teeth.Value;
+            value = this.Teeth;
         end
         
         function value = get.SpaceTimeSymmetries(this)
-        	value = this.Poles.Value / 2;
+        	value = this.Poles / 2;
         end
         
         function value = get.AngularVelocity(this)
             switch this.OperatingMode
                 case 'synchronous'
-                    value = 4 * pi * this.ElectricalFrequency.Value / this.Poles.Value;
+                    value = 4 * pi * this.ElectricalFrequency / this.Poles;
                 case 'locked'
                     value = 0;
             end
@@ -144,10 +144,10 @@ classdef SelfExcitedSynchronousRotor < PoleAndToothAssembly
         
         function this = buildPostProcessing(this, connectionMatrix, modeledFraction)
             nTurnsPerSlot           = this.Slot.Turns;
-            nSlotsPerField          = this.FieldSlots / this.Poles.Value;
-            nSlotsPerTransformer    = this.TransformerSlots / this.Poles.Value;
-            nSlotsPerPole           = this.Teeth.Value / this.Poles.Value;
-            nModeledPoles           = round(this.Poles.Value * modeledFraction);
+            nSlotsPerField          = this.FieldSlots / this.Poles;
+            nSlotsPerTransformer    = this.TransformerSlots / this.Poles;
+            nSlotsPerPole           = this.Teeth / this.Poles;
+            nModeledPoles           = round(this.Poles * modeledFraction);
             
             connectionMatrices = cell(1, 2);
             connectionPolarity = cell(1, 2);

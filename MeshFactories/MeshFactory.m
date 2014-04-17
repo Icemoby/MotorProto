@@ -1,4 +1,4 @@
-classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
+classdef MeshFactory < matlab.mixin.Copyable
     properties (SetAccess = protected)
         Assembly = Stator.empty(1,0);
     end
@@ -52,23 +52,14 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         UseUniformGrid     = false;
         UniformGridType    = 'rectangular';
         ElementOrder       = 1;
-        MinimumElementSize = MeshFactory.setProperty(0);
-        MaximumElementSize = MeshFactory.setProperty(inf);
+        MinimumElementSize = 0;
+        MaximumElementSize = inf;
     end
     
     methods
         %% Constructor
         function this = MeshFactory
             warning('MotorProto:Verbose','Create mesh preview method');
-        end
-        
-        %% Setters
-        function set.MinimumElementSize(this,valueIn)
-            this.MinimumElementSize = this.setProperty(valueIn);
-        end
-        
-        function set.MaximumElementSize(this,valueIn)
-            this.MaximumElementSize = this.setProperty(valueIn);
         end
         
         %% Getters
@@ -238,9 +229,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             cEdges  = curves.MinEdgeNumber;
             
             if this.UseUniformGrid
-                cLength = curves.length / (this.MaximumElementSize.Value * sqrt(3) * 7 / (sqrt(3) * 2 + sqrt(2)*3));
+                cLength = curves.length / (this.MaximumElementSize * sqrt(3) * 7 / (sqrt(3) * 2 + sqrt(2)*3));
             else
-                cLength = curves.length / (this.MaximumElementSize.Value * sqrt(3));
+                cLength = curves.length / (this.MaximumElementSize * sqrt(3));
             end
             
             cEdges = max(cEdges,ceil(cLength) + 1);
@@ -635,9 +626,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             refineable = this.ElementAngles > sqrt(3) / 2;
             refineable = any(refineable);
             refineable = refineable...
-                         | (circumradii > this.MaximumElementSize.Value);
+                         | (circumradii > this.MaximumElementSize);
             refineable = refineable...
-                         & (inradii     > this.MinimumElementSize.Value);
+                         & (inradii     > this.MinimumElementSize);
             refineable = refineable...
                          & inDomainHull(this,incenters(1,:),incenters(2,:));
             
@@ -655,10 +646,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
                 
                 %% remove all elements whose circumcenter is within
                 %  the largest element's circumscribed circle
-                dc = sqrt(sum(bsxfun(@minus,...
-                                            circumcenters(:,refineable),...
-                                            circumcenters(:,j)...
-                                     ).^2));
+                dc = sqrt(sum(bsxfun(@minus, circumcenters(:,refineable), circumcenters(:,j)).^2));
 
                 l             = dc < circumradii(j) * (1 + sqrt(eps));
                 f             = elementID(l);
@@ -679,20 +667,16 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
 %                 elementID(l)  = [];   
                
                 %% get the element containing the largest element's circumcenter
-                dc = hypot(bsxfun(@minus,incenters(1,refineable),...
-                                         circumcenters(1,j).'),...
-                           bsxfun(@minus,incenters(2,refineable),...
-                                         circumcenters(2,j).'));
+                dc = hypot(bsxfun(@minus,incenters(1,refineable),circumcenters(1,j).'),...
+                           bsxfun(@minus,incenters(2,refineable),circumcenters(2,j).'));
                 jEl = find(any(dc < inradii(refineable) * (1 + sqrt(eps))));
                 
                 %% remove all elements whose circumscribed circle intersects
                 % with these elements inscribed circles
                 if ~isempty(jEl)
                     dr = bsxfun(@plus,circumradii(refineable),inradii(jEl).');
-                    dc = hypot(bsxfun(@minus,circumcenters(1,refineable),...
-                                             incenters(1,jEl).'),...
-                               bsxfun(@minus,circumcenters(2,refineable),...
-                                             incenters(2,jEl).'));
+                    dc = hypot(bsxfun(@minus,circumcenters(1,refineable),incenters(1,jEl).'),...
+                               bsxfun(@minus,circumcenters(2,refineable),incenters(2,jEl).'));
 
                     l = any(dc < dr * (1 + sqrt(eps)),1);
                     f = elementID(l);
@@ -765,9 +749,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
                              +    incenters(2,i) * sqrt(eps);
                 end
             end
-            removeVertices =   encroachingVertices...
-                             & ~this.IsFixedNode...
-                             & ~this.IsConstrainedNode;
+            removeVertices =   encroachingVertices & ~this.IsFixedNode & ~this.IsConstrainedNode;
             
             nNew = sum(successfulInsertion);
             this.X(end+1:end+nNew)                 = xNew(successfulInsertion);
@@ -899,10 +881,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             nElements   = sum(~notInDomain);
             
             this.Elements(:,notInDomain) = [];
-            this.VertexRemovalQueue      = setdiff(1:numel(this.X),....
-                                                    unique(this.Elements));
+            this.VertexRemovalQueue      = setdiff(1:numel(this.X), unique(this.Elements));
             this                         = this.removeVertices;
-            this.BackgroundTriangulation = TriRep(this.Elements.',this.X.',this.Y.');
+            this.BackgroundTriangulation = TriRep(this.Elements.', this.X.', this.Y.');
             
             this.ElementIncenters(:,notInDomain)     = [];
             this.ElementInradii(notInDomain)         = [];
@@ -913,9 +894,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             x   = this.X(this.Elements);
             y   = this.Y(this.Elements);
             
-            elA = 0.5 * ( x(1,:).*(y(2,:) - y(3,:))...
-                         +x(2,:).*(y(3,:) - y(1,:))...
-                         +x(3,:).*(y(1,:) - y(2,:)));
+            elA = 0.5 * ( x(1,:).*(y(2,:) - y(3,:)) + x(2,:).*(y(3,:) - y(1,:)) + x(3,:).*(y(1,:) - y(2,:)));
             
             isNegative                      = elA < 0;
             this.Elements([1,2],isNegative) = this.Elements([2,1],isNegative);
@@ -927,8 +906,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             nRegions = numel(regions);
             elementRegion = zeros(1,nElements);
             for iRegion = 1:nRegions
-                I = regions(iRegion).Geometry.inOn(incenters(1,:),...
-                                                    incenters(2,:));
+                I = regions(iRegion).Geometry.inOn(incenters(1,:), incenters(2,:));
                 elementRegion(I) = iRegion;
             end
             

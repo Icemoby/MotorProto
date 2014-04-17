@@ -65,7 +65,6 @@ properties:
     methods
         %% Constructor
         function this = Geometry0D(varargin)
-            %Call superclass constructor
             this = this@Geometry(varargin{:});
         end
 
@@ -85,7 +84,7 @@ properties:
             %
             % See also scatter, Geometry0D
             
-            gHandleOut = scatter(this.X.Value,this.Y.Value,this.PlotStyle{:});
+            gHandleOut = scatter(this.X,this.Y,this.PlotStyle{:});
         end
         
         function gHandleOut = wireframe(this)
@@ -103,7 +102,7 @@ properties:
             %
             % See also scatter, Geometry0D
             
-            gHandleOut = scatter(this.X.Value,this.Y.Value,this.PlotStyle{:});
+            gHandleOut = scatter(this.X,this.Y,this.PlotStyle{:});
         end
     end
     

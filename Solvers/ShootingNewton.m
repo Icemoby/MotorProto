@@ -36,12 +36,12 @@ properties:
 %}
 
     properties
-        ShootingTolerance     = ShootingNewton.setProperty(1e-6);
-        NewtonTolerance       = ShootingNewton.setProperty(1e-6);
-        GMRESTolerance        = ShootingNewton.setProperty(1e-6);
-        MaxShootingIterations = ShootingNewton.setProperty(100);
-        MaxNewtonIterations   = ShootingNewton.setProperty(100);
-        MaxGMRESIterations    = ShootingNewton.setProperty(100);
+        ShootingTolerance     = 1e-6;
+        NewtonTolerance       = 1e-6;
+        GMRESTolerance        = 1e-6;
+        MaxShootingIterations = 100;
+        MaxNewtonIterations   = 100;
+        MaxGMRESIterations    = 100;
         RungeKuttaStages      = 2;
         StoreDecompositions   = false;
         TransientSolver       = false;
@@ -62,31 +62,6 @@ properties:
             end
         end
         
-        %% Setters
-        function this = set.ShootingTolerance(this, tol)
-            this.ShootingTolerance = this.setProperty(tol);
-        end
-        
-        function this = set.NewtonTolerance(this, tol)
-            this.NewtonTolerance = this.setProperty(tol);
-        end
-        
-        function this = set.GMRESTolerance(this, tol)
-            this.GMRESTolerance = this.setProperty(tol);
-        end  
-        
-        function this = set.MaxShootingIterations(this, maxItt)
-            this.MaxShootingIterations = this.setProperty(maxItt);
-        end
-        
-        function this = set.MaxNewtonIterations(this, maxItt)
-            this.MaxNewtonIterations = this.setProperty(maxItt);
-        end
-        
-        function this = set.MaxGMRESIterations(this, maxItt)
-            this.MaxGMRESIterations = this.setProperty(maxItt);
-        end
-        
         %% Solve
         function solution = solve(this, model, x0)
             %% Setup Matrices
@@ -94,12 +69,12 @@ properties:
             this.Matrices = matrixFactory;
             
             %% Get Algorithm Parameters
-          	maxShootingIter = this.MaxShootingIterations.Value;
-            maxNewtonIter   = this.MaxNewtonIterations.Value;
-            maxGMRESIter    = this.MaxGMRESIterations.Value;
-            shootingTol    = this.ShootingTolerance.Value;
-            newtonTol      = this.NewtonTolerance.Value;
-            gmresTol       = this.GMRESTolerance.Value;
+          	maxShootingIter = this.MaxShootingIterations;
+            maxNewtonIter   = this.MaxNewtonIterations;
+            maxGMRESIter    = this.MaxGMRESIterations;
+            shootingTol    = this.ShootingTolerance;
+            newtonTol      = this.NewtonTolerance;
+            gmresTol       = this.GMRESTolerance;
             nStages        = this.RungeKuttaStages;
             [A,b,c]        = this.getButcherTable(nStages);
             
@@ -107,7 +82,7 @@ properties:
             gamma = sum(alpha,2);
             
             %% Initialize
-            times      = model.getTimePoints(this.TimePoints.Value);
+            times      = model.getTimePoints(this.TimePoints);
             this.Times = times;
             nUnknowns  = length(matrixFactory.f(times(1)));   
             nTimes     = numel(times) - 1;

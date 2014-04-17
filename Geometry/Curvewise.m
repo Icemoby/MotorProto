@@ -30,7 +30,7 @@ classdef Curvewise < Geometry2D
         function build(~)
         end
         
-      	function [In On N] = inOn(objIn,X,Y)
+      	function [In, On, N] = inOn(objIn,X,Y)
             c = objIn.curves;
             n = numel(c);
             m = length(X);
@@ -38,7 +38,7 @@ classdef Curvewise < Geometry2D
             OnC = false(m,n);
             NC = zeros(m,2*n);
             for i = 1:n
-                [InC(:,i) OnC(:,i) NC(:,2*i-1:2*i)] = c{i}.inOn(X,Y);
+                [InC(:,i), OnC(:,i), NC(:,2*i-1:2*i)] = c{i}.inOn(X,Y);
             end
             In = all(InC,2);
             On = false(m,1);

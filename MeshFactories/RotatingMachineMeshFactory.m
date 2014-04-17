@@ -32,22 +32,17 @@ classdef RotatingMachineMeshFactory < MeshFactory
         
         function curves = getAuxillaryBoundaries(this)
             r       = [this.Assembly.InnerRadius,this.Assembly.OuterRadius];
-            r       = [r.Value];
             r(1)    = [];
             r(end)  = [];
-            %r       = (r(1:end-1) + r(2:end)) / 2;
             nCurves = numel(r);
             curves  = Arc.empty(1,0);
             for i = 1:nCurves
-                curves(i) = Geometry1D.draw('Arc',...
-                                                'Radius',r(i),...
-                                                'Angle',2 * pi);
+                curves(i) = Geometry1D.draw('Arc', 'Radius', r(i), 'Angle', 2 * pi);
             end
         end
         
         function this = detectBoundaryPairs(this)
-            warning('MotorProto:Verbose',...
-                'Clean up this method. Specifically, when numel(tRot) > 1');
+            warning('MotorProto:Verbose', 'Clean up this method. Specifically, when numel(tRot) > 1');
             
             %% get boundary endpoints
             boundary    = this.Boundaries;
@@ -70,17 +65,16 @@ classdef RotatingMachineMeshFactory < MeshFactory
             [~,onDomainHull]  = this.DomainHull.inOn(x(2,:),y(2,:));
             x                 = x(:,onDomainHull);
             y                 = y(:,onDomainHull);
-            internalBoundary  = [internalBoundary,boundary(~onDomainHull)];
+            internalBoundary  = [internalBoundary, boundary(~onDomainHull)];
             boundary          = boundary(onDomainHull);
             
             %% remove radiall boundaries
-            r     = [this.Assembly.InnerRadius,this.Assembly.OuterRadius];
-            r     = [r.Value];
+            r     = [this.Assembly.InnerRadius, this.Assembly.OuterRadius];
             r_eps = max(r) * sqrt(eps);
             onRadialBoundary = false(1,numel(boundary));
             for i = 1:numel(boundary)
                 if isa(boundary(i),'Arc')
-                    if any(abs(r - boundary(i).Radius.Value) < r_eps)
+                    if any(abs(r - boundary(i).Radius) < r_eps)
                         internalBoundary(end+1) = boundary(i);
                         onRadialBoundary(i)     = true;
                     end
@@ -90,7 +84,7 @@ classdef RotatingMachineMeshFactory < MeshFactory
             
             %% determine test points for intersections
             tRot = [this.DomainHull.Angle];
-            tRot = unique([tRot.Value]);
+            tRot = unique(tRot);
             t    = atan2(y,x);
             r    = hypot(y,x);
             
@@ -146,9 +140,7 @@ classdef RotatingMachineMeshFactory < MeshFactory
                 while i <= nBoundaries
                     j = 1;
                     while j <= nBoundaries
-                        dr = hypot(bsxfun(@minus, xTest(:,K(i)), xNew(:,K(j)).'),...
-                                    bsxfun(@minus, yTest(:,K(i)), yNew(:,K(j)).'))...
-                            < r_eps;
+                        dr = hypot(bsxfun(@minus, xTest(:,K(i)), xNew(:,K(j)).'), bsxfun(@minus, yTest(:,K(i)), yNew(:,K(j)).')) < r_eps;
                         if (dr(1,1) && dr(2,2)) || (dr(1,2) && dr(2,1))
                             nBoundaryPairs = nBoundaryPairs + 1;
                             boundaryPairs(:,nBoundaryPairs) = [K(i);K(j)];
@@ -207,13 +199,9 @@ classdef RotatingMachineMeshFactory < MeshFactory
                 [edgePairI,edgePairJ] = find(sameRadius & sameRotationAngle);
                 
                 if numel(edgePairI) > nPairs
-                    error('MotorProto:MeshFacotry',...
-                            ['Excessive number of edge pairs found. ',...
-                            'This is likely due to a corner case ',...
-                            ' which is not handled correctly']);
+                    error('MotorProto:MeshFacotry', 'Excessive number of edge pairs found. This is likely due to a corner case which is not handled correctly');
                 elseif numel(edgePairI) < nPairs
-                    error('MotorProto:MeshFactory',...
-                            'Not enough edge pairs found');
+                    error('MotorProto:MeshFactory', 'Not enough edge pairs found');
                 end
                 
                 boundaryPairI = find(boundaryPairI);
@@ -234,7 +222,6 @@ classdef RotatingMachineMeshFactory < MeshFactory
 
             %% get radial boundary pairs
             rbRadii = [assembly.InnerRadius,assembly.OuterRadius];
-            rbRadii = [rbRadii.Value];
             rbRadii = sort(rbRadii);
             
             %% get boundary edges

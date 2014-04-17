@@ -57,14 +57,6 @@ classdef (Sealed) Sector < Geometry2D
             end
         end
         
-        function this = set.Radius(this,radiusIn)
-            this.Radius = this.setProperty(radiusIn);
-        end
-        
-        function this = set.Angle(this,angleIn)
-            this.Angle = this.setProperty(angleIn);
-        end
-        
         function this = rebuild(this)
             this          = this.rebuild@Geometry2D;
             this.Radius   = rebuild(this.Radius);
@@ -73,8 +65,8 @@ classdef (Sealed) Sector < Geometry2D
         end
         
     	function this = build(this)
-            radius   = this.Radius.Value;
-            angle    = this.Angle.Value;
+            radius   = this.Radius;
+            angle    = this.Angle;
             rotation = this.vRotation;
             position = this.vPosition;
             orient   = this.Orientation;

@@ -64,15 +64,6 @@ classdef (Sealed) Rect < Geometry2D
             end
         end
         
-        %% Set Methods
-        function this = set.Length(this,lengthIn)
-            this.Length = this.setProperty(lengthIn);
-        end
-        
-        function this = set.Width(this,widthIn)
-            this.Width = this.setProperty(widthIn);
-        end
-        
         %% Parameterization Update Methods
         function this = refresh(this)
             warning('Rect:refresh','Replace "refresh" with "rebuild."');
@@ -87,8 +78,8 @@ classdef (Sealed) Rect < Geometry2D
         end
         
         function this = build(this)
-            length   = this.Length.Value;
-            width    = this.Width.Value;
+            length   = this.Length;
+            width    = this.Width;
             rotation = this.vRotation;
             position = this.vPosition;
             orient   = this.Orientation;
