@@ -13,11 +13,11 @@ classdef CircularWire < Wire
             
             %% Calculate x-coordinates which bounds the slot shape
           	outlineCurves = slotShape.Curves;
-            xMin          = min([outlineCurves.vX0])*0.9;
-            xMax          = max([outlineCurves.vX0])*1.1;
+            xMin          = min([outlineCurves.X0])*0.9;
+            xMax          = max([outlineCurves.X0])*1.1;
             
             if windingType == WindingTypes.Concentrated
-                yMin          = min([outlineCurves.vY0])*1.1;
+                yMin          = min([outlineCurves.Y0])*1.1;
                 halfSlot      = Geometry2D.draw('Polygon2D','Points',[xMin,yMin;xMax,yMin;xMax,0;xMin,0]);
                 halfSlot      = halfSlot * slotShape;
                 outlineCurves = halfSlot.Curves;
@@ -45,8 +45,8 @@ classdef CircularWire < Wire
             xCenter             = linspace(xMin + xOffset, xMax - xOffset, nHorzLayers);
             
             %% Calculate y-coordinates which bound the slot shape
-           	yMin = min([outlineCurves.vY0]);
-            yMax = max([outlineCurves.vY0]);
+           	yMin = min([outlineCurves.Y0]);
+            yMax = max([outlineCurves.Y0]);
             
             dy   = (yMax - yMin)*0.1;
             

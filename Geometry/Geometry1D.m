@@ -8,7 +8,6 @@ classdef Geometry1D < Geometry & matlab.mixin.Copyable
     %   intersection - Calculates the intersection points of two curves
     %   split        - Splits the curve into two or more peices
     %   reverse      - Reverses the orientation of the curve
-    %   rebuild      - 
     %   draw         - Creates a new curve
     %   x            - Calculates x values on the curve from a parameter vector
     %   y            - Calculates y values on the curve from a parameter vector
@@ -51,17 +50,13 @@ properties:
     %   valid with MATLAB's line function.
     %
     %   Example: Change the PlotStyle property of an arc
-    %       G = Geometry1D.draw('Arc1D',...
-    %                           'Radius',   rand(1),...
-    %                           'Rotation', pi*rand(1),...
-    %                           'Angle',    pi*rand(1),...
-    %                           'Position', rand(1,2));
-    %       figure;subplot(1,2,1);
-    %       G.plot;axis equal;
+    %       G = Geometry1D.draw('Arc1D', 'Radius',   rand(1), 'Rotation', pi*rand(1), 'Angle',    pi*rand(1), 'Position', rand(1,2));
+    %       figure; subplot(1, 2, 1);
+    %       G.plot; axis equal;
     %
-    %       G.PlotStyle = {'Color','r','LineStyle',':'};
-    %       subplot(1,2,2);
-    %       G.plot;axis equal;
+    %       G.PlotStyle = {'Color', 'r', 'LineStyle', ':'};
+    %       subplot(1, 2, 2);
+    %       G.plot; axis equal;
     %   
     % See also line, plot, wireframe, PlotResolution, Geometry1D
     PlotStyle;
@@ -71,17 +66,13 @@ properties:
     %   of the curve when plotted.
     %
     %   Example: Change the PlotResolution to obtain a more accurate plot;
-    %       G = Geometry1D.draw('Arc1D',...
-    %                         	'Radius',1,...
-    %                           'Angle',pi,...
-    %                           'PlotResolution',3,...
-    %                           'PlotStyle',{'Color','k','Marker','o'});
-    %       figure;subplot(1,2,1);
-    %       G.plot;axis equal;
+    %       G = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi, 'PlotResolution', 3, 'PlotStyle', {'Color', 'k', 'Marker', 'o'});
+    %       figure;subplot(1, 2, 1);
+    %       G.plot; axis equal;
     %
     %       G.PlotResolution = 10;
-    %       subplot(1,2,2);
-    %       G.plot;axis equal;
+    %       subplot(1, 2, 2);
+    %       G.plot; axis equal;
     %       
     % See also line, plot, wireframe, PlotStyle, Geometry1D
     PlotResolution;
@@ -99,34 +90,32 @@ properties:
     %   is defined using this right handedness.
     %
     %   Example 1: Visualize the 'interior' of an arc.
-    %       G = Geometry1D.draw('Arc1D',...
-    %                         	'Radius',1,...
-    %                           'Angle',pi/3);
-    %       X = 1.25-2.5*rand(100,1);
-    %       Y = 1.25-2.5*rand(100,1);
+    %       G = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi/3);
+    %       X = 1.25 - 2.5*rand(100, 1);
+    %       Y = 1.25 - 2.5*rand(100, 1);
     %       figure;
     %       for i=1:2
-    %           subplot(1,2,i);
-    %           In = G.inOn(X,Y);
-    %           G.plot;axis equal;hold on;
-    %           scatter(X(In),Y(In),'o','b');
-    %           scatter(X(~In),Y(~In),'x','r');
-    %           legend('Arc','Interior','Exterior')
+    %           subplot(1, 2, i);
+    %           In = G.inOn(X, Y);
+    %           G.plot; axis equal; hold on;
+    %           scatter(X(In), Y(In), 'o', 'b');
+    %           scatter(X(~In), Y(~In), 'x', 'r');
+    %           legend('Arc', 'Interior', 'Exterior')
     %           G.Orientation = false;
     %       end
     %
     %   Example 2: Visualize the 'interior' of a line.
-    %       G = Geometry1D.draw('Line1D','Points',[0 0;1 1]);
-    %       X = 1-2*rand(100,1);
-    %       Y = 1-2*rand(100,1);
+    %       G = Geometry1D.draw('Line1D', 'Points', [0 0;1 1]);
+    %       X = 1-2*rand(100, 1);
+    %       Y = 1-2*rand(100, 1);
     %       figure;
-    %       for i=1:2
-    %           subplot(1,2,i);
-    %           In = G.inOn(X,Y);
-    %           G.plot;axis equal;hold on;
-    %           scatter(X(In),Y(In),'o','b');
-    %           scatter(X(~In),Y(~In),'x','r');
-    %           legend('Line','Interior','Exterior')
+    %       for i = 1:2
+    %           subplot(1, 2, i);
+    %           In = G.inOn(X, Y);
+    %           G.plot; axis equal; hold on;
+    %           scatter(X(In), Y(In), 'o', 'b');
+    %           scatter(X(~In), Y(~In), 'x', 'r');
+    %           legend('Line', 'Interior', 'Exterior')
     %           G.Orientation = false;
     %       end
     %
@@ -139,32 +128,22 @@ properties:
     %   the curve.
     %
     %   Example 1: Create two lines with different Position values.
-    %       G1 = Geometry1D.draw('Line1D','Points',[0.5 0.5;1 1]);
-    %       G2 = Geometry1D.draw('Line1D','Points',[0.5 0.5;1 1],...
-    %                                   'Position',[-1 0],...
-    %                                   'PlotStyle',{'Color','b'});
+    %       G1 = Geometry1D.draw('Line1D', 'Points', [0.5 0.5;1 1]);
+    %       G2 = Geometry1D.draw('Line1D', 'Points', [0.5 0.5;1 1], 'Position', [-1 0], 'PlotStyle', {'Color', 'b'});
     %       figure;
-    %       G1.plot;hold on;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Line','Shifted Line');
+    %       legend('Original Line', 'Shifted Line');
     %
     %   Example 2: The Position property is the axis about which the rotation
     %              angle specified by the Rotation property is applied.
-    %       G1 = Geometry1D.draw('Arc1D',...
-    %                               'Radius',1,...
-    %                               'Angle',pi/6,...
-    %                               'Position',[1 0]);
+    %       G1 = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi/6, 'Position', [1 0]);
     %
-    %       G2 = Geometry1D.draw('Arc1D',...
-    %                               'Radius',1,...
-    %                               'Angle',pi/6,...
-    %                               'Rotation',-pi/4,...
-    %                               'PlotStyle',{'Color','b'},...
-    %                               'Position',[1 0]);   
-    %       figure;axis equal;
-    %       G1.plot;hold on;
+    %       G2 = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi/6, 'Rotation', -pi/4, 'PlotStyle', {'Color', 'b'}, 'Position', [1 0]);   
+    %       figure; axis equal;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Line','Rotated Line');
+    %       legend('Original Line', 'Rotated Line');
     %
     % See also Rotation, Geometry1D
     Position;
@@ -174,33 +153,23 @@ properties:
     %   about the location specified in the Position property.
     %
     %   Example 1: Create two lines with different Rotation values.
-    %       G1 = Geometry1D.draw('Line1D','Points',[0.5 0.5;1 1]);
-    %       G2 = Geometry1D.draw('Line1D','Points',[0.5 0.5;1 1],...
-    %                                       'Rotation',pi/3,...
-    %                                       'PlotStyle',{'Color','b'});
+    %       G1 = Geometry1D.draw('Line1D', 'Points', [0.5 0.5;1 1]);
+    %       G2 = Geometry1D.draw('Line1D', 'Points', [0.5 0.5;1 1], 'Rotation', pi/3, 'PlotStyle', {'Color', 'b'});
     %       figure;
-    %       G1.plot;hold on;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Line','Rotated Line');
+    %       legend('Original Line', 'Rotated Line');
     %
     %   Example 2: The Rotation property is applied after the object is
     %              translated from the origin to the location specified in the 
     %              Position property
-    %       G1 = Geometry1D.draw('Arc1D',...
-    %                               'Radius',1,...
-    %                               'Angle',pi/6,...
-    %                               'Position',[1 0]);
+    %       G1 = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi/6, 'Position', [1 0]);
     %
-    %       G2 = Geometry1D.draw('Arc1D',...
-    %                               'Radius',1,...
-    %                               'Angle',pi/6,...
-    %                               'Rotation',-pi/4,...
-    %                               'PlotStyle',{'Color','b'},...
-    %                               'Position',[1 0]);   
-    %       figure;axis equal;
-    %       G1.plot;hold on;
+    %       G2 = Geometry1D.draw('Arc1D', 'Radius',1, 'Angle', pi/6, 'Rotation', -pi/4, 'PlotStyle', {'Color', 'b'}, 'Position', [1 0]);   
+    %       figure; axis equal;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Line','Rotated Line');
+    %       legend('Original Line', 'Rotated Line');
     %
     % See also Position, rotate, Geometry1D
     Rotation;
@@ -211,26 +180,31 @@ properties:
     end
     
     properties
-        PlotStyle       = {'Color','k'};
+        PlotStyle       = {'Color', 'k'};
         PlotResolution  = 100;
         Orientation     = true;
     end
     
-	properties (Abstract,Dependent)
+	properties (Abstract, Dependent)
         Order
     end
     
-    properties (SetAccess = private,Dependent)
+    methods (Abstract, Access = protected)
+        this = updateCache(this);
+    end
+    
+    properties (SetAccess = private, Dependent)
         IsClosed
     end
     
     properties (SetAccess = protected)
-        XMid      = 0;
-        YMid      = 0;
-        vX0       = 0;
-        vX1       = 0;
-        vY0       = 0;
-        vY1       = 0;
+        X0 = 0;
+        Xm = 0;
+        X1 = 0;
+        
+        Y0 = 0;
+        Ym = 0;
+        Y1 = 0;
     end
     
     methods
@@ -238,26 +212,24 @@ properties:
             this = this@Geometry(varargin{:});
         end
         
-        function this = set.Orientation(this,orientationIn)
+        function this = set.Orientation(this, orientationIn)
             if ~(this.Orientation == orientationIn)
                 this.Orientation = orientationIn;
-                if this.fCachingEnabled
-                    this = updateCache(this);
-                end
+                this = updateCache(this);
             end
         end
         
         function bool = get.IsClosed(this)
-              x0 = [this.vX0];
-              x1 = [this.vX1];
-              y0 = [this.vY0];
-              y1 = [this.vY1];
-               l = this.length;
-               d = sqrt((x0 - x1).^2 + (y0 - y1).^2);
+            x0   = [this.X0];
+         	x1   = [this.X1];
+         	y0   = [this.Y0];
+         	y1   = [this.Y1];
+           	l    = this.length;
+            d    = hypot(x0 - x1, y0 - y1);
             bool = (d < l * sqrt(eps));
         end
         
-        function [s ds n objs] = split(s)
+        function [s, ds, n, objs] = split(s)
             %split - Splits the curve into two or more peices
             %   C = split(G,S) returns a cell array of curves C which are
             %   created by splitting the curve G and the parameter locations
@@ -281,34 +253,10 @@ properties:
             %% object specific behavior is implemented in subclasses
             s(s==0)	= [];
             s(s==1)	= [];
-            s     	= sort([0;s;1]);
+            s     	= sort([0; s; 1]);
             ds   	= diff(s);
             n      	= length(ds);
-            objs   	= cell(n,1);
-        end
-        
-        function this = rebuild(this)
-            %rebuild - Recalculates the curve's properties
-            %   C = rebuild(G) returns a curve C with properties recalculated 
-            %   from the property definitions in G.
-            %
-            %   Example: Create a parameterized arc and change the values.
-            %       P = PARAMETER_LIST;
-            %       P.new('rad',1);
-            %       P.new('ang',pi);
-            %
-            %       G = Geometry1D.draw('Arc1D','Radius','rad','Angle','ang');
-            %       figure;subplot(1,2,1);axis equal
-            %       G.plot;
-            %
-            %       P.edit('rad',2);
-            %       P.edit('ang',pi/2);
-            %       C = rebuild(G);
-            %       subplot(1,2,2);axis equal
-            %       G.plot;
-            %
-            % See also Geometry1D
-            this.Axis     = rebuild(this.Axis);
+            objs   	= cell(n, 1);
         end
     end
     
@@ -320,21 +268,21 @@ properties:
             %   specified in PlotResolution.
             %   
             %   Example: Plot a line.
-            %       G1 = Geometry1D.draw('Line1D','Points',[0 0;1 1]);
-            %       figure;axis equal;
+            %       G1 = Geometry1D.draw('Line1D', 'Points', [0 0;1 1]);
+            %       figure; axis equal;
             %       G1.plot
             %
             % See also Geometry1D
             
             nThis      = numel(this);
-            gHandleOut = cell(nThis,1);
+            gHandleOut = cell(nThis, 1);
             hold on;
             for iCurve = 1:nThis
-                sArray             = linspace(0,1,this(iCurve).PlotResolution);
+                sArray             = linspace(0, 1, this(iCurve).PlotResolution);
                 xPlot              = this(iCurve).x(sArray);
                 yPlot              = this(iCurve).y(sArray);
                 plotOptions        = this(iCurve).PlotStyle;
-                gHandleOut{iCurve} = line(xPlot,yPlot,plotOptions{:});
+                gHandleOut{iCurve} = line(xPlot, yPlot, plotOptions{:});
             end
             axis equal;
             
@@ -346,17 +294,17 @@ properties:
         function arrow(this)
             plot(this);
             nCurves = numel(this);
-            x       = zeros(nCurves,1);
-            y       = zeros(nCurves,1);
-            dx      = zeros(nCurves,1);
-            dy      = zeros(nCurves,1);
+            x       = zeros(nCurves, 1);
+            y       = zeros(nCurves, 1);
+            dx      = zeros(nCurves, 1);
+            dy      = zeros(nCurves, 1);
             for iCurve = 1:nCurves
-                x(iCurve)   = this(iCurve).x(0.5);
-                y(iCurve)   = this(iCurve).y(0.5);
-                dx(iCurve)  = this(iCurve).dx(0.5);
-                dy(iCurve)  = this(iCurve).dy(0.5);
+                x(iCurve)  = this(iCurve).x(0.5);
+                y(iCurve)  = this(iCurve).y(0.5);
+                dx(iCurve) = this(iCurve).dx(0.5);
+                dy(iCurve) = this(iCurve).dy(0.5);
             end
-            quiver(x,y,dx,dy);
+            quiver(x, y, dx, dy);
         end
         
         function wireframe(this)
@@ -366,17 +314,17 @@ properties:
             %   specified in PlotResolution.
             %   
             %   Example: Plot a line.
-            %       G1 = Geometry1D.draw('Line1D','Points',[0 0;1 1]);
-            %       figure;axis equal;
+            %       G1 = Geometry1D.draw('Line1D', 'Points', [0 0;1 1]);
+            %       figure; axis equal;
             %       G1.wireframe;
             %
             % See also Geometry1D
             
-            sArray          = linspace(0,1,this.PlotResolution);
-            xPlot           = this.x(sArray);
-            yPlot           = this.y(sArray);
-            plotOptions     = this.PlotStyle;
-            line(xPlot,yPlot,plotOptions{:});
+            sArray      = linspace(0, 1, this.PlotResolution);
+            xPlot       = this.x(sArray);
+            yPlot       = this.y(sArray);
+            plotOptions = this.PlotStyle;
+            line(xPlot, yPlot, plotOptions{:});
             axis equal;
         end
         
@@ -387,18 +335,14 @@ properties:
             %
             %   Example: Reverse the orientation of a arc. Plot a few vectors
             %            tangent to the curve.
-            %       G1  = Geometry1D.draw('Arc1D',...
-            %                             'Radius',  rand,...
-            %                             'Rotation',4*pi*rand-2*pi,...
-            %                             'Position',rand(1,2),...
-            %                             'Angle',   4*pi*rand-2*pi);
+            %       G1  = Geometry1D.draw('Arc1D', 'Radius',  rand, 'Rotation', 4*pi*rand - 2*pi, 'Position', rand(1,2), 'Angle', 4*pi*rand - 2*pi);
             %       S   = 0:0.25:1;
             %       X1  = G1.x(S);
             %       Y1  = G1.y(S);
             %       dX1 = G1.dx(S);
             %       dY1 = G1.dy(S);
             %
-            %       figure;subplot(1,2,1);hold on;axis equal;
+            %       figure; subplot(1,2,1); hold on; axis equal;
             %       G1.plot;
             %       quiver(X1,Y1,dX1,dY1);
             %
@@ -408,29 +352,29 @@ properties:
             %       dX2 = G2.dx(S);
             %       dY2 = G2.dy(S);
             %
-            %       subplot(1,2,2);hold on;axis equal;
+            %       subplot(1,2,2); hold on; axis equal;
             %       G2.plot;
             %       quiver(X2,Y2,dX2,dY2);
             %
             % See also Geometry1D
             for iArg = 1:nargin
-                newOrientation                = ~[varargin{iArg}.Orientation];
-                newOrientation                = num2cell(newOrientation);
+                newOrientation               = ~[varargin{iArg}.Orientation];
+                newOrientation               = num2cell(newOrientation);
                 [varargin{iArg}.Orientation] = deal(newOrientation{:});
             end
             varargout = varargin;
         end
         
       	function newCurves = makeNonintersecting(this)
-         	[~,~,sParams] = intersection(this);
+         	[~, ~, sParams] = intersection(this);
             
             classes       = this.getElementClasses;
             uniqueClasses = unique(classes);
             nUnique       = numel(uniqueClasses);
-            newCurves     = cell(nUnique,1);
+            newCurves     = cell(nUnique, 1);
             for iUnique = 1:nUnique
-                classIndex         = strcmp(uniqueClasses{iUnique},classes);
-                newCurves{iUnique} = split(this(classIndex),sParams(classIndex));
+                classIndex         = strcmp(uniqueClasses{iUnique}, classes);
+                newCurves{iUnique} = split(this(classIndex), sParams(classIndex));
             end
             newCurves = [newCurves{:}];
         end
@@ -438,10 +382,10 @@ properties:
         function newCurves = makeUnique(this)
             newCurves = makeNonintersecting(this);
             
-            X = [newCurves.XMid];
-            Y = [newCurves.YMid];
+            X = [newCurves.Xm];
+            Y = [newCurves.Ym];
             
-            dR     = sqrt(bsxfun(@minus,X,X.').^2+bsxfun(@minus,Y,Y.').^2);
+            dR     = hypot(bsxfun(@minus, X, X.'), bsxfun(@minus, Y, Y.'));
             scale  = max(max(dR));
             isSame = any(tril(dR < scale * sqrt(eps),-1));
             
@@ -449,8 +393,8 @@ properties:
         end
         
         function [X,Y] = getMidpoint(this)
-            X = [this.XMid].';
-            Y = [this.YMid].';
+            X = [this.Xm].';
+            Y = [this.Ym].';
         end
 
      	function [X,Y,S] = intersection(this)
@@ -480,25 +424,25 @@ properties:
             %
             % See also Geometry1D
             
-         	[I,J]          = boundingBallsOverlap(this);
+         	[I ,J]         = boundingBallsOverlap(this);
             classes        = getElementClasses(this);
             uniqueClasses  = unique(classes);
             nUniqueClasses = numel(uniqueClasses); 
             nThis          = numel(this);
             
-            globalToLocal  = zeros(nThis,1);
-            isClass        = cell(nUniqueClasses,1);
+            globalToLocal  = zeros(nThis, 1);
+            isClass        = cell(nUniqueClasses, 1);
             for k = 1:nUniqueClasses
-                isClassK                  = strcmp(uniqueClasses(k),classes);
-                isClass{k}                = isClassK;
-                nkClass                   = sum(isClassK);
-                globalToLocal(isClassK,1) = (1:nkClass).';
+                isClassK                   = strcmp(uniqueClasses(k), classes);
+                isClass{k}                 = isClassK;
+                nkClass                    = sum(isClassK);
+                globalToLocal(isClassK, 1) = (1:nkClass).';
             end
             
-            X      = cell(nUniqueClasses^2,1);
-            Y      = cell(nUniqueClasses^2,1);
-            S      = cell(1,2*nUniqueClasses^2);
-            [S{:}] = deal(cell(nThis,1));
+            X      = cell(nUniqueClasses^2, 1);
+            Y      = cell(nUniqueClasses^2, 1);
+            S      = cell(1, 2*nUniqueClasses^2);
+            [S{:}] = deal(cell(nThis, 1));
             for i = 1:nUniqueClasses
                 for j = 1:nUniqueClasses
                     %get classes logical array
@@ -519,38 +463,28 @@ properties:
                     localJ    = globalToLocal(globalJ);
                     
                     %find the intersection points
-                    k         = nUniqueClasses*(i-1)+j;
-                    [X{k},Y{k},...
-                        S{2*k-1}(isClassI),...
-                        S{2*k}(isClassJ)]...
-                                    = generalIntersection(this(isClassI),...
-                                                            this(isClassJ),...
-                                                            localI,...
-                                                            localJ);
+                    k         = nUniqueClasses*(i-1) + j;
+                    [X{k}, Y{k}, S{2*k-1}(isClassI), S{2*k}(isClassJ)] = generalIntersection(this(isClassI), this(isClassJ), localI, localJ);
                 end
             end
             
             X = cell2mat(X);
             Y = cell2mat(Y);
-            S = cellfun(@(varargin)(horzcat(varargin{:})), S{:}, 'UniformOutput',false);
+            S = cellfun(@(varargin)(horzcat(varargin{:})), S{:}, 'UniformOutput', false);
 
             for kThis = 1:nThis
                 s        = sort(S{kThis});
-                ds       = [1,diff(s)];
+                ds       = [1, diff(s)];
                 ds       = abs(ds);
-                willKeep = ds > sqrt(eps) & s > 0 & s < 1;
+                willKeep = (ds > sqrt(eps)) & (s > 0) & (s < 1);
                 S{kThis} = s(willKeep);
             end
         end
         
-        function this = rotate(this,rotation,position)
+        function this = rotate(this, rotation, position)
             nThis = numel(this);
             if nThis > 0
-                [this.Axis,...
-                    this.vRotation,...
-                    this.vPosition] = rotate([this.Axis],...
-                                                rotation,...
-                                                position);
+                [this.Axis, ~, ~] = rotate([this.Axis], rotation, position);
                 for iThis = 1:nThis
                     updateCache(this(iThis));
                 end
@@ -586,27 +520,24 @@ properties:
             %   Arc1D  - A circular arc defined by a radius and subtended angle
             %
             % Example 1: Create a line.
-            %   G = Geometry1D.draw('Line1D','Points',rand(2,2));
-            %   figure;axis equal;
+            %   G = Geometry1D.draw('Line1D', 'Points', rand(2,2));
+            %   figure; axis equal;
             %   G.plot;
             %
             % Example 2: Create an arc.
-            %   G = Geometry1D.draw('Arc1D','Radius',rand,'Angle',2*pi*rand);
-            %   figure;axis equal;
+            %   G = Geometry1D.draw('Arc1D', 'Radius', rand, 'Angle', 2*pi*rand);
+            %   figure; axis equal;
             %   G.plot;
             %
             % See also Geometry1D, Parameterizable, Polyline, Arc
             
             switch typeIn
-                case {'Arc','arc','Arc1D','arc1D','Arc1d','arc1d'}
+                case {'Arc', 'arc', 'Arc1D', 'arc1D', 'Arc1d', 'arc1d'}
                     geometryOut = Arc(varargin{:});
-                case {'Polyline','polyline','Line','line','Line1D','line1D'...
-                        'Line1d','line1d'}
+                case {'Polyline', 'polyline', 'Line', 'line', 'Line1D', 'line1D', 'Line1d', 'line1d'}
                     geometryOut = Polyline(varargin{:});
                 otherwise
-                    error('Geometry1D:draw',...
-                            'Unknown Geometry1D subclass %s',...
-                         	typeIn);
+                    error('Geometry1D:draw', 'Unknown Geometry1D subclass %s', typeIn);
             end
         end
     end
@@ -619,16 +550,16 @@ properties:
         %   return values of outside of the unit interval.
         %
         %   Example: Find the midpoint of a line
-        %       G = Geometry1D.draw('Line1D','Points',rand(2,2));
+        %       G = Geometry1D.draw('Line1D', 'Points', rand(2,2));
         %       X = G.x(0.5);
         %       Y = G.y(0.5);
-        %       figure;hold on;axis equal;
+        %       figure; hold on; axis equal;
         %       G.plot;
-        %       scatter(X,Y);
-        %       legend('Line','Midpoint');
+        %       scatter(X, Y);
+        %       legend('Line', 'Midpoint');
         %
         % See also y, dx
-        xOut = x(this,s)
+        xOut = x(this, s)
         
         %y - Calculates y values on the curve from a parameter vector
         %   Y = y(G,S) returns a vector of y-coordinates of points lying on the
@@ -637,16 +568,16 @@ properties:
         %   return values of outside of the unit interval.
         %
         %   Example: Find the midpoint of a line
-        %       G = Geometry1D.draw('Line1D','Points',rand(2,2));
+        %       G = Geometry1D.draw('Line1D', 'Points', rand(2,2));
         %       X = G.x(0.5);
         %       Y = G.y(0.5);
-        %       figure;hold on;axis equal;
+        %       figure; hold on; axis equal;
         %       G.plot;
-        %       scatter(X,Y);
+        %       scatter(X, Y);
         %       legend('Line','Midpoint');
         %
         % See also x, dy
-        yOut = y(this,s)
+        yOut = y(this, s)
         
         %dx - Calculates dx/ds on the curve from a parameter vector
         %   dXdS = dx(G,S) returns a vector dXdS of values corresponding to the
@@ -656,20 +587,18 @@ properties:
         %   the unit interval.
         %
         %   Example: Plot vectors tangent to an arc
-        %       G    = Geometry1D.draw('Arc1D',...
-        %                              'Radius',1,...
-        %                              'Angle',pi);
+        %       G    = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi);
         %       S    = (0:0.1:1).';
         %       X    = G.x(S);
         %       Y    = G.y(S);
         %       dXdS = G.dx(S);
         %       dYdS = G.dy(S);
-        %       figure;axis equal;hold on;
+        %       figure; axis equal; hold on;
         %       G.plot;
-        %       quiver(X,Y,dXdS,dYdS);
+        %       quiver(X, Y, dXdS, dYdS);
         %
         % See also dx, y
-        dxOut = dx(this,s)
+        dxOut = dx(this, s)
         
        	%dy - Calculates dy/ds on the curve from a parameter vector
         %   dYdS = dx(G,S) returns a vector dYdS of values corresponding to the
@@ -679,41 +608,39 @@ properties:
         %   the unit interval.
         %
         %   Example: Plot vectors tangent to an arc
-        %       G    = Geometry1D.draw('Arc1D',...
-        %                              'Radius',1,...
-        %                              'Angle',pi);
+        %       G    = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi);
         %       S    = (0:0.1:1).';
         %       X    = G.x(S);
         %       Y    = G.y(S);
         %       dXdS = G.dx(S);
         %       dYdS = G.dy(S);
-        %       figure;axis equal;hold on;
+        %       figure; axis equal; hold on;
         %       G.plot;
-        %       quiver(X,Y,dXdS,dYdS);
+        %       quiver(X, Y, dXdS, dYdS);
         %
         % See also dx, y
-        dyOut = dy(this,s)
+        dyOut = dy(this, s)
         
         %length - Calculates the length of the curve
         lengthOut = elementLength(this)
         
         %dx2 - Calculates d^2x/ds^2 of the curve from a parameter vector
-        dx2Out = dx2(this,s)
+        dx2Out = dx2(this, s)
         
         %dy2 - Calculates d^2y/ds^2 of the curve from a parameter vector
-        dy2Out = dy2(this,s)
+        dy2Out = dy2(this, s)
         
         %area - The area under the curve using its endpoints as the x-axis
         %   a = area(G) computes the definite integral of the curve using the
         %   endpoints of the curve to define the x-axis.
         %
         %   Example 1 - By definition, a line's area is always zero.
-        %       G = Geometry1D.draw('Line1D','Points',rand(2,2));
+        %       G = Geometry1D.draw('Line1D', 'Points', rand(2,2));
         %       G.area
         %
         %   Example 2 - The sign of the area depends on the orientation of the
         %               curve.
-        %       G = Geometry1D.draw('Arc1D','Radius',0.5,'Angle',pi/3);
+        %       G = Geometry1D.draw('Arc1D', 'Radius', 0.5, 'Angle', pi/3);
         %       G.area
         %       G = reverse(G);
         %       G.area
@@ -731,13 +658,11 @@ properties:
         %       'coincident' - The curves perfectly overlapping
         %
         %   Example: Test the relationships between some arcs.
-        %       G1 = Geometry1D.draw('Arc','Radius',1,'Angle',pi/2);
-        %       G2 = Geometry1D.draw('Arc','Radius',1,'Angle',pi*rand);
-        %       G3 = Geometry1D.draw('Arc','Radius',1,'Angle',pi/3,...
-        %                                  'Rotation',pi);
-        %       G4 = Geometry1D.draw('Arc','Radius',1,'Angle',pi/2,...
-        %                                  'Position',rand(1,2));
-        %       G5 = Geometry1D.draw('Arc','Radius',1,'Angle',pi/2);
+        %       G1 = Geometry1D.draw('Arc', 'Radius', 1, 'Angle', pi/2);
+        %       G2 = Geometry1D.draw('Arc', 'Radius', 1, 'Angle', pi*rand);
+        %       G3 = Geometry1D.draw('Arc', 'Radius', 1, 'Angle', pi/3, 'Rotation', pi);
+        %       G4 = Geometry1D.draw('Arc', 'Radius', 1, 'Angle', pi/2, 'Position', rand(1,2));
+        %       G5 = Geometry1D.draw('Arc', 'Radius', 1, 'Angle', pi/2);
         %
         %       G1.coincidenceType(G1)
         %       G1.coincidenceType(G2)
@@ -746,7 +671,7 @@ properties:
         %       G1.coincidenceType(G5)
         %
         % See also Geometry1D
-        flagOut = coincidenceType(this,geometryIn)
+        flagOut = coincidenceType(this, geometryIn)
      	
         %inOn - Determine the In/On/Out status of a set of points
         %   [In,On,N,S] = inOn(G,X,Y) determines the position of a set of points
@@ -760,32 +685,32 @@ properties:
         %
         %   Example 1: Find the points which are interior to an arc and on an
         %              arc. Plot the unit normals.
-        %         G = Geometry1D.draw('Arc1D','Radius',1,'Angle',pi/3);
-        %         theta = linspace(-pi/6,pi/2,10).';
-        %         X = [1.25-2.5*rand(100,1);cos(theta)];
-        %         Y = [1.25-2.5*rand(100,1);sin(theta)];
-        %         [In,On,N] = G.inOn(X,Y);
+        %         G = Geometry1D.draw('Arc1D', 'Radius', 1, 'Angle', pi/3);
+        %         theta = linspace(-pi/6, pi/2, 10).';
+        %         X = [1.25 - 2.5*rand(100,1); cos(theta)];
+        %         Y = [1.25 - 2.5*rand(100,1); sin(theta)];
+        %         [In, On, N] = G.inOn(X, Y);
         %         figure;hold on;axis equal
         %         G.plot;
-        %         scatter(X(In),Y(In),'b','o');
-        %         scatter(X(~In&~On),Y(~In&~On),'r','x');
-        %         quiver(X(On),Y(On),N(On,1),N(On,2));
+        %         scatter(X(In), Y(In), 'b', 'o');
+        %         scatter(X(~In & ~On), Y(~In & ~On), 'r', 'x');
+        %         quiver(X(On), Y(On), N(On,1), N(On,2));
         %
         %   Example 2: Find the points which are interior to a line and on an
         %              line. Plot the unit normals.
-        %       G         = Geometry1D.draw('Line1D','Points',[0 0;1 1]);
-        %       XYon      = linspace(-0.5,1.5,10).';
-        %       X         = [1-3*rand(100,1);XYon];
-        %       Y         = [1-3*rand(100,1);XYon];
-        %       [In,On,N] = G.inOn(X,Y);
-        %       figure;hold on;axis equal
+        %       G           = Geometry1D.draw('Line1D', 'Points', [0 0;1 1]);
+        %       XYon        = linspace(-0.5, 1.5, 10).';
+        %       X           = [1 - 3*rand(100,1); XYon];
+        %       Y           = [1 - 3*rand(100,1); XYon];
+        %       [In, On, N] = G.inOn(X, Y);
+        %       figure; hold on; axis equal
         %       G.plot;
-        %       scatter(X(In),Y(In),'b','o');
-        %       scatter(X(~In&~On),Y(~In&~On),'r','x');
-        %       quiver(X(On),Y(On),N(On,1),N(On,2));
+        %       scatter(X(In), Y(In), 'b', 'o');
+        %       scatter(X(~In & ~On),Y(~In & ~On), 'r', 'x');
+        %       quiver(X(On), Y(On), N(On,1), N(On,2));
         %
         % See also x, y, Orientaiton, cart2s
-        [In,On,N,S]	= inOn(this,X,Y)
+        [In, On, N, S] = inOn(this, X, Y)
         
         %cart2s - Convert a set of points to parameter values
         %   [S,I] = cart2s(G,X,Y) calculates equivalent curve parameter values
@@ -797,19 +722,19 @@ properties:
         %   Example: The cart2s method serves as an inverse to the x and y
         %              methods.
         %
-        %       G         = Geometry1D.draw('Line1D','Points',rand(2,2));
-        %       s1        = linspace(0,1);
+        %       G         = Geometry1D.draw('Line1D', 'Points', rand(2,2));
+        %       s1        = linspace(0, 1);
         %       X1        = G.x(s1);
         %       Y1        = G.y(s1);
-        %       [s2,isOn] = G.cart2s(X1,Y1);
-        %       max(abs(s1-s2))<1e-6        %beware of finite precision
+        %       [s2,isOn] = G.cart2s(X1, Y1);
+        %       max(abs(s1 - s2)) < 1e-6 %beware of finite precision
         %
         % See also x, y, inOn
-        [S,I]       = cart2s(this,X,Y)
+        [S, I] = cart2s(this, X, Y)
     end
 end
 
-function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
+function [X, Y, SIOut, SJOut] = generalIntersection(thisI, thisJ, I, J)
     %% Finds the pairwise intersection points of the curves [thisI(I),thisJ(J)]
     
     if nargin == 2
@@ -821,37 +746,36 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
     if nIn > 0
         switch [class(thisI),class(thisJ)]
             case 'ArcArc'
-                [XTest,YTest,isValid] = arcArcPossibleIntersectionPoints(thisI,thisJ,I,J);
+                [XTest, YTest, isValid] = arcArcPossibleIntersectionPoints(thisI, thisJ, I, J);
             case 'PolylinePolyline'
-                [XTest,YTest,isValid] = lineLinePossibleIntersectionPoints(thisI,thisJ,I,J);
+                [XTest, YTest, isValid] = lineLinePossibleIntersectionPoints(thisI, thisJ, I, J);
             case 'ArcPolyline'
-                [XTest,YTest,isValid] = arcLinePossibleIntersectionPoints(thisI,thisJ,I,J);
+                [XTest, YTest, isValid] = arcLinePossibleIntersectionPoints(thisI, thisJ, I, J);
             case 'PolylineArc'
-                [XTest,YTest,isValid] = arcLinePossibleIntersectionPoints(thisJ,thisI,J,I);
+                [XTest, YTest, isValid] = arcLinePossibleIntersectionPoints(thisJ, thisI, J, I);
             otherwise
-                error('Geometry1D:intersection',...
-                        'No intersection method implented for classes %s and %s',...
-                        class(this(I)),class(this(J)));
+                error('Geometry1D:intersection', 'No intersection method implented for classes %s and %s', class(this(I)), class(this(J)));
         end
-       	XEndI = [[thisI.vX0].' , [thisI.vX1].'];
-        YEndI = [[thisI.vY0].' , [thisI.vY1].'];
-        XEndJ = [[thisJ.vX0].' , [thisJ.vX1].'];
-        YEndJ = [[thisJ.vY0].' , [thisJ.vY1].'];
+        
+       	XEndI = [[thisI.X0].' , [thisI.X1].'];
+        YEndI = [[thisI.Y0].' , [thisI.Y1].'];
+        XEndJ = [[thisJ.X0].' , [thisJ.X1].'];
+        YEndJ = [[thisJ.Y0].' , [thisJ.Y1].'];
         
         XEndI = XEndI(I,:);
         YEndI = YEndI(I,:);
         XEndJ = XEndJ(J,:);
         YEndJ = YEndJ(J,:);
               
-        [SI,isOnI] = getParameter(thisI,I,[XEndJ,XTest],[YEndJ,YTest]);
-        [SJ,isOnJ] = getParameter(thisJ,J,[XEndI,XTest],[YEndI,YTest]);
+        [SI, isOnI] = getParameter(thisI, I, [XEndJ, XTest], [YEndJ, YTest]);
+        [SJ, isOnJ] = getParameter(thisJ, J, [XEndI, XTest], [YEndI, YTest]);
 
         %% Postprocessing
-        includeEndpointJ    = isOnI(:,1:2);
-        includeEndpointI    = isOnJ(:,1:2);
-        isIntersectionPoint = isOnI(:,3:end) & isOnJ(:,3:end) & isValid;
-        isOnI(:,3:end)      = isIntersectionPoint;
-        isOnJ(:,3:end)      = isIntersectionPoint;
+        includeEndpointJ    = isOnI(:, 1:2);
+        includeEndpointI    = isOnJ(:, 1:2);
+        isIntersectionPoint = isOnI(:, 3:end) & isOnJ(:, 3:end) & isValid;
+        isOnI(:, 3:end)     = isIntersectionPoint;
+        isOnJ(:, 3:end)     = isIntersectionPoint;
         
         if nIn == 1
             XEndI = XEndI.';
@@ -864,58 +788,47 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
             SJ    = SJ.';
         end
 
-        X = [XEndI(includeEndpointI); ...
-             XEndJ(includeEndpointJ); ...
-             XTest(isIntersectionPoint)];
+        X = [XEndI(includeEndpointI); XEndJ(includeEndpointJ); XTest(isIntersectionPoint)];
          
-        Y = [YEndI(includeEndpointI); ...
-            YEndJ(includeEndpointJ); ...
-            YTest(isIntersectionPoint)];
+        Y = [YEndI(includeEndpointI); YEndJ(includeEndpointJ); YTest(isIntersectionPoint)];
                 
         SI = SI([includeEndpointJ, isIntersectionPoint]);
-        SJ = SJ([includeEndpointI, isIntersectionPoint]);         
-        
-%         [nTestPoints,~] = size(XTest);
-%         nTestPoints     = nTestPoints + 2;
+        SJ = SJ([includeEndpointI, isIntersectionPoint]);
 
-        [~,nTestPoints] = size(isOnI);
+        [~, nTestPoints] = size(isOnI);
         
-     	II              = I(:,ones(1,nTestPoints));
-        JJ              = J(:,ones(1,nTestPoints));
-        II              = II(isOnI);    	
-        JJ              = JJ(isOnJ);
+     	II               = I(:,ones(1, nTestPoints));
+        JJ               = J(:,ones(1, nTestPoints));
+        II               = II(isOnI);    	
+        JJ               = JJ(isOnJ);
                  
-        [nRows,~] = size(X); 
+        [nRows, ~] = size(X); 
         if nRows > 1
-            XY          = [X Y];
+            XY          = [X, Y];
             XY          = sortrows(XY);
             D           = sqrt(sum(diff(XY).^2,2));
-            scaleFactor = max([thisI.bbRadius,thisJ.bbRadius]);
-            isUnique    = [true;D > scaleFactor * sqrt(eps)];
-            X           = XY(isUnique,1);
-            Y           = XY(isUnique,2);
+            scaleFactor = max([thisI.bbRadius, thisJ.bbRadius]);
+            isUnique    = [true; D > (scaleFactor * sqrt(eps))];
+            X           = XY(isUnique, 1);
+            Y           = XY(isUnique, 2);
         end
         
-        SIOut = cell(numel(thisI),1);
+        SIOut = cell(numel(thisI), 1);
         for i = 1:numel(thisI)
             iSelect  = (II == i);
             s        = SI(iSelect);
             if isempty(s)
                 SIOut{i} = [];
             else
-                SIOut{i} = SI(iSelect);
-                [nRows,~] = size(SIOut{i});
+                SIOut{i}   = SI(iSelect);
+                [nRows, ~] = size(SIOut{i});
                 if nRows > 1
                     SIOut{i} = SIOut{i}.';
                 end
-%                 s        = sort(SIOut{i});
-%                 D        = diff(s);
-%                 isUnique = [true, D > sqrt(eps)];
-%                 SIOut{i} = s(isUnique);
             end
         end
         
-        SJOut = cell(numel(thisJ),1);
+        SJOut = cell(numel(thisJ), 1);
         for j = 1:numel(thisJ)
             jSelect  = (JJ == j);
             s        = SJ(jSelect);
@@ -923,14 +836,10 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
                 SJOut{j} = [];
             else
                 SJOut{j} = SJ(jSelect);
-                [nRows,~] = size(SJOut{j});
+                [nRows, ~] = size(SJOut{j});
                 if nRows > 1
                     SJOut{j} = SJOut{j}.';
                 end
-%                 s        = sort(SJOut{j});
-%                 D        = diff(s);
-%                 isUnique = [true, D > sqrt(eps)];
-%                 SJOut{j} = s(isUnique);
             end
         end
         
@@ -940,31 +849,30 @@ function [X,Y,SIOut,SJOut] = generalIntersection(thisI,thisJ,I,J)
             nI    = numel(SIOut);
             nJ    = numel(SJOut);
             if n1 == 0 && n2 == 0
-                SIOut = [0,0];
+                SIOut = [0, 0];
                 SJOut = [];
             else
-                SIOut = [ [SIOut;zeros(nJ-nI,1)],...
-                          [SJOut;zeros(nI-nJ,1)]];
+                SIOut = [[SIOut;zeros(nJ - nI, 1)], [SJOut;zeros(nI - nJ, 1)]];
             end
         end
     else
         X     = [];
         Y     = [];
-        SIOut = cell(numel(thisI),1);
-        SJOut = cell(numel(thisJ),1);
+        SIOut = cell(numel(thisI), 1);
+        SJOut = cell(numel(thisJ), 1);
     end
 end
 
-function [X,Y,isValid] = lineLinePossibleIntersectionPoints(lineI,lineJ,I,J)
+function [X, Y, isValid] = lineLinePossibleIntersectionPoints(lineI, lineJ, I, J)
         %% Get Data
         nIn = numel(I);
-        X   = zeros(nIn,1);
-        Y   = zeros(nIn,1);
+        X   = zeros(nIn, 1);
+        Y   = zeros(nIn, 1);
         
-        XI  = [[lineI.vX0].' , [lineI.vX1].'];
-        YI  = [[lineI.vY0].' , [lineI.vY1].'];    
-        XJ  = [[lineJ.vX0].' , [lineJ.vX1].'];
-        YJ  = [[lineJ.vY0].' , [lineJ.vY1].'];
+        XI  = [[lineI.X0].' , [lineI.X1].'];
+        YI  = [[lineI.Y0].' , [lineI.Y1].'];    
+        XJ  = [[lineJ.X0].' , [lineJ.X1].'];
+        YJ  = [[lineJ.Y0].' , [lineJ.Y1].'];
         
         XI  = XI(I,:);
         YI  = YI(I,:);
@@ -977,7 +885,7 @@ function [X,Y,isValid] = lineLinePossibleIntersectionPoints(lineI,lineJ,I,J)
         dxJ = XJ(:,2) - XJ(:,1);
         dyJ = YJ(:,2) - YJ(:,1);
         
-        areParallel = abs(dxI.*dyJ-dxJ.*dyI) < sqrt(eps);
+        areParallel = abs(dxI.*dyJ - dxJ.*dyI) < sqrt(eps);
         isValid     = ~areParallel;
         
         %% Check for line/line intersection
@@ -987,92 +895,80 @@ function [X,Y,isValid] = lineLinePossibleIntersectionPoints(lineI,lineJ,I,J)
         isVertI    = abs(slopeI) > sqrt(1/eps);
         isVertJ    = abs(slopeJ) > sqrt(1/eps);
         notVert    = ~(isVertI|isVertJ);
-        interceptI = ((YI(:,1)+YI(:,2))-slopeI.*(XI(:,1)+XI(:,2)))/2;
-        interceptJ = ((YJ(:,1)+YJ(:,2))-slopeJ.*(XJ(:,1)+XJ(:,2)))/2;
+        interceptI = ((YI(:,1) + YI(:,2)) - slopeI.*(XI(:,1) + XI(:,2)))/2;
+        interceptJ = ((YJ(:,1) + YJ(:,2)) - slopeJ.*(XJ(:,1) + XJ(:,2)))/2;
 
-        X(isVertI) = (XI(isVertI,1)+XI(isVertI,2))/2;
-        Y(isVertI) = slopeJ(isVertI).*X(isVertI)+interceptJ(isVertI);
+        X(isVertI) = (XI(isVertI,1) + XI(isVertI,2))/2;
+        Y(isVertI) = slopeJ(isVertI).*X(isVertI) + interceptJ(isVertI);
 
-        X(isVertJ) = (XJ(isVertJ,1)+XJ(isVertJ,2))/2;
+        X(isVertJ) = (XJ(isVertJ,1) + XJ(isVertJ,2))/2;
         Y(isVertJ) = slopeI(isVertJ).*X(isVertJ)+interceptI(isVertJ);
 
-        X(notVert) =  (interceptJ(notVert) - interceptI(notVert))...
-                        ./(slopeI(notVert)     - slopeJ(notVert));
-        Y(notVert) = ( (slopeI(notVert)+slopeJ(notVert)).*X(notVert)...
-                          +(interceptI(notVert)+interceptJ(notVert)))/2;
+        X(notVert) = (interceptJ(notVert) - interceptI(notVert)) ./ (slopeI(notVert) - slopeJ(notVert));
+        Y(notVert) = ((slopeI(notVert) + slopeJ(notVert)).*X(notVert) + (interceptI(notVert) + interceptJ(notVert)))/2;
 end
 
-function [X,Y,isValid] = arcArcPossibleIntersectionPoints(arcI,arcJ,I,J)
+function [X, Y, isValid] = arcArcPossibleIntersectionPoints(arcI, arcJ, I, J)
         %% Get datan
         nI    = numel(arcI);
-        radI  = [arcI.vRadius].';
-        posI  = [arcI.vPosition];
-        posI  = [posI(1:2:(2*nI));posI(2:2:(2*nI))].';
+        radI  = [arcI.Radius].';
+        posI  = [arcI.Position];
+        posI  = [posI(1:2:(2*nI)); posI(2:2:(2*nI))].';
         
         radI  = radI(I,:);
         posI  = posI(I,:);
         
         nJ    = numel(arcJ);
-        radJ  = [arcJ.vRadius].';
-        posJ  = [arcJ.vPosition];
-        posJ  = [posJ(1:2:(2*nJ));posJ(2:2:(2*nJ))].'; 
+        radJ  = [arcJ.Radius].';
+        posJ  = [arcJ.Position];
+        posJ  = [posJ(1:2:(2*nJ)); posJ(2:2:(2*nJ))].'; 
         
         radJ  = radJ(J,:);
         posJ  = posJ(J,:);
 
         %% Test for intersections
-        dXC = posI(:,1)-posJ(:,1);
-        dYC = posI(:,2)-posJ(:,2);
-        dRC = hypot(dXC,dYC);
+        dXC = posI(:,1) - posJ(:,1);
+        dYC = posI(:,2) - posJ(:,2);
+        dRC = hypot(dXC, dYC);
         
-        API = atan2(-dYC,-dXC);
-        APJ = atan2(dYC,dXC);
+        API = atan2(-dYC, -dXC);
+        APJ = atan2(dYC, dXC);
 
-        dAI = acos((radJ.^2 - dRC.^2 - radI.^2) ./ (-2 * radI .* dRC) );
-        dAJ = acos((radI.^2 - dRC.^2 - radJ.^2) ./ (-2 * radJ .* dRC) );
+        dAI = acos((radJ.^2 - dRC.^2 - radI.^2) ./ (-2*radI.*dRC));
+        dAJ = acos((radI.^2 - dRC.^2 - radJ.^2) ./ (-2*radJ.*dRC));
 
-        aTestIp = API+dAI;
-        aTestIm = API-dAI;        
-        aTestJm = APJ+dAJ;
-        aTestJp = APJ-dAJ;
-%         
-%         X = [(posI(:,1) +posJ(:,1) +radI.*cos(aTestIp) +radJ.*cos(aTestJm))/2,...
-%              (posI(:,1) +posJ(:,1) +radI.*cos(aTestIm) +radJ.*cos(aTestJp))/2];
-%         Y = [(posI(:,2) +posJ(:,2) +radI.*sin(aTestIp) +radJ.*sin(aTestJm))/2,...
-%         	 (posI(:,2) +posJ(:,2) +radI.*sin(aTestIm) +radJ.*sin(aTestJp))/2];
-%         
-       	X = [(posJ(:,1)+radJ.*cos(aTestJm))+(posI(:,1)+radI.*cos(aTestIm)),...
-             (posJ(:,1)+radJ.*cos(aTestJp))+(posI(:,1)+radI.*cos(aTestIp))]/2;
+        aTestIp = API + dAI;
+        aTestIm = API - dAI;        
+        aTestJm = APJ + dAJ;
+        aTestJp = APJ - dAJ;
+        
+       	X = [(posJ(:,1) + radJ.*cos(aTestJm)) + (posI(:,1) + radI.*cos(aTestIm)),...
+             (posJ(:,1) + radJ.*cos(aTestJp)) + (posI(:,1) + radI.*cos(aTestIp))]/2;
          
-        Y = [(posJ(:,2)+radJ.*sin(aTestJm))+(posI(:,2)+radI.*sin(aTestIm)),...
-        	 (posJ(:,2)+radJ.*sin(aTestJp))+(posI(:,2)+radI.*sin(aTestIp))]/2;
+        Y = [(posJ(:,2) + radJ.*sin(aTestJm)) + (posI(:,2) + radI.*sin(aTestIm)),...
+        	 (posJ(:,2) + radJ.*sin(aTestJp)) + (posI(:,2) + radI.*sin(aTestIp))]/2;
          
         X = real(X);
         Y = real(Y);
         
         %% The arcs cannot intersect if the have the same center
-        scaleFactor = max(max(radI),max(radJ));
+        scaleFactor = max(max(radI), max(radJ));
         isValid     = dRC  > sqrt(eps) * scaleFactor;
         isValid     = [isValid, isValid];
-        
-%         %% Remove Possible NaN/Inf Values
-%         I      = any(isinf(X)|isinf(Y)|isnan(X)|isnan(Y),2);
-%         X(I,:) = [];
-%         Y(I,:) = [];
 end
 
-function [X,Y,isValid] = arcLinePossibleIntersectionPoints(arcI,lineJ,I,J)
+function [X, Y, isValid] = arcLinePossibleIntersectionPoints(arcI, lineJ, I, J)
     %% GET DATA
-    radI = [arcI.vRadius].';
-    posI = [arcI.vPosition];
+    radI = [arcI.Radius].';
+    posI = [arcI.Position];
     nArc = numel(arcI);
-    posI = [posI(1:2:(2*nArc));posI(2:2:(2*nArc))].';
+    posI = [posI(1:2:(2*nArc)); posI(2:2:(2*nArc))].';
     
     radI = radI(I,:);
     posI = posI(I,:);
     
-    xJ   = horzcat([lineJ.vX0].',[lineJ.vX1].');
-    yJ   = horzcat([lineJ.vY0].',[lineJ.vY1].');
+    xJ   = horzcat([lineJ.X0].', [lineJ.X1].');
+    yJ   = horzcat([lineJ.Y0].', [lineJ.Y1].');
     
     xJ   = xJ(J,:);
     yJ   = yJ(J,:);
@@ -1081,58 +977,54 @@ function [X,Y,isValid] = arcLinePossibleIntersectionPoints(arcI,lineJ,I,J)
     dxJ          = xJ(:,2) - xJ(:,1);
     dyJ          = yJ(:,2) - yJ(:,1);
     nIn          = numel(I);
-    xChordCenter = zeros(nIn,1);
-    yChordCenter = zeros(nIn,1);
+    xChordCenter = zeros(nIn, 1);
+    yChordCenter = zeros(nIn, 1);
     
     isVert               = (abs(dxJ) < sqrt(eps) * abs(dyJ));
-    xChordCenter(isVert) = mean(xJ(isVert,:),2);
-    yChordCenter(isVert) = posI(isVert,2);
+    xChordCenter(isVert) = mean(xJ(isVert,:), 2);
+    yChordCenter(isVert) = posI(isVert, 2);
     
     isHorz               = (abs(dyJ) < sqrt(eps) * abs(dxJ));
-    xChordCenter(isHorz) = posI(isHorz,1);
-    yChordCenter(isHorz) = mean(yJ(isHorz,:),2);
+    xChordCenter(isHorz) = posI(isHorz, 1);
+    yChordCenter(isHorz) = mean(yJ(isHorz, :), 2);
     
     %% Find the mid-point of the chord of the arc coincident with the line
-    isNorm               = ~(isVert | isHorz);
+    isNorm = ~(isVert | isHorz);
     if any(isNorm)
-        lineSlope            = dyJ(isNorm) ./ dxJ(isNorm);
-        lineB                = (  yJ(isNorm,1)...
-                                + yJ(isNorm,2)...
-                                - lineSlope.*xJ(isNorm,1)...
-                                - lineSlope.*xJ(isNorm,2)    )/ 2;
+        lineSlope = dyJ(isNorm) ./ dxJ(isNorm);
+        lineB     = (yJ(isNorm,1) + yJ(isNorm,2) - lineSlope.*xJ(isNorm,1) - lineSlope.*xJ(isNorm,2)) / 2;
 
         arcSlope             = -dxJ(isNorm) ./ dyJ(isNorm);
-        arcB                 = posI(isNorm,2) - (arcSlope.*posI(isNorm,1));
+        arcB                 = posI(isNorm, 2) - (arcSlope.*posI(isNorm, 1));
+        
         xChordCenter(isNorm) = (arcB - lineB) ./ (lineSlope - arcSlope);
-        yChordCenter(isNorm) =  (lineSlope .* xChordCenter(isNorm) + lineB )/2 ...
-                              + (arcSlope  .* xChordCenter(isNorm) + arcB  )/2;
+        yChordCenter(isNorm) = (lineSlope .* xChordCenter(isNorm) + lineB)/2 + (arcSlope  .* xChordCenter(isNorm) + arcB)/2;
     else
         lineSlope = 0;
     end
     
     %% Calculate the length of this chord
-    deltaTangent        = sqrt( (xChordCenter-posI(:,1)).^2 ...
-                               +(yChordCenter-posI(:,2)).^2);
+    deltaTangent        = hypot(xChordCenter - posI(:,1), yChordCenter-posI(:,2));
     chordLength         = 2 * sqrt(radI.^2 - deltaTangent.^2);
     isZero              = abs(chordLength) < sqrt(eps);
     chordLength(isZero) = 0;
     
     %% If an imaginary length, the line and the arc do not intersect
     isImag              = abs(imag(chordLength)) > sqrt(eps);
-    isImag              = [isImag,isImag];
+    isImag              = [isImag, isImag];
     isValid             = ~isImag;
     
     %% Otherwise the possible intersections are at the endpoints of the chord
     chordLength         = real(chordLength);
-    dxChord             = zeros(nIn,1);
-    dyChord             = zeros(nIn,1);
-    dxChord(isNorm)     = chordLength(isNorm) ./ (sqrt(1+lineSlope.^2)) / 2;
+    dxChord             = zeros(nIn, 1);
+    dyChord             = zeros(nIn, 1);
+    dxChord(isNorm)     = chordLength(isNorm) ./ (sqrt(1 + lineSlope.^2)) / 2;
     dyChord(isNorm)     = lineSlope .* dxChord(isNorm);
     dxChord(isVert)     = 0;
     dxChord(isHorz)     = chordLength(isHorz) / 2;
     dyChord(isVert)     = chordLength(isVert) / 2;
     dyChord(isHorz)     = 0;
     
-    X                   = [xChordCenter+dxChord,xChordCenter-dxChord];
-    Y                   = [yChordCenter+dyChord,yChordCenter-dyChord];
+    X                   = [xChordCenter + dxChord, xChordCenter - dxChord];
+    Y                   = [yChordCenter + dyChord, yChordCenter - dyChord];
 end

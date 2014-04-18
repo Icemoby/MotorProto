@@ -47,7 +47,7 @@ properties:
         PlotStyle
     end
     
-    properties (Abstract,Constant)
+    properties (Abstract, Constant)
         Dimension
     end
     
@@ -61,15 +61,9 @@ properties:
         Axis
     end
 
-  	properties (Dependent,SetAccess=protected)
+  	properties (Dependent, SetAccess=protected)
         Position
         Rotation
-    end
-    
-    properties (SetAccess = protected)
-        vPosition       = [0 0];
-        vRotation       = 0;
-        fCachingEnabled = false;
     end
     
     methods
@@ -84,36 +78,28 @@ properties:
             this.Axis   = LocalAxis;
         end
         
+        %% Setters
         function this = set.Name(this,nameIn)
-            assert(ischar(nameIn),'Geometry:Name:set',...
-                    'Name must be a string');
+            assert(ischar(nameIn),'Geometry:Name:set', 'Name must be a string');
             this.Name = nameIn;
         end
         
-        function this = set.Description(this,descriptionIn)
-            assert(ischar(descriptionIn),'Geometry:Description:set',...
-                    'Description must be a string');
+        function this = set.Description(this, descriptionIn)
+            assert(ischar(descriptionIn), 'Geometry:Description:set', 'Description must be a string');
             this.Description = descriptionIn;
         end
         
-       	function this = set.Rotation(this,angleIn)
+       	function this = set.Rotation(this, angleIn)
             this.Axis.Rotation = angleIn;
-            this.vRotation     = this.Axis.Rotation;
-            if this.fCachingEnabled
-                this = updateCache(this);
-            end
         end
         
+        function this = set.Position(this, xyIn)
+            this.Axis.Position = xyIn;
+        end
+        
+        %% Getters
         function angleOut = get.Rotation(this)
             angleOut = this.Axis.Rotation;
-        end
-        
-        function this = set.Position(this,xyIn)
-            this.Axis.Position = xyIn;
-            this.vPosition     = this.Axis.Position;
-            if this.fCachingEnabled
-                this = updateCache(this);
-            end
         end
         
         function positionOut = get.Position(this)
@@ -122,26 +108,12 @@ properties:
     end
     
     methods (Abstract)
-        plot(obj)
-        wireframe(obj)
-    end
-    
-    methods (Abstract,Access=protected)
-        this = updateCache(this)
-    end
-    
-    methods
-        function this = enableCaching(this)
-            [this.fCachingEnabled] = deal(true);
-        end
-        
-        function this = disableCaching(this)
-            [this.fCachingEnabled] = deal(false);
-        end
+        plot(this)
+        wireframe(this)
     end
     
     methods (Static, Abstract)
-        geometryOut = draw(typeIn,varargin)
+        geometryOut = draw(typeIn, varargin)
     end
     
   	methods (Static,Access=protected,Sealed)
@@ -151,32 +123,27 @@ properties:
     end
     
     methods (Sealed)        
-        function [I,J]   = boundingBallsOverlap(this1,this2)
-            [X1,Y1,R1] = getBoundingBall(this1);
+        function [I,J] = boundingBallsOverlap(this1, this2)
+            [X1, Y1, R1] = getBoundingBall(this1);
             if nargin == 1
-                distanceToCenter = sqrt( bsxfun(@minus,X1,X1.').^2 ...
-                                        +bsxfun(@minus,Y1,Y1.').^2);
-                sumOfRadii       = bsxfun(@plus,R1,R1.');
-                lessThanRadius   = bsxfun(@lt,distanceToCenter,...
-                                              sumOfRadii*(1+sqrt(eps)));
-                [I,J]            = find(tril(lessThanRadius,-1));
+                distanceToCenter = hypot(bsxfun(@minus, X1, X1.'), bsxfun(@minus, Y1, Y1.'));
+                sumOfRadii       = bsxfun(@plus, R1, R1.');
+                lessThanRadius   = bsxfun(@lt, distanceToCenter, sumOfRadii*(1 + sqrt(eps)));
+                [I, J]           = find(tril(lessThanRadius, -1));
             else
-                [X2,Y2,R2]       = getBoundingBall(this2);
-                distanceToCenter = sqrt( bsxfun(@minus,X1,X2.').^2 ...
-                                        +bsxfun(@minus,Y1,Y2.').^2);
-                sumOfRadii       = bsxfun(@plus,R1,R2.');
-                lessThanRadius   = bsxfun(@lt,distanceToCenter,...
-                                              sumOfRadii*(1+sqrt(eps)));
-                [I,J]            = find(lessThanRadius);
+                [X2, Y2, R2]     = getBoundingBall(this2);
+                distanceToCenter = hypot(bsxfun(@minus, X1, X2.'), bsxfun(@minus, Y1, Y2.'));
+                sumOfRadii       = bsxfun(@plus, R1, R2.');
+                lessThanRadius   = bsxfun(@lt, distanceToCenter, sumOfRadii*(1 + sqrt(eps)));
+                [I, J]           = find(lessThanRadius);
             end
         end
         
-        function In      = inBoundingBall(this,xIn,yIn)
-            [X,Y,R]          = getBoundingBall(this);
-            distanceToCenter = sqrt( bsxfun(@minus,X,xIn.').^2 ...
-                                    +bsxfun(@minus,Y,yIn.').^2);
-            lessThanRadius   = bsxfun(@lt,distanceToCenter,R*(1+sqrt(eps)));
-            In               = any(lessThanRadius,2);
+        function In = inBoundingBall(this, xIn, yIn)
+            [X, Y, R]        = getBoundingBall(this);
+            distanceToCenter = hypot( bsxfun(@minus,X,xIn.'), bsxfun(@minus,Y,yIn.'));
+            lessThanRadius   = bsxfun(@lt, distanceToCenter, R*(1 + sqrt(eps)));
+            In               = any(lessThanRadius, 2);
         end
         
         function [X,Y,R] = getBoundingBall(this)

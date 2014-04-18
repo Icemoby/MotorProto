@@ -1,9 +1,9 @@
 classdef LocalAxis
     properties (SetAccess = protected)
-        InitialPosition = [0 0];
+        InitialPosition = [0, 0];
         InitialAngle    = 0;
         RotationAngle   = 0;
-        RotationAxis    = [0 0];
+        RotationAxis    = [0, 0];
     end
     
     properties (Dependent)
@@ -12,8 +12,8 @@ classdef LocalAxis
     end  
     
     properties
-        cRotation = 0
-        cPosition = [0 0]
+        Rotation_ = 0
+        Position_ = [0, 0]
     end
     
     properties (Dependent)
@@ -33,24 +33,24 @@ classdef LocalAxis
             end
         end
         
-        function this = set.Rotation(this,rotationAngle)
+        function this = set.Rotation(this, rotationAngle)
         	this.InitialAngle  = rotationAngle;
             this.RotationAngle = 0;
-         	this.cRotation     = calculateRotation(this);
+         	this.Rotation_     = calculateRotation(this);
         end
         
         function angleOut = get.Rotation(this)
-            angleOut = this.cRotation;
+            angleOut = this.Rotation_;
         end
         
-        function this = set.Position(this,rotationAxis)
+        function this = set.Position(this, rotationAxis)
         	this.InitialPosition = rotationAxis;
-            this.RotationAxis    = [NaN NaN];
-            this.cPosition       = calculatePosition(this);
+            this.RotationAxis    = [NaN, NaN];
+            this.Position_       = calculatePosition(this);
         end
         
         function coordOut = get.Position(this)
-            coordOut = this.cPosition;
+            coordOut = this.Position_;
         end
         
         function angleOut = get.Angle(this)
@@ -60,24 +60,22 @@ classdef LocalAxis
         %% Cache Methods
         function angleOut = calculateRotation(this)
             angleOut = this.InitialAngle + sum([this.RotationAngle]);
-            angleOut = mod(angleOut+pi,2*pi)-pi;
+            angleOut = mod(angleOut + pi, 2*pi) - pi;
         end
         
         function positionOut = calculatePosition(this)
             positionOut   = this.InitialPosition;
             rotationAngle = [this.RotationAngle];
             nRotations    = numel(rotationAngle);
-            rotationAxis  = reshape([this.RotationAxis],[],nRotations).';
+            rotationAxis  = reshape([this.RotationAxis], [], nRotations).';
             for iRotation = 1:nRotations
-                currentAxis    = rotationAxis(iRotation,:);
+                currentAxis    = rotationAxis(iRotation, :);
                 if any(isnan(currentAxis))
                     currentAxis = positionOut;
                 end
                 currentAngle   = rotationAngle(iRotation);
-                rotationMatrix = [  cos(currentAngle) sin(currentAngle);
-                                   -sin(currentAngle) cos(currentAngle)];
-                positionOut    =   currentAxis...
-                                 +(positionOut-currentAxis)*rotationMatrix;
+                rotationMatrix = [cos(currentAngle) sin(currentAngle); -sin(currentAngle) cos(currentAngle)];
+                positionOut    = currentAxis + (positionOut - currentAxis)*rotationMatrix;
             end
         end
         
@@ -113,36 +111,35 @@ classdef LocalAxis
                 newAxis(end,:) = axisIn(end,:);
             end
             axisIn  = newAxis;
-            newAxis = mat2cell(newAxis,ones(thisSize,1),2).';
+            newAxis = mat2cell(newAxis, ones(thisSize,1), 2).';
             
             %%
             newRotationAngle     = {this.RotationAngle};
-            newRotationAngle     = cellfun(@(x,y)(vertcat(x,y)), newRotationAngle, newAngle, 'UniformOutput',false);
+            newRotationAngle     = cellfun(@(x, y)(vertcat(x, y)), newRotationAngle, newAngle, 'UniformOutput', false);
             [this.RotationAngle] = deal(newRotationAngle{:});            
                 
             newRotationAxis     = {this.RotationAxis};
-            newRotationAxis     = cellfun(@(x,y)(vertcat(x,y)), newRotationAxis, newAxis, 'UniformOutput',false);
+            newRotationAxis     = cellfun(@(x, y)(vertcat(x, y)), newRotationAxis, newAxis, 'UniformOutput', false);
             [this.RotationAxis] = deal(newRotationAxis{:});
             
          	%% Calculate the new angle
-            newRotation      = [this.cRotation];
+            newRotation      = [this.Rotation_];
             newRotation      = newRotation + angleIn;
-            newRotation      = mod(newRotation+pi,2*pi)-pi;
+            newRotation      = mod(newRotation+pi, 2*pi) - pi;
             newRotation      = num2cell(newRotation);
-            [this.cRotation] = deal(newRotation{:});
+            [this.Rotation_] = deal(newRotation{:});
             
             %% Calculate the new position
-            newPosition            = [this.cPosition];
-            newPosition            = reshape(newPosition,2,[]).';
+            newPosition            = [this.Position_];
+            newPosition            = reshape(newPosition, 2, []).';
             
-            keepPosition           = any(isnan(axisIn),2);
+            keepPosition           = any(isnan(axisIn), 2);
             axisIn(keepPosition,:) = newPosition(keepPosition,:);
             newPosition            = newPosition - axisIn;
-            newPosition            = [sum(newPosition .* [cos(angleIn.'),-sin(angleIn.')],2),...
-                                      sum(newPosition .* [sin(angleIn.'), cos(angleIn.')],2)];
+            newPosition            = [sum(newPosition.*[cos(angleIn.'), -sin(angleIn.')], 2), sum(newPosition.*[sin(angleIn.'), cos(angleIn.')], 2)];
             newPosition            = newPosition + axisIn;
-            newPosition            = mat2cell(newPosition,ones(nThis,1),2).';
-            [this.cPosition]       = deal(newPosition{:});
+            newPosition            = mat2cell(newPosition,ones(nThis, 1), 2).';
+            [this.Position_]       = deal(newPosition{:});
             
             if nargout == 1
                 varargout = {this};
@@ -151,16 +148,6 @@ classdef LocalAxis
             else
                 varargout = [num2cell(this), newRotation, newPosition];
             end
-        end
-        
-        %% Parameterization Update Methods
-        function this = rebuild(this)
-            this.InitialPosition = rebuild(this.InitialPosition);
-            this.InitialAngle    = rebuild(this.InitialAngle);
-            this.RotationAngle   = rebuild(this.RotationAngle);
-            this.RotationAxis    = rebuild(this.RotationAxis);
-            this.Position        = this.calculatePosition;
-            this.Rotation        = this.calculateRotation;
         end
     end
 end

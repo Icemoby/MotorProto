@@ -32,10 +32,7 @@ properties:
     %   valid with MATLAB's scatter function.
     %
     %   Example: Edit the PlotStyle property of a set of points.
-    %       G = Geometry0D.draw('Point0D',...
-    %                               'X',rand(10,1),...
-    %                              	'Y',rand(10,1),...
-    %                               'PlotStyle',{'r','x'});                        
+    %       G = Geometry0D.draw('Point0D', 'X',rand(10,1), 'Y',rand(10,1), 'PlotStyle',{'r','x'});                        
     %       figure;subplot(1,2,1);
     %       G.plot;
     %
@@ -48,12 +45,12 @@ properties:
 %}    
 
     %% Public Properties
-    properties (Constant=true)
+    properties (Constant = true)
         Dimension = 0;
     end
     
  	properties
-        PlotStyle   = {'Marker','o'};
+        PlotStyle   = {'Marker', 'o'};
     end
     
     properties (Abstract)
@@ -76,15 +73,12 @@ properties:
             %   consistent with the usage of the MATLAB scatter funciton.
             %
             %   Example: Plot a Point object.
-            %       G = Geometry0D.draw('Point',...
-            %                         	'X',rand(1),...
-            %                         	'Y',rand(1),...
-            %                           'PlotStyle',{'x','r'});
+            %       G = Geometry0D.draw('Point', 'X',rand(1), 'Y',rand(1), 'PlotStyle',{'x','r'});
             %       G.plot;
             %
             % See also scatter, Geometry0D
             
-            gHandleOut = scatter(this.X,this.Y,this.PlotStyle{:});
+            gHandleOut = scatter(this.X, this.Y, this.PlotStyle{:});
         end
         
         function gHandleOut = wireframe(this)
@@ -94,41 +88,33 @@ properties:
             %   consistent with the usage of the MATLAB scatter funciton.
             %
             %   Example: Plot a Point object.
-            %       G = Geometry0D.draw('Point',...
-            %                         	'X',rand(1),...
-            %                         	'Y',rand(1),...
-            %                           'PlotStyle',{'x','r'});
+            %       G = Geometry0D.draw('Point', 'X',rand(1), 'Y',rand(1), 'PlotStyle',{'x','r'});
             %       G.wireframe;
             %
             % See also scatter, Geometry0D
             
-            gHandleOut = scatter(this.X,this.Y,this.PlotStyle{:});
+            gHandleOut = scatter(this.X, this.Y, this.PlotStyle{:});
         end
     end
     
     methods (Static)
         %% Factory Methods
-        function geometryOut = draw(typeIn,varargin)
+        function geometryOut = draw(typeIn, varargin)
             %%draw - Instantiates a new 0-Dimensional object
             %   G = Geometry0D.draw(typeIn,property1,value1,...) creates an
             %   object of class typeIn with the given property values.
             %
             %   Example: Create a Point object.
-            %       G = Geometry0D.draw('Point',...
-            %                         	'X',rand(1),...
-            %                         	'Y',rand(1),...
-            %                           'PlotStyle',{'x','r'});
+            %       G = Geometry0D.draw('Point', 'X',rand(1), 'Y',rand(1), 'PlotStyle',{'x','r'});
             %       G.plot;
             %
             % See also Point, Geometry0D, Geometry, Parameterizable, MotorProto
             
             switch typeIn
-                case {'Point','point','Point0D','Point0d','point0D','point0d'}
+                case {'Point', 'point', 'Point0D', 'Point0d', 'point0D', 'point0d'}
                     geometryOut = Point(varargin{:});
                 otherwise
-                    error('Geometry0D:draw',...
-                            'Unknown Geometry0D subclass %s',...
-                            typeIn);
+                    error('Geometry0D:draw', 'Unknown Geometry0D subclass %s', typeIn);
             end
         end
     end

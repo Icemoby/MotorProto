@@ -149,9 +149,9 @@ stator.Sources.HarmonicPhases     = (180+105)*(pi/180);
 % simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
 % solution = simulation.run;%         
 
-nTimePoints = 2^1;
-simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 4, 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
-solution = simulation.run;
+% nTimePoints = 2^1;
+% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 4, 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
+% solution = simulation.run;
 % nTimePoints = 2^9;
 % simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 4, 'StoreDecompositions', true, 'Verbose', true, 'TransientSolver', false, 'MaxGMRESIterations', 5, 'ShootingTolerance', 1e-6);
 % solution = simulation.run(solution.Algorithm.X(:,1));

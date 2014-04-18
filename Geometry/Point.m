@@ -4,24 +4,6 @@ classdef Point < Geometry0D
     %   be used to fix certain node locations in the resulting finite element
     %   mesh.
     %
-    %   Example: Create a parameterized point
-    %       P = PARAMETER_LIST;
-    %       P.new('xParam','rand(1)');
-    %       P.new('yParam','rand(1)');
-    %
-    %       G = Point('X','xParam','Y','yParam','PlotStyle',{'x','r'});
-    %       figure;subplot(1,2,1);
-    %       G.plot;
-    %
-    %       P.edit('xParam','-rand(1)');
-    %       P.edit('yParam','-rand(1)');
-    %       G = rebuild(G);
-    %       subplot(1,2,2);
-    %       G.plot;
-    %
-    % Point methods:
-    %   rebuild - Recalculates the object's properties
-    %
     % Point properties:
     %   X - An array of X coordinates
     %   Y - An array of Y coordinates
@@ -61,19 +43,7 @@ properties:
     methods
         %% Constructor
         function this = Point(varargin)
-            %call superclass constructor
             this = this@Geometry0D(varargin{:});
-        end
-        
-        %% Parameterizable methods
-        function this = refresh(this)
-            warning('Point:refresh','Replace "refresh" with "rebuild."');
-            this = rebuild(this);
-        end
-        
-        function this = rebuild(this)
-            this.X = rebuild(this.X);
-            this.Y = rebuild(this.Y);
         end
     end
 end
