@@ -187,11 +187,6 @@ properties:
                 display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));
             end
             
-            %% Save the solution
-%             if this.StoreDecompositions
-%                 clearvars Ca Cg L D P S
-%             end
-            
             [x, x_t] = matrixFactory.doPostProcessing(x, x_t);
             this.X   = x;
             this.X_t = x_t;
@@ -279,18 +274,13 @@ properties:
                 case 1
                     A = 1;
                 case 2
-                    A = [6 - 3*sqrt(2), 0;
-                         3*sqrt(2),     6 - 3*sqrt(2)] / 6;
-                case 3
-                    l = 0.435866521508459;
-                    A = [l,                  0,               0;
-                         (1-l)/2,            l,               0;
-                         (-6*l^2+16*l-1)/4, (6*l^2-20*l+5)/4, l];
+                    A = [1/3 0;
+                         3/4 1/4];
                 case 4
-                    A = [6 - 3*sqrt(2),   0,               0,           0;
-                         3 * sqrt(2),     6 - 3 * sqrt(2), 0,           0;
-                         30 - 18*sqrt(2), 24 * sqrt(2)-36, 6-3*sqrt(2), 0;
-                         2 * sqrt(2) + 1, sqrt(2) - 2,     1,           6-3*sqrt(2)] / 6;
+                  	A = [2  0 0 0;
+                         3  3 0 0;
+                         2 -2 4 0;
+                         0  0 9 3]/12;
             end
             b = A(end, :);
             c = sum(A, 2);
