@@ -1,4 +1,4 @@
-function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,stackLength,turnsPerTooth,statorInnerRadius, statorBILength, statorBICutRadius, toothYokeLength, toothYokeWidth, toothFaceLength, toothFaceChamfer, toothGapWidth, slotFilletSize1, slotFilletSize2, slotPadding, slotPackingFactor,airgapLength, pmLength, pmEmbrace, pmFilletSize,rotorBILength, rotorBICutWidth, rotorBICutLength, statorIronMaterial, rotorIronMaterial, pmMaterial);
+function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,stackLength,turnsPerTooth,statorInnerRadius, statorBILength, statorBICutRadius, toothYokeLength, toothYokeWidth, toothFaceLength, toothFaceChamfer, toothGapWidth, slotFilletSize1, slotFilletSize2, slotPadding, slotPackingFactor,airgapLength, pmLength, pmEmbrace, pmFilletSize,rotorBILength, rotorBICutWidth, rotorBICutLength, statorIronMaterial, rotorIronMaterial, pmMaterial)
     assemblies = model.Assemblies;
     for i = 1:numel(assemblies)
         model.removeAssembly(assemblies(i).Name);
@@ -21,11 +21,11 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
     stator.InnerRadius         = statorInnerRadius;
     stator.OuterRadius         = statorOuterRadius;
     stator.DefaultMaterial     = statorIronMaterial;
-    stator.ConnectionType      = 'Wye';
-    stator.ConductorDynamics   = 'Dynamic';
-    stator.WindingType         = 'Concentrated';
+    stator.WindingType         = WindingTypes.Concentrated;
+    stator.CouplingType        = CouplingTypes.Static;
     stator.Slot.Layers         = 1;
     stator.Slot.Turns          = turnsPerTooth;
+    stator.Slot.AirgapLocation = AirgapLocations.Outside;
     
     %% Bus-Bar Style Conductors
     stator.Slot.ConductorType           = 'Homogenized';
@@ -227,10 +227,9 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
     %slotAir     = slotBody + slotFace;
     
     stator.Slot.Shape        = slotCond;
-    stator.ConductorMaterial = CopperExampleMaterial;
+    stator.ConductorMaterial = Copper;
 
-    %stator.addRegion('slotPadding', slotAir, Air, 'Static', -1);
-    stator.addRegion('slotPadding', slotBody, Air, 'Static', -1);
+    stator.addRegion('slotPadding', slotBody, Air, DynamicsTypes.Static);
     
     %% Cut Stator Backiron
     scut1 = Geometry2D.draw('Sector','Radius',[0,statorBICutRadius],'Angle',2*pi,'Rotation',0,'Position',statorInnerRadius*[cos(pi/nTeeth),sin(pi/nTeeth)]);
@@ -239,8 +238,8 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
     scut1 = scut1 * slotSector;
     scut2 = scut2 * slotSector;
     
-    stator.addRegion('scut1', scut1, Air, 'Static', -1);
-    stator.addRegion('scut2', scut2, Air, 'Static', -1);
+    stator.addRegion('scut1', scut1, Air, DynamicsTypes.Static);
+    stator.addRegion('scut2', scut2, Air, DynamicsTypes.Static);
     
     %% Set Rotor Parameters
     rotor.Poles               = nPoles;
@@ -249,7 +248,7 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
     rotor.InnerRadius         = rotorInnerRadius - airgapLength / 2;
     rotor.OuterRadius         = rotorOuterRadius;
     rotor.DefaultMaterial     = rotorIronMaterial;
-    rotor.OperatingMode       = 'synchronous'; %'locked'
+    rotor.OperatingMode       = OperatingModes.Synchronous;
     rotor.InitialAngle        = 0;
 
     %% Create Rotor Permanent Magnet
@@ -292,8 +291,8 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
     permanentMagnet = (permanentMagnet - magnetFillet1) - magnetFillet2;
     magnetGap       = magnetLocation - permanentMagnet;
 
-    rotor.addRegion('pm', permanentMagnet,  pmMaterial, 'Dynamic', 0);
-    rotor.addRegion('trimUHP', magnetGap, Air, 'Static', 'None');
+    rotor.addRegion('pm', permanentMagnet,  pmMaterial, DynamicsTypes.Static);
+    rotor.addRegion('trimUHP', magnetGap, Air, DynamicsTypes.Static);
     
     %%Cut Rotor Backiron
 	poleSector = Geometry2D.draw('Sector', 'Radius', [rotorInnerRadius,rotorOuterRadius] ,'Angle',2*pi/nPoles, 'Rotation',-pi/nPoles);
@@ -316,5 +315,5 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
         
     rcut = Geometry2D.draw('Polygon2D','Points',p);
     rcut = rcut * poleSector;
-    rotor.addRegion('rcut', rcut, Air, 'Static', 'None');
+    rotor.addRegion('rcut', rcut, Air, DynamicsTypes.Static);
 end

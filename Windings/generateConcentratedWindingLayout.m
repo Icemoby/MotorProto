@@ -1,14 +1,24 @@
 function W = generateConcentratedWindingLayout(Np,Nt,Nl)
-    assert(Np*3 > Nt);
+    % Algorithm verified against multiple layouts given at https://www.emetor.com/edit/windings/
+    % #TODO, Generalize to arbitrary poly-phase windings
     
+    assert(Np*3 >= Nt);
+    assert(Nt >= Np)
+    assert(Nl == 1 || Nl == 2);
     if Nl == 1
-        assert(mod(Nt,6) == 0);
+        assert(mod(Nt,2) == 0);
+        assert(mod(Nt,3) == 0);
     end
     
-    r = gcd(Np,Nt);
+    if Nl == 1
+        r = gcd(Np,Nt/2);
+    else
+        r = gcd(Np,Nt);
+    end
+    
     if mod(Np / r, 2) == 1
         antiperiodic = true;
-        r   = r / 2;
+        r = r / 2;
     else
         antiperiodic = false;
     end
@@ -66,4 +76,29 @@ function W = generateConcentratedWindingLayout(Np,Nt,Nl)
     if Nl == 1
         W = W(1:2:end);
     end
+    
+    wdg  = zeros(numel(W),2);
+    I    = (W > 3);
+    W(I) = 3 - W(I);
+    I    = (mod(W,2) == 0);
+    W(I) = -W(I);
+    
+    for i = 1:numel(W);
+        wdg(i,1) = W(i);
+        wdg(i,2) = -W(i);
+    end
+    
+    while any(abs(wdg(end,:)) == 1)
+        wdg = circshift(wdg,1);
+    end
+    
+    if wdg(1,1) == -1
+        wdg = -wdg;
+    end
+    
+    if Nl == 2
+        wdg(:,2) = circshift(wdg(:,2),-1);
+    end
+    
+    W = wdg;
 end

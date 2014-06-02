@@ -51,63 +51,81 @@ pmMaterial         = NdFe35;
 
 %% Set mesh parameters
 mesh = simulation.Mesh;
-mesh(1).MaximumElementSize = statorBILength / 3;
-mesh(2).MaximumElementSize = rotorBILength / 3;
+mesh(1).MaximumElementSize = inf;
+mesh(1).MaximumAirgapEdgeLength = [inf, airgapLength/2];
+mesh(2).MaximumElementSize = inf;
+mesh(2).MaximumAirgapEdgeLength = [airgapLength/2,1];
 
 %% Voltage Source
 % stator.SourceType = 'VoltageSource';
-% stator.Sources.HarmonicNumbers    = 1;
-% stator.Sources.HarmonicAmplitudes = 708;
-% stator.Sources.HarmonicPhases     = -2 * pi * 101 / 360;
+% stator.Circuits.HarmonicNumbers    = 1;
+% stator.Circuits.HarmonicAmplitudes = 708;
+% stator.Circuits.HarmonicPhases     = -2 * pi * 101 / 360;
 
 %% Current Source
-stator.SourceType                 = 'CurrentSource';
-stator.Sources.HarmonicNumbers    = 1;
-stator.Sources.HarmonicAmplitudes = 225 / sqrt(3);
-stator.Sources.HarmonicPhases     = 0;
+stator.Layers = 2;
+stator.Turns  = 1;
+stator.SourceType = 'CurrentSource';
+stator.Circuits.HarmonicNumbers    = 1;
+stator.Circuits.HarmonicAmplitudes = 2e6*stator.Slot.Shape.area / stator.Layers / stator.Turns;
+stator.Circuits.HarmonicPhases     = pi/6;
 
-%% Configure algorithm
+%% Simulaiton Time Points
 timePointsPerPeriod = 10;
-%simulation.configureAlgorithm('Static', 'TimePoints', timePointsPerPeriod, 'Verbose', true);
-simulation.configureAlgorithm('ShootingNewton', 'TimePoints', timePointsPerPeriod, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true,'ShootingTolerance',1e-4);
+
+%% Static Simulation
+stator.CouplingType = CouplingTypes.Static;
+simulation.configureAlgorithm('Static', 'TimePoints', timePointsPerPeriod, 'Verbose', true);
+
+%% Dynamic Simulation
+% stator.CouplingType = CouplingTypes.Dyanmic;
+% stator.Slot.ConductorType = 'Circular';
+% stator.Slot.Conductor.ConductorDiameter   = 2.0*sqrt(0.5*stator.Slot.Shape.area/stator.Turns/pi/stator.Layers)*0.9 / sqrt(2);
+% stator.Slot.Conductor.InsulationThickness = 2.0*sqrt(0.5*stator.Slot.Shape.area/stator.Turns/pi/stator.Layers)*0.1 / sqrt(2);
+% rotor.InputRegions(1).Dynamics = DynamicsTypes.Floating; %PM Dynamics
+% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', timePointsPerPeriod, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true,'ShootingTolerance',1e-4);
+
+%% Build Model and mesh
+model.build;
+mesh.build;
+
 solution = simulation.run;
 
 %% Plotting
-solution.plot('A','Time',1);
-solution.plot('B','Time',1);
-solution.plot('H','Time',1);
-solution.plot('H','Harmonic',0);
-solution.plot('A','Harmonic',[0, model.TemporalSubharmonics]);
-solution.plot('B','Harmonic',[0, model.TemporalSubharmonics]);
-solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
-solution.plot('J','Harmonic',model.TemporalSubharmonics);
-solution.plot('J','Time',1);
-solution.plot('E','Time',1);
-
-solution.plot('FluxLinkage','Time');
-solution.plot('FluxLinkage','Harmonic');
+% solution.plot('A','Time',1);
+% solution.plot('B','Time',1);
+% solution.plot('H','Time',1);
+% solution.plot('H','Harmonic',0);
+% solution.plot('A','Harmonic',[0, model.TemporalSubharmonics]);
+% solution.plot('B','Harmonic',[0, model.TemporalSubharmonics]);
+% solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
+% solution.plot('J','Harmonic',model.TemporalSubharmonics);
+% solution.plot('J','Time',1);
+% solution.plot('E','Time',1);
+% 
+% solution.plot('FluxLinkage','Time');
+% solution.plot('FluxLinkage','Harmonic');
 solution.plot('Torque','Time');
 solution.plot('Torque','Harmonic');
 solution.plot('Voltage','Time');
 solution.plot('Voltage','Harmonic');
-solution.plot('Current','Time');
-solution.plot('Current','Harmonic');
+% solution.plot('Current','Time');
+% solution.plot('Current','Harmonic');
 
-% Data
-solution.getContinuumVariableData('H','Time',1)
-H      = getPMFieldIntensity(solution,pmMaterial);
-
-torque = solution.getBulkVariableData('Torque','Time');
-torque = torque{1};
-torque = solution.getBulkVariableData('Torque','Harmonic');
-
-flux_linkage = solution.getBulkVariableData('FluxLinkage','Time');
-flux_linkage = flux_linkage{1}{1};
-flux_linkage = solution.getBulkVariableData('FluxLinkage','Harmonic');
-
-mass       = solution.Model.Mass;
-statorMass = solution.Model.Assemblies(1).Mass;
-rotorMass  = solution.Model.Assemblies(2).Mass;
-
-model.build;
-model.plot;
+%% Data
+% solution.getContinuumVariableData('H','Time',1)
+% H = getPMFieldIntensity(solution,pmMaterial);
+% 
+% torque = solution.getBulkVariableData('Torque','Time');
+% torque = torque{1};
+% torque = solution.getBulkVariableData('Torque','Harmonic');
+% 
+% flux_linkage = solution.getBulkVariableData('FluxLinkage','Time');
+% flux_linkage = flux_linkage{1}{1};
+% flux_linkage = solution.getBulkVariableData('FluxLinkage','Harmonic');
+% 
+% mass       = solution.Model.Mass;
+% statorMass = solution.Model.Assemblies(1).Mass;
+% rotorMass  = solution.Model.Assemblies(2).Mass;
+% 
+% model.plot;

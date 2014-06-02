@@ -4,9 +4,8 @@ classdef Nameable < matlab.mixin.Heterogeneous & matlab.mixin.Copyable
     end
 
     methods
-        function set.Name(this,name)
-            assert(ischar(name),'MotorProto:Component:InvalidDataType',...
-                    'The name property must be a string');
+        function set.Name(this, name)
+            assert(ischar(name), 'MotorProto:Component:InvalidDataType', 'The name property must be a string');
             this.Name = name;
         end
     end

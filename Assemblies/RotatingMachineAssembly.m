@@ -40,6 +40,7 @@ properties:
     properties
         ElectricalFrequency = 60;
         InitialAngle        = 0;
+        BackironType        = BackironTypes.Laminated;
     end
     
     properties (Abstract, Dependent)
@@ -66,7 +67,7 @@ properties:
         end
         
         %% Others
-      	function this = build(this, modeledFraction)
+      	function this = build(this, fp)
             %build - Populates the object's Components property based on the current configuration
             %build(A) uses the user defined regions in the InputRegions property
             %along with other object properties to populate the Components
@@ -109,15 +110,15 @@ properties:
             
             if nargin < 2
                 if this.HasHalfWaveSymmetry
-                    modeledFraction = 1 / this.SpatialSymmetries / 2;
+                    fp = 1 / this.SpatialSymmetries / 2;
                 else
-                    modeledFraction = 1 / this.SpatialSymmetries;
+                    fp = 1 / this.SpatialSymmetries;
                 end
             end
             
             %% Validate Inputs
-            validateattributes(modeledFraction, {'numeric'}, {'scalar'});
-            nCopies = this.GeometricSymmetries * modeledFraction;
+            validateattributes(fp, {'numeric'}, {'scalar'});
+            nCopies = this.GeometricSymmetries * fp;
             
           	assert(abs(nCopies-round(nCopies)) < sqrt(eps), 'MotorProto:RotatingMachineAssembly', 'ModelFraction must be an integer multiple of 1 / GeometricSymmetries');
               
@@ -127,10 +128,9 @@ properties:
 
             this = clean(this);
             
-            [conductors, nonConductors, connectionMatrix] = buildPreProcessing(this);
-            
+            this.ModeledFraction = fp;
             %% Add copies of user input regions
-            regions  = [conductors, nonConductors, this.InputRegions];
+            regions  = this.InputRegions;
             nRegions = numel(regions);
             if nRegions > 0
                 %% Copy the regions and rotate them
@@ -152,37 +152,11 @@ properties:
                 end
                 
                 addModelRegion(this, regions);
-                
-                %% Copy the connection matrix and renumber
-                if ~isempty(connectionMatrix)
-                    offset     = ((0:(nCopies-1)) * nRegions);
-                    newMatrix  = connectionMatrix;
-                    for i = 2:nCopies
-                        newMatrix = newMatrix + (offset(i) - offset(i-1)) * sign(newMatrix);
-                        connectionMatrix = cat(3,connectionMatrix,newMatrix);
-                    end
-                end
-                
-                %% Determine how the regions were stored in the assembly
-                %   Loop renumbers the connection matrix based on the
-                %   mapping between the conductors/regions and their
-                %   location in the components array after running the
-                %   addModelRegion command
-                
-                components = this.Components;
-                for i = 1:size(connectionMatrix,1)
-                    for j = 1:size(connectionMatrix,2)
-                        for k = 1:size(connectionMatrix,3)
-                            l = find(regions(connectionMatrix(i,j,k)) == components);
-                            connectionMatrix(i,j,k) = l;
-                        end
-                    end
-                end
             end
              
             %% Build the domain hull
             nRegions = nRegions * nCopies;
-            ang      = 2 * pi * modeledFraction;
+            ang      = 2 * pi * fp;
             rot      = this.InitialAngle;
             rad      = [this.InnerRadius, this.OuterRadius];
           	dgOut    = Geometry2D.draw('Sector', 'Radius', rad, 'Angle', ang, 'Rotation', rot, 'PlotStyle', {'b'});
@@ -191,21 +165,14 @@ properties:
                 dgOut = dgOut - [this.Regions.Geometry];
             end
             
-            addModelRegion(this, [this.Name,'_DefaultRegion'], dgOut, this.DefaultMaterial, DynamicsTypes.Static, -1);
+            switch this.BackironType
+                case BackironTypes.Laminated
+                    biDynamics = DynamicsTypes.Static;
+                case BackironTypes.Solid
+                    biDynamics = DynamicsTypes.Grounded;
+            end
             
-            this                 = buildPostProcessing(this, connectionMatrix, modeledFraction);
-            this.ModeledFraction = modeledFraction;
-        end
-                
-        function [conductors, nonConductors, connectionMatrix] = buildPreProcessing(this)
-            %% Noop, subclasses may implement behavior here
-            conductors       = [];
-            nonConductors    = [];
-            connectionMatrix = [];
-        end
-        
-        function this = buildPostProcessing(this, connectionMatrix, modeledFraction)
-            %% Noop, subclasses may implement behavior here
+            addModelRegion(this, [this.Name,'_DefaultRegion'], dgOut, this.DefaultMaterial, biDynamics);
         end
         
       	function mesh = newMesh(this)

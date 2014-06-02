@@ -311,13 +311,17 @@ classdef Solution
             lineStyle = {'-',':','-.','--'};
             lineColor = {'b', 'g', 'r', 'k', 'm', 'c', 'y', };
             
+            inpPar = inputParser;
+            inpPar.KeepUnmatched = true;
+          	inpPar.addParamValue('DataFunction', @(x)(x), @(x)(isa(x, 'function_handle')));
+            inpPar.parse(varargin{:});
+            inpStruct = inpPar.Results;
+            
             %% Get Data
             [data, dataLabels, dataTitles] = this.getBulkVariableData(varString, plotType);                          
             nFigures = numel(data);
             t        = this.Algorithm.Times;
             Nt       = numel(t);
-            Nh       = Nt - 1;
-            h        = 0:floor((Nh-1)/2);
             varName  = MotorProto.whatIs(varString);
             varUnits = MotorProto.unitsOf(varString);
             
@@ -335,23 +339,13 @@ classdef Solution
                     case 'time'
                         for j = 1:nPlots
                             if iscell(data{i})
-                                y = fft(data{i}{j}(1:end-1));
+                                y = data{i}{j};
                             else
-                                y = fft(data{i}(1:end-1));
+                                y = data{i};
                             end
                             
-                            y        = y / numel(y);
-                            y        = fftshift(y);
-                            if mod(Nt-1, 2) == 0
-                                y(1) = [];
-                            end
-                            
-                            y        = [zeros(1, 5*numel(y)), y, zeros(1, 5*numel(y))];
-                            y        = ifftshift(y);
-                            y        = ifft(y) * numel(y);
-                            y(end+1) = y(1);
-                            x        = linspace(0,t(end),numel(y));
-                            plot(x, y, [lineStyle{mod(j-1,4)+1} lineColor{mod(j-1,7)+1}]);
+                            y = inpStruct.DataFunction(y);
+                            plot(t, y, [lineStyle{mod(j-1,4)+1} lineColor{mod(j-1,7)+1}]);
                         end
                         xlim([min(t) max(t)]);
                     	xlabel('Time [s]');
@@ -365,8 +359,10 @@ classdef Solution
                         titleStr = [strrep(dataTitles{i},'_',' '), ' ', varName, ' Waveforms'];
                         title(titleStr);
                     case 'harmonic'
-                        mag    = zeros(1, numel(h));
-                        pha    = zeros(1, numel(h));
+                        Nh  = Nt - 1;
+                        h   = 0:floor((Nh-1)/2);
+                        mag = zeros(1, numel(h));
+                        pha = zeros(1, numel(h));
                         for j = 1:nPlots
                             if iscell(data{i})
                                 mag(j, :) = abs(data{i}{j}(h+1));

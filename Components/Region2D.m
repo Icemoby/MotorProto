@@ -4,10 +4,6 @@ classdef Region2D < Component
         Geometry
         Material
         Dynamics
-
-        InputType         = 'current'
-        InputComponents   = -1;
-        InputCoefficients =  1;
     end
     
     methods
@@ -28,15 +24,6 @@ classdef Region2D < Component
                 this.Dynamics = DynamicsTypes.(value);
             else
                 this.Dynamics = DynamicsTypes(value);
-            end
-        end
-        
-        function this = set.InputType(this, value)
-            switch lower(value)
-                case {'current','voltage'}
-                    this.InputType = value;
-                otherwise
-                    error('MotorProto:Region2D', 'Unknown InputType type %s', value);
             end
         end
         
@@ -126,15 +113,6 @@ classdef Region2D < Component
             else
                 boolOut = true;
             end
-        end
-    end
-    
-    methods (Sealed)
-        function value = hasStaticDynamics(this)
-            mats  = [this.Material];
-            sigma = [mats.sigma];
-            dyna  = {this.Dynamics};
-            value = ((sigma == 0) | strcmpi('static', dyna));
         end
     end
     

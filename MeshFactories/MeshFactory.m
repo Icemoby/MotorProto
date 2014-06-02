@@ -134,11 +134,11 @@ classdef MeshFactory < matlab.mixin.Copyable
             warning('MotorProto:Verbose', 'There is probably a more elegent way to handle the airgap situation');
             warning('MotorProto:Verbose', 'Add in auxillary boundaries from adjacent annuli');
             
-            nThis =  numel(this);
+            nThis = numel(this);
             for i = 1:nThis
                 %% determine the initial peicewise linear system
                 this(i) = getBoundaries(this(i));
-
+                
                 this(i) = discretizeBoundaries(this(i));
 
                 %% refine the initial pls
@@ -217,13 +217,14 @@ classdef MeshFactory < matlab.mixin.Copyable
             curves          = [geometry.Curves];
             this.Boundaries = makeUnique(curves);
             this            = detectBoundaryPairs(this);
+            this            = setBoundaryMaxEdgeLength(this);
         end
         
         function this = discretizeBoundaries(this)
             %% Takes non-intersecting material boundaries and produces a set of
             %  approximating edges, with maximum length determined by curvature
             %  and specified maximum element size
-
+            
             curves  = this.Boundaries;
             nCurves = numel(curves);
             cEdges  = curves.MinEdgeNumber;
@@ -234,7 +235,7 @@ classdef MeshFactory < matlab.mixin.Copyable
                 cLength = curves.length / (this.MaximumElementSize * sqrt(3));
             end
             
-            cEdges = max(cEdges,ceil(cLength) + 1);
+            cEdges = max(cEdges, ceil(cLength)+1);
             cNodes = cEdges + 1;
             
             nEdges = sum(cEdges);
@@ -333,7 +334,7 @@ classdef MeshFactory < matlab.mixin.Copyable
         end
         
         function this = addEdgesToQueue(this)
-            %% Split all discrete boundary edges until non are encroached,
+            %% Split all discrete boundary edges until none are encroached,
             %  based on the first stage of Ruperts algorithm for creating 
             %  constrained Delaunay Triangulations
             
@@ -349,18 +350,14 @@ classdef MeshFactory < matlab.mixin.Copyable
             yem = mean(ye);
             dre = hypot(diff(xe),diff(ye)) / 2;
             
-            edgeHasPointInDiametralBall = false(numel(cEdges)/2, 1);
-            vertexIsInDiametralBall     = false(numel(this), 1);
+            edgeHasPointInDiametralBall = false(1,numel(cEdges)/2);
+            vertexIsInDiametralBall     = false(1,numel(x));
             for i = 1:(numel(cEdges)/2)
-                for j = 1:numel(this)
-                    if ~edgeHasPointInDiametralBall(i) || ~vertexIsInDiametralBall(j)
-                        dr = hypot(xem(i) - x(j), yem(i) - y(j));
-                        if dr < dre * (1 - sqrt(eps))
-                            edgeHasPointInDiametralBall(i) = true;
-                            vertexIsInDiametralBall(j)     = true;
-                        end
-                    end
-                end
+                dr = hypot(xem(i) - x, yem(i) - y);
+                I  = (dr < dre(i) * (1 - sqrt(eps)));
+                
+                edgeHasPointInDiametralBall(i) = any(I);
+                vertexIsInDiametralBall(I)     = true;
             end
             
             if any(edgeHasPointInDiametralBall)
@@ -590,8 +587,8 @@ classdef MeshFactory < matlab.mixin.Copyable
                 %% remove bounding box nodes
                 isBBNode = this.IsBoundingBoxNode;
                 i        = find(isBBNode);              
-             	isBBEl  = any(  this.Elements >= min(i)...
-                              & this.Elements <= max(i));
+             	isBBEl   = any(  this.Elements >= min(i)...
+                               & this.Elements <= max(i));
                                         
                 this.X(isBBNode)                 = [];
                 this.Y(isBBNode)                 = [];
@@ -599,12 +596,12 @@ classdef MeshFactory < matlab.mixin.Copyable
                 this.IsConstrainedNode(isBBNode) = [];
                 this.IsBoundingBoxNode(isBBNode) = [];
                 
-                this.Elements(:,isBBEl)                = [];
-                this.ElementIncenters(:,isBBEl)               = [];
-                this.ElementCircumcenters(:,isBBEl)           = [];
-                this.ElementInradii(isBBEl)                   = [];
-                this.ElementCircumradii(isBBEl)               = [];
-                this.ElementAngles(:,isBBEl)           = [];
+                this.Elements(:,isBBEl)           	= [];
+                this.ElementIncenters(:,isBBEl)   	= [];
+                this.ElementCircumcenters(:,isBBEl)	= [];
+                this.ElementInradii(isBBEl)       	= [];
+                this.ElementCircumradii(isBBEl)   	= [];
+                this.ElementAngles(:,isBBEl)     	= [];
                 
                 %% renumber nodes
                 k = max(i);
@@ -800,8 +797,7 @@ classdef MeshFactory < matlab.mixin.Copyable
         end
                 
         function this = removeVertices(this)
-            %% this method does not remove vertices associated with constrained 
-            %  edges properly
+            %% #FIXME, this method does not remove vertices associated with constrained edges properly
             vertices  = unique(this.VertexRemovalQueue);
             vertices  = sort(vertices, 'descend');
             nVertices = numel(vertices);
@@ -880,7 +876,7 @@ classdef MeshFactory < matlab.mixin.Copyable
             regions = this.Regions;
             nRegions = numel(regions);
             elementRegion = zeros(1,nElements);
-            for iRegion = 1:nRegions
+            for iRegion = nRegions:-1:1
                 I = regions(iRegion).Geometry.inOn(incenters(1,:), incenters(2,:));
                 elementRegion(I) = iRegion;
             end
@@ -1066,6 +1062,7 @@ classdef MeshFactory < matlab.mixin.Copyable
     
     methods(Abstract)
         curves = getAuxillaryBoundaries(this);
+        this   = setBoundaryMaxEdgeLength(this);
         this   = detectBoundaryPairs(this);
         this   = detectEdgePairs(this);
         this   = compileBoundaryData(this)

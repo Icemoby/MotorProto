@@ -1,28 +1,40 @@
-classdef VoltageSource < Source
+classdef DQOCurrentRegulator < Circuit
     properties (Constant)
-        Type = SourceTypes.VoltageSource
+        Type = SourceTypes.DQOCurrentRegulator
+    end
+    
+    properties
+        ElectricalFrequency = 0;
+        InitialAngle        = 0;
+     	Phases              = 3;
+        
+        ConnectionType = ConnectionTypes.Wye;
+        
+        Idq = [0, 0];
+        Kp  = [0, 0];
+        Ki  = [0, 0];
     end
     
     properties (Dependent, SetAccess = private)
         BundleVoltageIndex
         BundleCurrentIndex
         CommonModeVoltageIndex
+        DQVoltageIndex
+        DQCurrentIndex
     end
     
     methods
-        function this = VoltageSource(varargin)
-            this = this@Source(varargin{:});
+        function this = DQOCurrentRegulator(varargin)
+            this = this@Circuit(varargin{:});
         end
         
         function N = getSize(this) %Matrix factory allocation request
-            N = getSize@Source(this); %N for strand voltages and currents in dynamic case
-            N = N + this.Nb;          %i_i for each bundle current
-            
-            if this.CouplingType == CouplingTypes.Dynamic
-                N = N + this.Nb;      %v_i for each bundle voltage
-            end
-            
-            N = N + 1;                %v_o, common mode voltage
+            N = getSize@Circuit(this); %N for strand voltages and currents
+            N = N + this.Nb;           %v_i for each bundle current
+            N = N + 1;                 %v_o, common mode voltage
+            N = N + this.Nb;           %i_i for each bundle voltage
+            N = N + 2;                 %v_dq
+            N = N + 2;                 %i_dq
         end
         
         %% Indexing properties
@@ -42,7 +54,7 @@ classdef VoltageSource < Source
                     
                     value = this.Index(m:n);
                 otherwise
-                    value = [];
+                    error('#TODO');
             end
         end
         
@@ -63,13 +75,92 @@ classdef VoltageSource < Source
                     
                     value = this.Index(m:n);
                 otherwise
-                    Nb = this.Nb;
-                    value = this.Index(1:Nb);
+                    error('#TODO');
             end
         end
         
         function value = get.CommonModeVoltageIndex(this)
-            value = this.Index(end);
+            switch this.CouplingType
+                case CouplingTypes.Dynamic
+                    value = this.Index(end-4);
+                otherwise
+                    error('#TODO');
+            end
+        end
+        
+        function value = get.DQVoltageIndex(this)
+            switch this.CouplingType
+                case CouplingTypes.Dynamic
+                    value = this.Index((end-4+1):(end-2));
+                otherwise
+                    error('#TODO');
+            end
+        end
+        
+        function value = get.DQCurrentIndex(this)
+            switch this.CouplingType
+                case CouplingTypes.Dynamic
+                    value = this.Index((end-2+1):end);
+                otherwise
+                    error('#TODO');
+            end
+        end
+        
+        function build(this, coupling, bcFun)
+            matrices = struct('Kfc', [], 'Kcf', [], 'Kcc', [],...
+                              'Cfc', [], 'Ccf', [], 'Ccc', [],...
+                              'Kdq', [], 'Cdq', [],...
+                              'T2k', [], 'K2t', []);
+                          
+            matrices.Kfc = this.Kfc(coupling);
+            matrices.Kcf = this.Kcf(coupling);
+            matrices.Kcc = this.Kcc(coupling);
+            matrices.Cfc = this.Cfc(coupling);
+            matrices.Ccf = this.Ccf(coupling);
+            matrices.Ccc = this.Ccc(coupling);
+            
+            matrices.Kdq = this.Kdq(coupling);
+            matrices.Cdq = this.Cdq(coupling);
+            
+            matrices.T2k = this.T2k(coupling);
+            matrices.K2t = this.K2t(coupling);
+            
+            matrices.Kfc = bcFun(matrices.Kfc, 'both');
+            matrices.Kcf = bcFun(matrices.Kcf, 'both');
+            matrices.Kcc = bcFun(matrices.Kcc, 'both');
+            matrices.Cfc = bcFun(matrices.Cfc, 'both');
+            matrices.Ccf = bcFun(matrices.Ccf, 'both');
+            matrices.Ccc = bcFun(matrices.Ccc, 'both');
+            
+            matrices.Kdq = bcFun(matrices.Kdq, 'both');
+            matrices.Cdq = bcFun(matrices.Cdq, 'both');
+            
+            matrices.T2k = bcFun(matrices.T2k, 'rows');
+            matrices.K2t = bcFun(matrices.K2t, 'columns');
+            
+            this.Matrices = matrices;
+        end
+        
+        %% Matrix Functions
+        function k = K(this, t, s)
+            k = this.Matrices.Kfc + this.Matrices.Kcf * s + this.Matrices.Kcc * s;
+            
+            f = this.ElectricalFrequency;
+            a = -2 * pi * f * t + this.InitialAngle; 
+            T = sqrt(2/3) * [ cos(a)    cos(a-2*pi/3)  cos(a+2*pi/3);
+                             -sin(a)   -sin(a-2*pi/3) -sin(a+2*pi/3)];
+            
+            ktk = this.Matrices.T2k * T * this.Matrices.K2t;
+            
+            k = k + s * ktk + s * ktk';
+            
+         	k = k + this.Matrices.Kdq * s;
+        end
+        
+        function c = C(this, ~, h, s)
+            c = this.Matrices.Cfc / h + this.Matrices.Ccf * s / h + this.Matrices.Ccc * s / h;
+            
+            c = c + this.Matrices.Cdq * s / h;
         end
         
         %% Matrices
@@ -81,7 +172,6 @@ classdef VoltageSource < Source
                     Rs = this.RegionPolarity;
                     
                     [Nb, Nib, Nri, Nss] = this.getBundleSizes;
-                    Npp = this.ParallelPaths;
                     
                     sigma = coupling.Conductivity;
                     area  = coupling.Area;
@@ -122,7 +212,7 @@ classdef VoltageSource < Source
                             pos = pos + 1;
                             rows{pos} = J{i}(j) * ones(1, Nri{i}(j) + 2);
                             cols{pos} = [K{i}{j}, J{i}(j), I(i)];
-                            vals{pos} = [s, 0 * fp/ls * Nss{i}(j), fp/ls * Nss{i}(j) * Npp(i)];
+                            vals{pos} = [s, 0 * fp/ls * Nss{i}(j), fp/ls * Nss{i}(j)];
                         end
                     end
 
@@ -131,7 +221,7 @@ classdef VoltageSource < Source
                         pos = pos + 1;
                         rows{pos} = I(i) * ones(1, Nib(i) + 1);
                         cols{pos} = [J{i}, H(i)];
-                        vals{pos} = fp/ls * [Nss{i} * Npp(i), -1];
+                        vals{pos} = fp/ls * [Nss{i}, -1];
                     end
 
                     %% One row for each bundle current i_{i}, #TODO, Add source impedence
@@ -148,52 +238,18 @@ classdef VoltageSource < Source
                     cols{pos} = H;
                     vals{pos} = -fp/ls * ones(1, Nb);
                     
+                    pos = pos + 1;
+                    rows{pos} = this.DQVoltageIndex;
+                    cols{pos} = this.DQCurrentIndex;
+                    vals{pos} = fp/ls * [1, 1];
+                    
                     rows = [rows{:}];
                     cols = [cols{:}];
                     vals = [vals{:}];
                     
                     kcc = sparse(rows, cols, vals, coupling.Unknowns, coupling.Unknowns);
                 case CouplingTypes.Static
-                    % #TODO - Add external circuit elements
-                    [Nb, Nk] = this.getBundleSizes;
-                    
-                    Tk = this.TurnSets;
-                    Tf = this.TurnFactor;
-                    
-                    area  = coupling.Area;
-                    sigma = coupling.Conductivity;
-                    ls    = coupling.Length;
-                    fp    = coupling.ModeledFraction;
-                    
-                    I = this.BundleCurrentIndex;
-                    J = this.CommonModeVoltageIndex;
-                    
-                    rows = cell(1,0);
-                    cols = cell(1,0);
-                    vals = cell(1,0);
-                    pos = 0;
-                    for i = 1:Nb
-                        pos = pos + 1;
-                        rows{pos} = I(i);
-                        cols{pos} = I(i);
-                        vals{pos} = 0;
-                        for j = 1:Nk(i)
-                            k = Tk{i}(j);
-                            
-                            vals{pos} = vals{pos} - ls * Tf{i}(j)^2 / (sigma(k) * area(k) * fp);
-                        end
-                        
-                        pos = pos + 1;
-                        rows{pos} = [I(i), J];
-                        cols{pos} = [J, I(i)];
-                        vals{pos} = [fp/ls, fp/ls];
-                    end
-                    
-                    rows = [rows{:}];
-                    cols = [cols{:}];
-                    vals = [vals{:}];
-                    
-                    kcc = sparse(rows, cols, vals, coupling.Unknowns, coupling.Unknowns);
+                    error('#TODO');
                 otherwise
             end
         end
@@ -204,61 +260,87 @@ classdef VoltageSource < Source
                     % #TODO Add external circuit elements
                     ccc = sparse(coupling.Unknowns, coupling.Unknowns);
                 case CouplingTypes.Static
-                    % #TODO Add external circuit elements
-                    ccc = sparse(coupling.Unknowns, coupling.Unknowns);
+                    error('#TODO');
                 otherwise
             end
         end
         
-      	function ff = Ff(this, coupling)
-            ff = sparse(coupling.Unknowns, this.Nb);
+        function t2k = T2k(this, coupling)
+            fp = coupling.ModeledFraction;
+            ls = coupling.Length;
+            
+            rows = this.DQVoltageIndex;
+            cols = 1:2;
+            vals = sqrt(fp/ls) * ones(1,2);
+            t2k  = sparse(rows, cols, vals, coupling.Unknowns, 2);
+        end
+        
+        function k2t = K2t(this, coupling)
+            fp = coupling.ModeledFraction;
+            ls = coupling.Length;
+            
+            rows = 1:3;
+            cols = this.BundleCurrentIndex;
+            vals = sqrt(fp/ls) * ones(1,3);
+            k2t  = sparse(rows, cols, vals, 3, coupling.Unknowns);
+        end
+        
+        function kdq = Kdq(this, coupling)
+            fp = coupling.ModeledFraction;
+            ls = coupling.Length;
+            N  = coupling.Unknowns;
+            
+            Iidq = this.DQCurrentIndex;
+            
+            rows = Iidq;
+            cols = Iidq;
+            vals = fp / ls * this.Ki;
+            kdq  = sparse(rows, cols, vals, N, N);
+        end
+        
+        function cdq = Cdq(this, coupling)
+            fp = coupling.ModeledFraction;
+            ls = coupling.Length;
+            
+            rows = [this.DQCurrentIndex, this.DQCurrentIndex];
+            cols = [this.DQVoltageIndex, this.DQCurrentIndex];
+            vals = fp / ls * [1, 1, this.Kp];
+            cdq  = sparse(rows, cols, vals, coupling.Unknowns, coupling.Unknowns);
+        end
+        
+      	function ff = Ff(~, coupling)
+            ff = sparse(coupling.Unknowns, 2);
         end
         
     	function fc = Fc(this, coupling)
-            switch this.CouplingType
-                case CouplingTypes.Dynamic
-                    Nb  = this.Nb;
-                    
-                    fp = coupling.ModeledFraction;
-                    ls = coupling.Length;
-
-                    rows = this.BundleCurrentIndex;
-                    cols = 1:Nb;
-                    vals = -fp/ls * ones(1, Nb);
-
-                    fc = sparse(rows, cols, vals, coupling.Unknowns, Nb);
-                case CouplingTypes.Static
-                    Nb  = this.Nb;
-                    
-                    fp = coupling.ModeledFraction;
-                    ls = coupling.Length;
-
-                    rows = this.BundleCurrentIndex;
-                    cols = 1:Nb;
-                    vals = fp/ls;
-
-                    fc = sparse(rows, cols, vals, coupling.Unknowns, Nb);
-            end
+            fp = coupling.ModeledFraction;
+            ls = coupling.Length;
+            
+            rows = this.DQCurrentIndex;
+            cols = 1:2;
+            vals = fp/ls * this.Ki;
+            
+            fc = sparse(rows, cols, vals, coupling.Unknowns, 2);
         end
         
      	%% Source current post processing
         function f2i = F2I(this, ~)
-            f2i = sparse(this.Nb, this.Nb);
+            f2i = sparse(this.Nb, 2);
         end
         
         %% Source/Bundle voltage post processing
         function f2v = F2V(this, ~)
-            f2v = sparse(this.Nb, this.Nb);
+            f2v = sparse(this.Nb, 2);
         end
         
         %% Electric field post processing
-        function f2e = F2E(this, coupling)
-            f2e = sparse(coupling.Elements, this.Nb);
+        function f2e = F2E(~, coupling)
+            f2e = sparse(coupling.Elements, 2);
         end
         
         %% Current density post processing
-        function f2j = F2J(this, coupling)
-            f2j = sparse(coupling.Elements, this.Nb);
+        function f2j = F2J(~, coupling)
+            f2j = sparse(coupling.Elements, 2);
         end
         
       	%% Post processing annotations
@@ -289,9 +371,20 @@ classdef VoltageSource < Source
         end
     end
     
+  	methods (Sealed)        
+        function waveform = f(this, t, s)
+            if nargin == 2
+                s = 1;
+            end
+            
+%             waveform = s * this.Idq' * ones(1, numel(t));
+            waveform = this.Idq' * ones(1, numel(t));
+        end
+    end
+    
     methods (Static)
         function componentOut = newComponent(varargin)
-            componentOut = VoltageSource(varargin{:});
+            componentOut = DQOCurrentRegulator(varargin{:});
         end
     end
 end

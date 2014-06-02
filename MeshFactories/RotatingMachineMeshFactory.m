@@ -8,6 +8,10 @@ classdef RotatingMachineMeshFactory < MeshFactory
     %
     % See also MotorProto
     
+    properties
+        MaximumAirgapEdgeLength = [inf,inf];
+    end
+    
     properties (SetAccess = protected)
         RadialBoundaryEdges
         RadialBoundaryRadii
@@ -17,15 +21,10 @@ classdef RotatingMachineMeshFactory < MeshFactory
     
     methods
         function this = RotatingMachineMeshFactory(rma)
-            warning('MotorProto:Verbose',['Implement the abstract methods '...
-                                          'in MeshFactory (for default mesh)']);
+            warning('MotorProto:Verbose', 'Implement the abstract methods in MeshFactory (for default mesh)');
             if nargin > 0
-                assert(isa(rma,'RotatingMachineAssembly'),...
-                        'Assembly must be a RotatingMachineAssembly');
-
-                assert(numel(rma) == 1,...
-                        'Assembly must be a scalar object');
-
+                assert(isa(rma, 'RotatingMachineAssembly'), 'Assembly must be a RotatingMachineAssembly');
+                assert(numel(rma) == 1, 'Assembly must be a scalar object');
                 this.Assembly = rma;
             end
         end
@@ -38,6 +37,34 @@ classdef RotatingMachineMeshFactory < MeshFactory
             curves  = Arc.empty(1,0);
             for i = 1:nCurves
                 curves(i) = Geometry1D.draw('Arc', 'Radius', r(i), 'Angle', 2 * pi);
+            end
+        end
+        
+        function this = setBoundaryMaxEdgeLength(this)
+            assembly = this.Assembly;
+            r        = [assembly.InnerRadius, assembly.OuterRadius];
+            mel      = this.MaximumAirgapEdgeLength;
+            boundary = this.Boundaries;
+            
+            %% Find Arc boundaries centered at the origin
+            Nbdry  = numel(boundary);
+            search = false(1, Nbdry);
+            for i = 1:Nbdry
+                if all(boundary(i).Position == [0,0]) && isa(boundary(i), 'Arc')
+                    search(i) = true;
+                else
+                    search(i) = false;
+                end
+            end
+            
+            %% Match Arc boundaries with inner/outer radius and set the maximum edge length
+            J = find(search);
+            for i = 1:2
+                for j = J
+                    if abs(boundary(j).Radius - r(i)) < sqrt(eps) * r(i)
+                        this.Boundaries(j).MaxEdgeLength = mel(i);
+                    end
+                end
             end
         end
         
@@ -176,12 +203,14 @@ classdef RotatingMachineMeshFactory < MeshFactory
                 xi = mean(x(:,boundaryPairI));
                 yi = mean(y(:,boundaryPairI));
                 ri = hypot(xi,yi);
-                ti = phase(xi + 1i * yi);
+                ti = atan2(yi,xi);
+                ti = unwrap(ti);
                 
                 xj = mean(x(:,boundaryPairJ));
                 yj = mean(y(:,boundaryPairJ));
                 rj = hypot(xj,yj);
-                tj = phase(xj + 1i * yj);
+                tj = atan2(yj,xj);
+                tj = unwrap(tj);
                 
                 r_eps = max(max(ri),max(rj)) * sqrt(eps);
                 t_eps = 2 * pi * sqrt(eps);
@@ -258,14 +287,14 @@ classdef RotatingMachineMeshFactory < MeshFactory
                 x = this.X;
                 y = this.Y;
 
-                x1 = x(cEdges1);
-                y1 = y(cEdges1);
+                x1 = [x(cEdges1(1,:)); x(cEdges1(2,:))];
+                y1 = [y(cEdges1(1,:)); y(cEdges1(2,:))];
                 r1 = hypot(x1,y1);
                 t1 = atan2(y1,x1);
                 t1 = unwrap(t1);
-
-                x2 = x(cEdges2);
-                y2 = y(cEdges2);
+                
+                x2 = [x(cEdges2(1,:)); x(cEdges2(2,:))];
+                y2 = [y(cEdges2(1,:)); y(cEdges2(2,:))];
                 r2 = hypot(x2,y2);
                 t2 = atan2(y2,x2);
                 t2 = unwrap(t2);

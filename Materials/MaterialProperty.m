@@ -256,17 +256,17 @@ properties
             %vectorM - 
             %
             % See also MaterialProperty
-            
-            assert(all(size(Bx)==size(By)), 'MotorProto:MaterialProperty', 'Bx and By must have the same size');
-            
+
             bSq                = Bx.^2 + By.^2;
             b                  = sqrt(bSq);
             [m, dMdB]          = this.magnitudeM(b);
+           	mDivB              = m ./ b;
             
             isZero             = (b == 0);
-            
-            mDivB              = m ./ b;
-            [~, mDivB(isZero)] = this.magnitudeM(0);
+            i                  = find(isZero,1);
+            if ~isempty(i)
+                mDivB(isZero)  = dMdB(i);
+            end
             
             Mx                 = Bx .* mDivB;
             My                 = By .* mDivB;
@@ -327,7 +327,6 @@ properties
 
     methods (Abstract)
         [h, dHdB] = magnitudeH(this, b);
-        [b, dBdH] = magnitudeB(this, h);
         [m, dMdB] = magnitudeM(this, b);
         s         = elementSigma(this, T);
     end
@@ -335,9 +334,9 @@ end
 
 function gHandleOut = bhCurve(this)
     if all(this.HData == 0) && all(this.BData == 0)
-        b = [0 1].';
+        b = [0 2].';
     else
-        b = linspace(0, 2, 1000).';
+        b = linspace(0, max(this.BData)*1.1, 1000).';
     end
     m = this.magnitudeM(b);
     h = b/mu_o - m; 
@@ -354,7 +353,7 @@ function gHandleOut = dBdHCurve(this)
     if all(this.HData == 0) && all(this.BData == 0)
         b = [0 1].';
     else
-        b = linspace(0, max(this.BData), 1000).';
+        b = linspace(0, max(this.BData)*1.1, 1000).';
     end
     [m,dmdb] = this.magnitudeM(b);
     h        = b / mu_o - m;
@@ -370,7 +369,7 @@ function gHandleOut = mbCurve(this)
     if all(this.HData == 0) && all(this.BData == 0)
         b = [0 1].';
     else
-        b = linspace(0, 2, 1000).';
+        b = linspace(0, max(this.BData)*1.1, 1000).';
     end
     m     = this.magnitudeM(b);
     

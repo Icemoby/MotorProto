@@ -219,6 +219,7 @@ properties:
             % See also Assembly, preview, RotatingMachineModel/build
             
             if ~isempty(this.Assemblies)
+                figure;hold on;
                 this.Assemblies.plot;
                 grid on;
                 xlabel('X [m]');
@@ -252,6 +253,6 @@ properties:
     end
     
     methods (Abstract)
-        this = build(this, symmetryType);
+        this = build(this);
     end
 end
