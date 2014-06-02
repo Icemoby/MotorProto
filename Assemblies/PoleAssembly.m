@@ -28,7 +28,7 @@ properties:
     Poles;
 %}
     properties
-        Poles = PoleAssembly.setProperty(2)
+        Poles = 2;
     end
 
   	properties (Dependent)
@@ -52,15 +52,10 @@ properties:
      	function this = PoleAssembly(varargin)
             this = this@RotatingMachineAssembly(varargin{:});
         end
-
-        %% Setters
-        function set.Poles(this, value)
-            this.Poles = PoleAssembly.setProperty(value);
-        end
         
         %% Getters
         function value = get.SpatialSymmetries(this)
-            value = this.Poles.Value / 2;
+            value = this.Poles / 2;
         end
         
         function value = get.HasHalfWaveSymmetry(~)
@@ -68,26 +63,11 @@ properties:
         end
         
         function value = get.GeometricSymmetries(this)
-            value = this.Poles.Value;
+            value = this.Poles;
         end
         
         function value = get.SpaceTimeSymmetries(this)
-            value = this.Poles.Value / 2;
-        end
-        
-        function intOut = get.GeometryFrequency(this)
-            warning('Use GeometricSymmetries instead');
-        	intOut = this.Poles.Value;
-        end
-        
-        function intOut = get.SolutionSpatialFrequency(this)
-            warning('Use SpatialSymmetries instead');
-        	intOut = this.Poles.Value  / 2;
-        end
-        
-        function boolOut = get.SolutionHalfWaveSymmetry(~)
-            warning('Use HalfWaveSymmetry instead');
-            boolOut = true;
+            value = this.Poles / 2;
         end
     end
     

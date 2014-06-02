@@ -1,4 +1,4 @@
-classdef InductionRotor < PoleAndToothAssembly
+classdef AsynchronousRotor < PoleAndToothAssembly
     properties
         Slip
     end
@@ -18,13 +18,13 @@ classdef InductionRotor < PoleAndToothAssembly
     
     methods
         %% Constructor
-     	function this = InductionRotor(varargin)
+     	function this = AsynchronousRotor(varargin)
             this = this@PoleAndToothAssembly(varargin{:});
         end
         
         %% Getters       	
         function value = get.SpatialSymmetries(this)
-            value = this.Poles.Value / 2;
+            value = this.Poles / 2;
         end
         
         function value = get.HasHalfWaveSymmetry(~)
@@ -32,16 +32,16 @@ classdef InductionRotor < PoleAndToothAssembly
         end
         
         function value = get.GeometricSymmetries(this)
-            value = this.Teeth.Value;
+            value = this.Teeth;
         end
         
         function value = get.SpaceTimeSymmetries(this)
-            value = this.Poles.Value / 2;
+            value = this.Poles / 2;
         end
         
         function value = get.SolutionSpaceTimeSymmetry(this)
             warning('MotorProto:Verbose', 'Use SpaceTimeSymmetries instead')
-            value = [this.Poles.Value, inf];
+            value = [this.Poles, inf];
         end
         
         function value = get.SolutionSpaceTimeCoefficients(this)
@@ -49,22 +49,17 @@ classdef InductionRotor < PoleAndToothAssembly
         end
         
         function value = get.Slip(this)
-            value = this.Slip.Value;
+            value = this.Slip;
         end
         
         function value = get.AngularVelocity(this)
-        	value = 4 * pi * this.ElectricalFrequency.Value / this.Poles.Value * (1 - this.Slip);
-        end
-        
-        %% Setters
-        function this = set.Slip(this, value)
-            this.Slip = InductionRotor.setProperty(value);
+        	value = 2 * pi * this.ElectricalFrequency / (this.Poles / 2) * (1 - this.Slip);
         end
     end
     
    	methods (Static)
         function assemblyOut = newAssembly(varargin)
-            assemblyOut = InductionRotor(varargin{:});
+            assemblyOut = AsynchronousRotor(varargin{:});
         end
     end
 end

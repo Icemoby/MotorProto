@@ -4,7 +4,7 @@ classdef VoltageSource < Source
     end
     
     properties
-    	ExternalResistance  = Source.setProperty(0);
+    	ExternalResistance  = 0;
     end
     
     methods
@@ -13,13 +13,9 @@ classdef VoltageSource < Source
             this.ConnectionType = ConnectionTypes.Wye;
         end
         
-        function this = set.ExternalResistance(this, value)
-            this.ExternalResistance = this.setProperty(value);
-        end
-        
         function [rows, cols, vals] = circuitMatrix(this, connectionType)       
             connectionMatrices = this.ConnectionMatrices;
-            nPhases            = this.Phases.Value;
+            nPhases            = this.Phases;
             
             %% Pre-Allocation Phase
             nEntries           = nPhases * 6 + 1;
@@ -135,7 +131,7 @@ classdef VoltageSource < Source
         function [rows, cols, vals] = scalarPotential2CircuitMatrix(this)       
             connectionMatrices = this.ConnectionMatrices;
             connectionPolarity = this.ConnectionPolarity;
-            nPhases            = this.Phases.Value;
+            nPhases            = this.Phases;
 
             %% Preallocation Phase
             nEntries = 0;
@@ -165,7 +161,7 @@ classdef VoltageSource < Source
         
         function [rows, cols, vals] = source2CircuitMatrix(this, connectionType)
             connectionMatrices = this.ConnectionMatrices;
-            nPhases            = this.Phases.Value;
+            nPhases            = this.Phases;
             
             switch connectionType
                 case ConnectionTypes.Wye

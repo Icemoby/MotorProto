@@ -1,4 +1,4 @@
-classdef MaterialProperty < Parameterizable & matlab.mixin.Heterogeneous
+classdef MaterialProperty < matlab.mixin.Heterogeneous
     %MaterialProperties.m An abstract class for defining material properties
     %
     % MaterialProperty properties:
@@ -90,6 +90,7 @@ properties
 
         Linear
         Conductivity
+        Density
         RemanentFluxDensity
     end
     
@@ -100,8 +101,8 @@ properties
     properties (SetAccess = protected)
      	%% Permanent Magnets
         MagnetizationType  = 'Parallel';
-        MagnetizationAngle = MaterialProperty.setProperty(0);
-        MagnetizationAxis  = MaterialProperty.setProperty([0 0]);
+        MagnetizationAngle = 0;
+        MagnetizationAxis  = [0 0];
         
         %% Local Material Coordinate Axis
         Axis
@@ -297,7 +298,7 @@ properties
             N   = numel(this);
             ang = zeros(N,1);
             for i = 1:N
-                ang(i) = this(i).MagnetizationAngle.Value + this(i).Axis.Rotation;
+                ang(i) = this(i).MagnetizationAngle + this(i).Axis.Rotation;
                 if ~this(i).Polarity
                     ang(i) = ang(i) + pi;
                 end
@@ -308,14 +309,18 @@ properties
         end
         
         function s = sigma(this)
-            %vectorMr - 
-            %
-            % See also MaterialProperty
-
             N = numel(this);
             s = zeros(1, N);
             for i = 1:N
                 s(i) = elementSigma(this(i));
+            end
+        end
+        
+        function d = density(this)
+            N = numel(this);
+            d = zeros(1, N);
+            for i = 1:N
+                d(i) = elementDensity(this(i));
             end
         end
     end

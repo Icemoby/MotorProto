@@ -33,8 +33,8 @@ properties:
 %}
 
     properties
-        NewtonTolerance     = Static.setProperty(sqrt(eps));
-        MaxNewtonIterations = Static.setProperty(100);
+        NewtonTolerance     = sqrt(eps);
+        MaxNewtonIterations = 100;
     end
     
     methods
@@ -46,14 +46,6 @@ properties:
             end
         end
         
-        function this = set.NewtonTolerance(this,tol)
-            this.NewtonTolerance = this.setProperty(tol);
-        end  
-        
-        function this = set.MaxNewtonIterations(this, maxNIt)
-            this.MaxNewtonIterations = this.setProperty(maxNIt);
-        end
-        
         function solution = solve(this, model, x0)
             %See also Solver/solve
 
@@ -62,14 +54,14 @@ properties:
             this.Matrices = matrixFactory;
             
             %% Configure algorithm
-          	maxNIt  = this.MaxNewtonIterations.Value;
-            nrrTol  = this.NewtonTolerance.Value;
+          	maxNIt  = this.MaxNewtonIterations;
+            nrrTol  = this.NewtonTolerance;
             verbose = this.Verbose;
             
             %% Get times points
-            t = matrixFactory.getTimePoints(this.TimePoints.Value);
+            t = model.getTimePoints(this.TimePoints);
             
-            if this.TimePoints.Value == 1
+            if this.TimePoints == 1
                 t = t(1);
             end
 
@@ -103,7 +95,7 @@ properties:
                 if verbose
                     Time = i
                 end
-
+                
                 while nIter < maxNIt && relRes > nrrTol
                     [G, g] = matrixFactory.G(t(i), x{i});
                     
@@ -162,8 +154,8 @@ properties:
         end
         
         function this = updateFrequency(this, fNew)
-            fOld       = 1 / this.Times.Value(end);
-            this.Times = this.Times.Value * fOld / fNew;
+            fOld       = 1 / this.Times(end);
+            this.Times = this.Times * fOld / fNew;
             x_t        = this.X_t;
             N          = numel(x_t);
             for i = 1:N

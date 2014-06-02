@@ -1,4 +1,4 @@
-classdef Wire < handle & Parameterizable & matlab.mixin.Heterogeneous
+classdef Wire < handle & matlab.mixin.Heterogeneous
     %Wire.m A concrete class representing insulated conductor models
     %   Wire objects
     %

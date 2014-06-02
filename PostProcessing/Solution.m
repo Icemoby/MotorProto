@@ -15,8 +15,6 @@ classdef Solution
         %% Constructor
         function this = Solution(algorithm)
             if nargin > 0
-                parameterList   = PARAMETER_LIST;
-                this.Parameters = parameterList.Parameters;
                 this.Algorithm  = algorithm;
                 this.Date       = datestr(now);
             end

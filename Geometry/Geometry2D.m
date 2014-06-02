@@ -11,7 +11,6 @@ classdef Geometry2D < Geometry & matlab.mixin.Copyable
     %   rotate       - Rotates the plane about a given axis
     %   sortCurves   - Determines the connected regions of the plane
     %   inOn         - Determine the In/On/Out status of a set of points
-    %   rebuild      - Updates property values and recalculates boundary curves
     %   draw         - Creates a new plane
     %
     % Geometry2D properties:
@@ -49,17 +48,13 @@ properties:
     %   valid with MATLAB's patch function.
     %
     %   Example: Change the PlotStyle property of an arc
-    %       G = Geometry2D.draw('Annulus2D',...
-    %                           'Radius',   rand(1,2),...
-    %                           'Rotation', pi*rand(1),...
-    %                           'Angle',    pi*rand(1),...
-    %                           'Position', rand(1,2));
-    %       figure;subplot(1,2,1);
-    %       G.plot;axis equal;
+    %       G = Geometry2D.draw('Annulus2D', 'Radius', rand(1,2), 'Rotation', pi*rand(1), 'Angle', pi*rand(1), 'Position', rand(1,2));
+    %       figure; subplot(1, 2, 1);
+    %       G.plot; axis equal;
     %
-    %       G.PlotStyle = {'y','FaceAlpha',0.1};
-    %       subplot(1,2,2);
-    %       G.plot;axis equal;
+    %       G.PlotStyle = {'y', 'FaceAlpha', 0.1};
+    %       subplot(1, 2, 2);
+    %       G.plot; axis equal;
     %   
     % See also patch, plot, wireframe, PlotResolution, Geometry2D
     PlotStyle;
@@ -69,16 +64,13 @@ properties:
     %   of the curve when plotted.
     %
     %   Example: Change the PlotResolution to obtain a more accurate plot
-    %       G = Geometry2D.draw('Annulus2D',...
-    %                         	'Radius',[0.5 1],...
-    %                           'Angle',pi,...
-    %                           'PlotResolution',3);
-    %       figure;subplot(1,2,1);
-    %       G.plot;axis equal;
+    %       G = Geometry2D.draw('Annulus2D', 'Radius', [0.5, 1], 'Angle', pi, 'PlotResolution', 3);
+    %       figure; subplot(1, 2, 1);
+    %       G.plot; axis equal;
     %
     %       G.PlotResolution = 10;
-    %       subplot(1,2,2);
-    %       G.plot;axis equal;
+    %       subplot(1, 2, 2);
+    %       G.plot; axis equal;
     %       
     % See also patch, plot, wireframe, PlotStyle, Geometry2D
     PlotResolution;
@@ -89,31 +81,22 @@ properties:
     %   the curve.
     %
     %   Example 1: Create two rectangles with different Position values.
-    %       G1 = Geometry2D.draw('Rectangle2D','Length',1,'Width',1);
-    %       G2 = Geometry2D.draw('Rectangle2D','Length',1,'Width',1,...
-    %                                   'Position',[-1 0],...
-    %                                   'PlotStyle',{'b'});
+    %       G1 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1);
+    %       G2 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1, 'Position',[-1, 0], 'PlotStyle', {'b'});
     %       figure;
-    %       G1.plot;hold on;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Rectangle','Shifted Rectangle');
+    %       legend('Original Rectangle', 'Shifted Rectangle');
     %
     %   Example 2: The Position property is the axis about which the rotation
     %              angle specified by the Rotation property is applied.
-    %       G1 = Geometry2D.draw('Annulus2D',...
-    %                               'Radius',[0.5 1],...
-    %                               'Angle',pi/6);
+    %       G1 = Geometry2D.draw('Annulus2D', 'Radius',[0.5, 1], 'Angle', pi/6);
     %
-    %       G2 = Geometry2D.draw('Annulus2D',...
-    %                               'Radius',[0.5 1],...
-    %                               'Angle',pi/6,...
-    %                               'Rotation',-pi/4,...
-    %                               'PlotStyle',{'b'},...
-    %                               'Position',[1 0]);   
-    %       figure;axis equal;
-    %       G1.plot;hold on;
+    %       G2 = Geometry2D.draw('Annulus2D', 'Radius',[0.5, 1], 'Angle', pi/6, 'Rotation', -pi/4, 'PlotStyle', {'b'}, 'Position',[1, 0]);   
+    %       figure; axis equal;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Annulus','Rotated Annulus');
+    %       legend('Original Annulus', 'Rotated Annulus');
     %
     % See also Rotation, Geometry2D
     Position;
@@ -123,32 +106,25 @@ properties:
     %   about the location specified in the Position property.
     %
     %   Example 1: Create two lines with different Rotation values.
-    %       G1 = Geometry2D.draw('Rectangle2D','Length',1,'Width',1);
-    %       G2 = Geometry2D.draw('Rectangle2D','Length',1,'Width',1,...
-    %                                       'Rotation',pi/3,...
-    %                                       'PlotStyle',{'b'});
+    %       G1 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1);
+    %       G2 = Geometry2D.draw('Rectangle2D','Length', 1, 'Width', 1, 'Rotation', pi/3, 'PlotStyle', {'b'});
     %       figure;
-    %       G1.plot;hold on;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Rectangle','Rotated Rectangle');
+    %       legend('Original Rectangle', 'Rotated Rectangle');
     %
     %   Example 2: The Rotation property is applied after the object is
     %              translated from the origin to the location specified in the 
     %              Position property
     %       G1 = Geometry2D.draw('Annulus2D',...
-    %                               'Radius',[0.5 1],...
+    %                               'Radius',[0.5, 1],...
     %                               'Angle',pi/6);
     %
-    %       G2 = Geometry2D.draw('Annulus2D',...
-    %                               'Radius',[0.5 1],...
-    %                               'Angle',pi/6,...
-    %                               'Rotation',-pi/4,...
-    %                               'PlotStyle',{'b'},...
-    %                               'Position',[1 0]);  
-    %       figure;axis equal;
-    %       G1.plot;hold on;
+    %       G2 = Geometry2D.draw('Annulus2D', 'Radius', [0.5, 1], 'Angle', pi/6, 'Rotation', -pi/4, 'PlotStyle', {'b'}, 'Position', [1, 0]);  
+    %       figure; axis equal;
+    %       G1.plot; hold on;
     %       G2.plot;
-    %       legend('Original Annulus','Rotated Annulus');
+    %       legend('Original Annulus', 'Rotated Annulus');
     %
     % See also Position, rotate, Geometry2D
     Rotation;
@@ -164,15 +140,9 @@ properties:
     %   they make sense.
     %
     %   Example: Create two rectangles with different Base values.
-    %       G1 = Geometry2D.draw('Rectangle2D',...
-    %                               'Length',1,...
-    %                               'Width',1,...
-    %                               'Base','Center');
-    %       G2 = Geometry2D.draw('Rectangle2D',...
-    %                               'Length',1,...
-    %                               'Width',1,...
-    %                               'Base','Corner');
-    %       figure;axis equal;hold on;
+    %       G1 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1, 'Base', 'Center');
+    %       G2 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1, 'Base',' Corner');
+    %       figure; axis equal; hold on;
     %       G1.plot;
     %       G2.wireframe;
     %
@@ -184,15 +154,10 @@ properties:
     %   boundary region of the plane.
     %
     %   Example: Find the boundary curves for two disjoint regions
-    %       G1 = Geometry2D.draw('Rectangle2D',...
-    %                               'Length',1,...
-    %                               'Width',1);
-    %       G2 = Geometry2D.draw('Annulus2D',...
-    %                               'Radius',[0.1 1],...
-    %                               'Angle',pi/2,...
-    %                               'Position',[-1.5 0]);
-    %       G3 = G1+G2;
-    %       figure;axis equal;
+    %       G1 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1);
+    %       G2 = Geometry2D.draw('Annulus2D', 'Radius', [0.1, 1], 'Angle', pi/2, 'Position', [-1.5, 0]);
+    %       G3 = G1 + G2;
+    %       figure; axis equal;
     %       G3.plot;
     %       G3.Curves{G3.Domains{1}}
     %       G3.Curves{G3.Domains{2}}
@@ -206,15 +171,10 @@ properties:
     %
     %   Example: The union of two non-overlapping planes results in an object
     %            having multiple domains.
-    %       G1 = Geometry2D.draw('Rectangle2D',...
-    %                               'Length',1,...
-    %                               'Width',1);
-    %       G2 = Geometry2D.draw('Annulus2D',...
-    %                               'Radius',[0.1 1],...
-    %                               'Angle',pi/2,...
-    %                               'Position',[-2 0]);
-    %       G3 = G1+G2;
-    %       figure;axis equal;
+    %       G1 = Geometry2D.draw('Rectangle2D', 'Length', 1, 'Width', 1);
+    %       G2 = Geometry2D.draw('Annulus2D', 'Radius', [0.1, 1], 'Angle', pi/2, 'Position', [-2, 0]);
+    %       G3 = G1 + G2;
+    %       figure; axis equal;
     %       G3.plot;
     %       G3.Curves{G3.Domains{1}}
     %       G3.Curves{G3.Domains{2}}
@@ -225,11 +185,11 @@ properties:
     
     properties (Constant=true)
         Dimension = 2;
-        Plane = {'x','y','0'};
+        Plane = {'x', 'y', '0'};
     end
     
     properties         
-        PlotStyle       = {[0.5 0.5 0.5]};
+        PlotStyle       = {'w'};
         PlotResolution  = 100;
         Base            = 'center'
     end
@@ -249,7 +209,7 @@ properties:
             this = this@Geometry;
         end
                 
-        function this      = sortCurves(this)
+        function this = sortCurves(this)
             %sortCurves - Determines the connected regions of the plane
             % G = sortCurves(G) analyzes the boundary curves of G and arranges
             % them from start point to endpoint. This method also determines the
@@ -258,38 +218,48 @@ properties:
             %
             % See also Geometry2D
             curveArray       = this.Curves;
-            nCurves          = numel(curveArray);
-            %orientationArray = zeros(nCurves,1);
             
-            X0 = [curveArray.vX0].';
-            X1 = [curveArray.vX1].';
-            Y0 = [curveArray.vY0].';
-            Y1 = [curveArray.vY1].';
+            %% Remove ~Zero Length Curves
+            dl          = curveArray.length;
+            deps        = sqrt(eps) * max(dl);
+            isZero      = (dl < deps);
             
-            endpointDistances = sqrt( bsxfun(@minus,X0,X1.').^2 ...
-                                     +bsxfun(@minus,Y0,Y1.').^2);
-            scaleFactor       = max(max(endpointDistances));
-            [thisCurve,...
-                nextCurve]    = find(endpointDistances < sqrt(eps)*scaleFactor);
-            nextCurve         = nextCurve(thisCurve);
-            thisCurve         = thisCurve(thisCurve);
-            isAssigned        = false(nCurves,1);
-            domainArray       = cell(1,nCurves);
-            k                 = 0;
+            if any(isZero)
+                warning('Zero length curves will be removed. Check geometry definition');
+            end
+            
+            curveArray  = curveArray(~isZero);
+            this.Curves = curveArray;
+            
+            nCurves = numel(curveArray);
+            
+            X0 = [curveArray.X0].';
+            X1 = [curveArray.X1].';
+            Y0 = [curveArray.Y0].';
+            Y1 = [curveArray.Y1].';
+            
+            endpointDistances      = hypot(bsxfun(@minus,X0,X1.'), bsxfun(@minus,Y0,Y1.'));
+            scaleFactor            = max(max(endpointDistances));
+            [thisCurve, nextCurve] = find(endpointDistances < sqrt(eps)*scaleFactor);
+            
+            nextCurve   = nextCurve(thisCurve);
+            isAssigned  = false(nCurves, 1);
+            domainArray = cell(1, nCurves);
+            k           = 0;
             while ~all(isAssigned)
                 indUnassigned = find(~isAssigned);
                 nUnassigned   = numel(indUnassigned);
                 thisDomain    = zeros(1,nUnassigned);
                 
-                j             = indUnassigned(1);
-                i             = 0;
-                while i < nUnassigned && j ~= thisDomain(1) && ~isAssigned(j)
-                    i             = i+1;
+                j = indUnassigned(1);
+                i = 0;
+                while i < nUnassigned && (j ~= thisDomain(1)) && ~isAssigned(j)
+                    i             = i + 1;
                     thisDomain(i) = j;
                     isAssigned(j) = true;
                     j             = nextCurve(j);
                 end
-                k              = k+1;
+                k              = k + 1;
                 domainArray{k} = thisDomain(1:i);
             end
             
@@ -298,7 +268,7 @@ properties:
             this.Domains     = domainArray(1:k);
         end
 
-        function [In,On,N] = inOn(this,xIn,yIn)
+        function [In, On, N] = inOn(this, xIn, yIn)
         %inOn - Determine the In/On/Out status of a set of points
         %   [In,On,N] = inOn(G,X,Y) determines the position of a set of points
         %   relative to the plane. The vectors X and Y are a the x- and
@@ -309,69 +279,51 @@ properties:
         %
         %   Example: Find the points which are interior to annulus and on an
         %            annulus. Plot the unit normals.
-        %         G = Geometry2D.draw('Annulus2D',...
-        %                             'Radius',[0.5 1],...
-        %                             'Angle',pi/2);
+        %         G = Geometry2D.draw('Annulus2D', 'Radius', [0.5, 1], 'Angle', pi/2);
         %
-        %         theta = linspace(-pi/6,2*pi/3,10).';
-        %         X = [0.5*cos(theta);...
-        %               cos(theta);...
-        %              	zeros(10,1);...
-        %               linspace(0.5,1,10).';...
-        %               1.1-1.2*rand(100,1)];
-        %         Y = [0.5*sin(theta);...
-        %               sin(theta);...
-        %               linspace(0.5,1,10).'
-        %              	zeros(10,1);...
-        %               1.1-1.2*rand(100,1)];
-        %         [In,On,N] = G.inOn(X,Y);
-        %         figure;hold on;axis equal
+        %         theta = linspace(-pi/6, 2*pi/3, 10).';
+        %         X = [0.5*cos(theta); cos(theta); zeros(10,1); linspace(0.5,1,10).'; 1.1-1.2*rand(100,1)];
+        %         Y = [0.5*sin(theta); sin(theta); linspace(0.5,1,10).'; zeros(10,1); 1.1-1.2*rand(100,1)];
+        %         [In, On, N] = G.inOn(X, Y);
+        %         figure; hold on; axis equal
         %         G.wireframe;
-        %         scatter(X(In),Y(In),'b','o');
-        %         scatter(X(~In&~On),Y(~In&~On),'r','x');
-        %         quiver(X(On),Y(On),N(On,1),N(On,2));
+        %         scatter(X(In), Y(In), 'b', 'o');
+        %         scatter(X(~In & ~On), Y(~In & ~On), 'r', 'x');
+        %         quiver(X(On), Y(On), N(On,1), N(On,2));
         %
         % See also Geometry2D
         
             %% Preallocate
             nPoints = length(xIn);
-            In      = false(nPoints,1);
-            On      = false(nPoints,1);
-            N       = zeros(nPoints,2);
+            In      = false(nPoints, 1);
+            On      = false(nPoints, 1);
+            N       = zeros(nPoints, 2);
             nThis   = numel(this);
             
             for iThis = 1:nThis
                 %% get Curves and preallocate
                 curveArray	= this(iThis).Curves;
                 nCurves     = numel(curveArray);
-                wNumber     = zeros(nPoints,nCurves);
-                onCurve     = false(nPoints,nCurves);
-                normalX     = zeros(nPoints,nCurves);
-                normalY     = zeros(nPoints,nCurves);
+                wNumber     = zeros(nPoints, nCurves);
+                onCurve     = false(nPoints, nCurves);
+                normalX     = zeros(nPoints, nCurves);
+                normalY     = zeros(nPoints, nCurves);
 
                 %% test Points against each curve
                 for iCurve = 1:nCurves           
-                    [wNumber(:,iCurve),...
-                        onCurve(:,iCurve),...
-                        normalX(:,iCurve),...
-                        normalY(:,iCurve)]      = inOn(curveArray(iCurve),xIn,yIn);
+                    [wNumber(:,iCurve), onCurve(:,iCurve), normalX(:,iCurve), normalY(:,iCurve)] = inOn(curveArray(iCurve), xIn, yIn);
                 end
-                wNumber = sum(wNumber,2);
-                OnI     = any(onCurve,2);
+                wNumber = sum(wNumber, 2);
+                OnI     = any(onCurve, 2);
 
                 %% check validity of winding number
                 isClosed = all(abs(imag(wNumber(~OnI))) < sqrt(eps));
-                assert( isClosed,...
-                        'MotorProto:Geometry2D',...
-                        'Open regions not supported');
+                assert(isClosed, 'MotorProto:Geometry2D', 'Open regions not supported');
                 wNumber = real(wNumber);
 
-                isSimple = all(abs(wNumber(~OnI) - round(wNumber(~OnI))) < sqrt(eps))...
-                           & ~ (  any(wNumber < -0.5)...
-                                & any(wNumber >  0.5));
-                assert(isSimple,...
-                        'MotorProto:Geometry2D',...
-                        'Self intersecting regions are not supported');
+                isSimple = all(abs(wNumber(~OnI) - round(wNumber(~OnI))) < (sqrt(eps))) & ~ (any(wNumber(~OnI) < -0.5) & any(wNumber(~OnI) >  0.5));
+                            
+                assert(isSimple, 'MotorProto:Geometry2D', 'Self intersecting regions are not supported');
                 wNumber = round(wNumber);
                 
                 %% assign outputs
@@ -386,52 +338,22 @@ properties:
                 %if a point (xIn,yIn) is on more than one curve, calculate the mean
                 %of all the normals at that point
                 onCurve(~OnI,:) = false;
-                [iPoints,~]    = find(onCurve);
+                [iPoints, ~]     = find(onCurve);
                 if ~isempty(iPoints);
-                    normalX     = normalX(onCurve);
-                    normalY     = normalY(onCurve);
+                    normalX = normalX(onCurve);
+                    normalY = normalY(onCurve);
 
-                    N(:,1)      = N(:,1) + accumarray(iPoints,normalX,[nPoints, 1]);
-                    N(:,2)      = N(:,2) + accumarray(iPoints,normalY,[nPoints, 1]);
+                    N(:,1) = N(:,1) + accumarray(iPoints, normalX, [nPoints, 1]);
+                    N(:,2) = N(:,2) + accumarray(iPoints, normalY, [nPoints, 1]);
                 end
             end
 
-            normalNorm = sqrt(sum((N(On,:).^2),2));
-            N(On,1)    = N(On,1)./normalNorm;
-            N(On,2)    = N(On,2)./normalNorm;
+            normalNorm = sqrt(sum((N(On,:).^2), 2));
+            N(On,1)    = N(On,1) ./ normalNorm;
+            N(On,2)    = N(On,2) ./ normalNorm;
 
             %% check for errors
-            assert(~any(any(isnan(N))), 'Geometry2D:inOn',...
-                    'Normal vectors returned NAN values');
-        end
-        
-        function this      = rebuild(this)
-            %rebuild - Updates property values and recalculates boundary curves
-            % C = rebuild(G) returns a plane C with properties recalculated from
-            % the property definitions in G.
-            %
-            %   Example: Create a parameterized polygon and rebuild it after
-            %            changing its properties.
-            %       P = PARAMETER_LIST;
-            %       P.new('pts',[0 0;1 0;0 1]);
-            %       P.new('pos',[0 0]);
-            %       P.new('rot',0);
-            %
-            %       G = Polygon2D('Points','pts',...
-            %                       'Rotation','rot',...
-            %                       'Position','pos')
-            %       P.edit('pts',[0 0;1 0;1 1;0 1]);
-            %       P.edit('pos',rand(1,2));
-            %       P.edit('rot',pi*rand);
-            %
-            %       C = rebuild(G);
-            %       G.PlotStyle = {'b'};
-            %       figure;subplot(1,2,1);axis equal
-            %       G.plot;
-            %       subplot(1,2,2);axis equal;
-            %       C.plot;
-            %
-            % See also Geometry2D
+            assert(~any(any(isnan(N))), 'Geometry2D:inOn', 'Normal vectors returned NAN values');
         end
     end
     
@@ -442,17 +364,15 @@ properties:
             % PlotStyle cell array.
             %
             %   Example: Create a Polygon and change the way it is plotted.
-            %       pts = [0 0;1 0.1;0.9 1;-0.1 0.1];
-            %       G   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts,...
-            %                               'PlotResolution',3);
-            %       figure;subplot(1,2,1);
+            %       pts = [0 0; 1 0.1; 0.9 1; -0.1 0.1];
+            %       G   = Geometry2D.draw('Polygon2D', 'Points', pts, 'PlotResolution', 3);
+            %       figure; subplot(1, 2, 1);
             %       G.plot;axis equal;
             %
-          	%       G.PlotStyle      = {'y','FaceAlpha',0.1};
+          	%       G.PlotStyle      = {'y', 'FaceAlpha', 0.1};
             %       G.PlotResolution = 10;
-         	%       subplot(1,2,2);
-            %       G.plot;axis equal;
+         	%       subplot(1, 2, 2);
+            %       G.plot; axis equal;
             %
             % See also Geometry2D
             
@@ -462,20 +382,20 @@ properties:
             for iGeometry = 1:nGeometry
                 plotRes  = this(iGeometry).PlotResolution;
                 nDomains = length(this(iGeometry).Domains);
-                xPoints  = cell(nDomains,1);
-                yPoints  = cell(nDomains,1);
+                xPoints  = cell(nDomains, 1);
+                yPoints  = cell(nDomains, 1);
                 
                 for iDomain = 1:nDomains
                     nDomainCurves       = length(this(iGeometry).Domains{iDomain});
-                    nPoints             = zeros(1,nDomainCurves);
+                    nPoints             = zeros(1, nDomainCurves);
                     for iDomainCurve = 1:nDomainCurves
                         iCurve = this(iGeometry).Domains{iDomain}(iDomainCurve);
                         nPoints(iDomainCurve) = max(9, ceil(plotRes * this(iGeometry).Curves(iCurve).length / scaleFactor));
-                        nPoints(iDomainCurve) = max(nPoints(iDomainCurve),2);
+                        nPoints(iDomainCurve) = max(nPoints(iDomainCurve), 2);
                     end
                     
-                    xPoints{iDomain,1}  = zeros(sum(nPoints),1);
-                    yPoints{iDomain,1}  = zeros(sum(nPoints),1);
+                    xPoints{iDomain,1}  = zeros(sum(nPoints), 1);
+                    yPoints{iDomain,1}  = zeros(sum(nPoints), 1);
                     
                     for iDomainCurve = 1:nDomainCurves
                         iCurve      = this(iGeometry).Domains{iDomain}(iDomainCurve);
@@ -484,7 +404,7 @@ properties:
                         iPointsHigh = sum(nPoints(1:(iDomainCurve)));
                         iPoints     = iPointsLow:iPointsHigh;
                         
-                        sPoints     = linspace(0,1,nPoints(iDomainCurve));
+                        sPoints     = linspace(0, 1, nPoints(iDomainCurve));
                         
                         xPoints{iDomain,1}(iPoints) = this(iGeometry).Curves(iCurve).x(sPoints);
                         yPoints{iDomain,1}(iPoints) = this(iGeometry).Curves(iCurve).y(sPoints);
@@ -495,10 +415,10 @@ properties:
                     gHandleOut = patch(cell2mat(xPoints), cell2mat(yPoints), this(iGeometry).PlotStyle{:});
                 elseif nDomains > 1
                     [f,v] = poly2fv(xPoints,yPoints);
-                    gHandleOut = patch( 'Faces', f, 'Vertices', v, 'FaceColor', this(iGeometry).PlotStyle{1}, 'EdgeColor','None');
+                    gHandleOut = patch('Faces', f, 'Vertices', v, 'FaceColor', this(iGeometry).PlotStyle{1}, 'EdgeColor','None');
 
                    for iRegion = 1:numel(xPoints);
-                       gHandleOut = line(xPoints{iRegion}, yPoints{iRegion}, 'Color','k');
+                       gHandleOut = line(xPoints{iRegion}, yPoints{iRegion}, 'Color', 'k');
                    end
                 end
             end
@@ -512,19 +432,14 @@ properties:
             % property.
             %
             %   Example: Create an Annulus and change the way it is plotted.
-            %       G = Geometry2D.draw('Annulus2D',...
-            %                           'Radius',   rand(1,2),...
-            %                           'Rotation', pi*rand(1),...
-            %                           'Angle',    pi),...
-            %                           'Position', rand(1,2),...
-            %                           'PlotResolution',3);
-            %       figure;subplot(1,2,1);
-            %       G.wireframe;axis equal;
+            %       G = Geometry2D.draw('Annulus2D', 'Radius', rand(1, 2),. 'Rotation', pi*rand(1), 'Angle',    pi), 'Position', rand(1, 2), 'PlotResolution', 3);
+            %       figure; subplot(1, 2, 1);
+            %       G.wireframe; axis equal;
             %
-          	%       G.PlotStyle      = {'y','FaceAlpha',0.1};
+          	%       G.PlotStyle      = {'y', 'FaceAlpha', 0.1};
             %       G.PlotResolution = 10;
-         	%       subplot(1,2,2);
-            %       G.wireframe;axis equal;
+         	%       subplot(1, 2, 2);
+            %       G.wireframe; axis equal;
             %
             % See also Geometry2D
             
@@ -539,19 +454,19 @@ properties:
         function objOut = plus(obj1, obj2)
             obj1   = copy(obj1);
             obj2   = copy(obj2);
-            objOut = Union2D([obj1,obj2]);
+            objOut = Union2D([obj1, obj2]);
         end
         
         function objOut = minus(obj1, obj2)
             obj1   = copy(obj1);
             obj2   = copy(obj2);
-            objOut = Union2D([reverse(obj1),obj2],'Negation',true);
+            objOut = Union2D([reverse(obj1), obj2], 'Negation', true);
         end
 
         function objOut = mtimes(obj1, obj2)
             obj1   = copy(obj1);
             obj2   = copy(obj2);
-            objOut = Union2D([reverse(obj1),reverse(obj2)],'Negation',true);
+            objOut = Union2D([reverse(obj1), reverse(obj2)], 'Negation', true);
         end
         
      	function objOut = union(varargin)
@@ -565,18 +480,16 @@ properties:
             %   C = G1 + G2 is an equivalent syntax.
             %
             %   Example: Calculate the union of two overlapping polygons.
-            %       pts1 = [0 0;1 0.1;0.9 1;-0.2 0.1];
-            %       pts2 = [0 0;0.1 0.9;-0.1 0;-0.1 -0.1;0 -0.1];
-            %       G1   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts1);
-            %       G2   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts2);
-            %       figure;subplot(1,2,1);axis equal;hold on;
+            %       pts1 = [0 0; 1 0.1; 0.9 1; -0.2 0.1];
+            %       pts2 = [0 0; 0.1 0.9; -0.1 0; -0.1 -0.1; 0 -0.1];
+            %       G1   = Geometry2D.draw('Polygon2D', 'Points', pts1);
+            %       G2   = Geometry2D.draw('Polygon2D', 'Points', pts2);
+            %       figure;subplot(1, 2, 1); axis equal; hold on;
             %       G1.wireframe;
             %       G2.wireframe;
             %
-            %       G3 = G1+G2;
-            %       subplot(1,2,2);axis equal;
+            %       G3 = G1 + G2;
+            %       subplot(1, 2, 2); axis equal;
             %       G3.plot;
             %
             % See also Geometry2D, Composite2D, Union2D
@@ -599,28 +512,26 @@ properties:
             %   C = G1 - G2 is an equivalent syntax.
             %
             %   Example: Calculate the difference of two overlapping polygons.
-            %       pts1 = [0 0;1 0.1;0.9 1;-0.2 0.1];
-            %       pts2 = [0 0;0.1 0.9;-0.1 0;-0.1 -0.1;0 -0.1];
-            %       G1   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts1);
-            %       G2   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts2);
-            %       figure;subplot(1,3,1);axis equal;hold on;
+            %       pts1 = [0 0; 1 0.1; 0.9 1; -0.2 0.1];
+            %       pts2 = [0 0; 0.1 0.9; -0.1 0; -0.1 -0.1; 0 -0.1];
+            %       G1   = Geometry2D.draw('Polygon2D', 'Points', pts1);
+            %       G2   = Geometry2D.draw('Polygon2D', 'Points', pts2);
+            %       figure;subplot(1, 3, 1); axis equal; hold on;
             %       G1.wireframe;
             %       G2.wireframe;
             %
-            %       G3 = G1-G2;
-            %       subplot(1,3,2);axis equal;
+            %       G3 = G1 - G2;
+            %       subplot(1, 3, 2); axis equal;
             %       G3.plot;
             %
-            %       G4 = G2-G1;
-            %       subplot(1,3,3);axis equal;
+            %       G4 = G2 - G1;
+            %       subplot(1, 3, 3); axis equal;
             %       G4.plot;
             %
             % See also Geometry2D, Composite2D, Difference2D
             obj1   = copy(obj1);
             obj2   = copy(obj2);
-            objOut = Union2D([reverse(obj1),obj2],'Negation',true);
+            objOut = Union2D([reverse(obj1), obj2], 'Negation', true);
         end
         
         function objOut = intersection(varargin)
@@ -637,52 +548,44 @@ properties:
             %   boundary curves.
             %
             %   Example: Calculate the intersection of two overlapping polygons.
-            %       pts1 = [0 0;1 0.1;0.9 1;-0.2 0.1];
-            %       pts2 = [0 0;0.1 0.9;-0.1 0;-0.1 -0.1;0 -0.1];
-            %       G1   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts1);
-            %       G2   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts2);
-            %       figure;subplot(1,2,1);axis equal;hold on;
+            %       pts1 = [0 0; 1 0.1; 0.9 1; -0.2 0.1];
+            %       pts2 = [0 0; 0.1 0.9; -0.1 0; -0.1 -0.1; 0 -0.1];
+            %       G1   = Geometry2D.draw('Polygon2D', 'Points', pts1);
+            %       G2   = Geometry2D.draw('Polygon2D', 'Points', pts2);
+            %       figure;subplot(1, 2, 1); axis equal; hold on;
             %       G1.wireframe;
             %       G2.wireframe;
             %
             %       G3 = G1*G2;
-            %       subplot(1,2,2);axis equal;
+            %       subplot(1, 2, 2); axis equal;
             %       G3.plot;
             %
             % See also Geometry2D, Composite2D, Intersection2D
             objIn  = copy([varargin{:}]);
-            objOut = Intersection2D(reverse(objIn),'Negation',true);
+            objOut = Intersection2D(reverse(objIn), 'Negation', true);
         end
 
         function this = rotate(this, rotation, position)
             nThis    = numel(this);
             if nThis > 0
                 %% Rotate 2D-Geometry Axis
-                [this.Axis,...
-                    this.vRotation,...
-                    this.vPosition] 	= rotate(this.Axis,rotation,position);
+                [this.Axis, ~, ~] = rotate(this.Axis, rotation, position);
                 
                 %% Expand the data arrays to match the number of curves
-                cDims  = cellfun('length',{this.Curves});
+                cDims = cellfun('length', {this.Curves});
                 
             	if numel(rotation) > 1
-                    rotation = arrayfun(@(x,y)(repmat(x,1,y)),...
-                                        rotation,cDims,'UniformOutput',false);
+                    rotation = arrayfun(@(x, y)(repmat(x, 1, y)), rotation, cDims, 'UniformOutput', false);
                     rotation = cell2mat(rotation);
                 end
 
                 if numel(position) > 2
-                    position = [arrayfun(@(x,y)(repmat(x,y,1)),...
-                                    position(:,1),cDims.','UniformOutput',false),...
-                                arrayfun(@(x,y)(repmat(x,y,1)),...
-                                    position(:,2),cDims.','UniformOutput',false)];       
+                    position = [arrayfun(@(x, y)(repmat(x, y, 1)), position(:, 1), cDims.', 'UniformOutput', false), arrayfun(@(x, y)(repmat(x, y, 1)), position(:,2), cDims.', 'UniformOutput', false)];       
                     position = cell2mat(position);
                 end
                 
                 %% Rotate Existing 1D-Geometry Axis
-                rotate([this.Curves],rotation,position);
+                rotate([this.Curves], rotation, position);
             end
         end
         
@@ -703,32 +606,30 @@ properties:
             %area - Calculates the area of the plane
             %   
             %   Example 1: Create a Polygon and calculate its area.
-            %       pts = [0 0;1 0.1;0.9 1;-0.1 0.1];
-            %       G   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts);
-            %       figure;axis equal;
+            %       pts = [0 0; 1 0.1; 0.9 1; -0.1 0.1];
+            %       G   = Geometry2D.draw('Polygon2D', 'Points', pts);
+            %       figure; axis equal;
             %       G.plot;
             %       G.area;
             %
             %   Example 2: Verify the area of the union of two polygons.
-            %       pts1 = [0 0;1 0.1;0.9 1;-0.2 0.1];
-            %       pts2 = [0 0;0.1 0.9;-0.1 0;-0.1 -0.1;0 -0.1];
-            %       G1   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts1);
-            %       G2   = Geometry2D.draw('Polygon2D',...
-            %                           	'Points',pts2);
-            %       figure;axis equal;hold on;
+            %       pts1 = [0 0; 1 0.1; 0.9 1; -0.2 0.1];
+            %       pts2 = [0 0; 0.1 0.9; -0.1 0; -0.1 -0.1; 0 -0.1];
+            %       G1   = Geometry2D.draw('Polygon2D', 'Points', pts1);
+            %       G2   = Geometry2D.draw('Polygon2D', 'Points', pts2);
+            
+            %       figure; axis equal; hold on;
             %       G1.wireframe;
             %       G2.wireframe;
-            %       G3 = G1+G2;
+            %       G3 = G1 + G2;
             %       G4 = G1*G2;
-            %       G1.area+G2.area-G4.area
+            %       G1.area + G2.area - G4.area
             %       G3.area
             %
             % See also Geometry2D
             
             nThis   = numel(this);
-            areaOut = zeros(1,nThis);
+            areaOut = zeros(1, nThis);
             for i = 1:nThis
                 curveArray  = this(i).Curves;
                 nDomains    = length(this(i).Domains);
@@ -736,14 +637,14 @@ properties:
                 curveArea 	= 0;
                 xArray      = zeros(2*nCurves + 2*nDomains,1);
                 yArray      = zeros(2*nCurves + 2*nDomains,1);
-                iXyArray    = [-1;0];
+                iXyArray    = [-1; 0];
                 for j = 1:nDomains
                     nDomainCurves = length(this(i).Domains{j});
                     for k = 1:nDomainCurves
                         iXyArray         = iXyArray + 2;
                         iCurve           = this(i).Domains{j}(k);
-                        xArray(iXyArray) = curveArray(iCurve).x([0 1]);
-                        yArray(iXyArray) = curveArray(iCurve).y([0 1]);
+                        xArray(iXyArray) = curveArray(iCurve).x([0, 1]);
+                        yArray(iXyArray) = curveArray(iCurve).y([0, 1]);
                         curveArea        = curveArea + curveArray(iCurve).area;
                     end
                     if nCurves > 0
@@ -760,7 +661,7 @@ properties:
                         yArray(iXyArray) = curveArray(iCurve).y(0);
                     end
                 end
-                areaOut(i) = curveArea + signedPolyArea(xArray,yArray);
+                areaOut(i) = curveArea + signedPolyArea(xArray, yArray);
             end
         end
     end
@@ -780,31 +681,20 @@ properties:
             %                 oriented points.
             %
             %   Example 1 - Create a rectangle
-            %       G = Geometry2D.draw('Rectangle2D',...
-            %                           'Width',rand,...
-            %                           'Length',rand,...
-            %                           'Position',rand(1,2),...
-            %                           'Rotation',pi*rand);
-            %       figure;axis equal;
+            %       G = Geometry2D.draw('Rectangle2D', 'Width', rand, 'Length', rand 'Position', rand(1, 2), 'Rotation', pi*rand);
+            %       figure; axis equal;
             %       G.plot;
             %
             %   Example 2 - Create an annulus
             %       r = rand;
-            %       G = Geometry2D.draw('Annulus2D',...
-            %                           'Radius',[r/2 r],...
-            %                           'Angle',pi*rand,...
-            %                           'Position',rand(1,2),...
-            %                           'Rotation',pi*rand);
-            %       figure;axis equal;
+            %       G = Geometry2D.draw('Annulus2D', 'Radius', [r/2, r], 'Angle', pi*rand, 'Position', rand(1, 2), 'Rotation', pi*rand);
+            %       figure; axis equal;
             %       G.plot;
             %
             %   Example 3 - Create a polygon
-            %       pts = [rand rand;-rand rand;-rand -rand;rand -rand];
-            %       G = Geometry2D.draw('Polygon2D',...
-            %                           'Points',pts,...
-            %                           'Position',rand(1,2),...
-            %                           'Rotation',pi*rand);
-            %       figure;axis equal;
+            %       pts = [rand rand; -rand rand; -rand -rand; rand -rand];
+            %       G = Geometry2D.draw('Polygon2D', 'Points', pts, 'Position', rand(1, 2), 'Rotation', pi*rand);
+            %       figure; axis equal;
             %       G.plot;
             %
             % See also Geometry2D, Parameterizable, Rect, Sector, Polygon2D
@@ -829,13 +719,9 @@ properties:
     end
     
     methods (Access = protected)
-        function this = updateCache(this)
-        end
-        
         function copyObj = copyElement(this)
             copyObj        = copyElement@matlab.mixin.Copyable(this);
             copyObj.Curves = copy(copyObj.Curves);
-            %copyObj.Axis   = copy(copyObj.Axis);
         end
     end
 end

@@ -1,2 +1,0 @@
-classdef MassiveConductor < Wire
-end

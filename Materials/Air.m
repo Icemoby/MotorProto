@@ -6,5 +6,6 @@ classdef Air < LinearMaterial
         RemanentFluxDensity = 0;
         Permeability        = mu_o;
         Conductivity        = 0;
+        Density             = 1.1455;
     end
 end

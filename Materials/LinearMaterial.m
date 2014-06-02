@@ -51,5 +51,9 @@ properties
         function s         = elementSigma(this, ~)
             s = this.Conductivity;
         end
+        
+        function d = elementDensity(this,~)
+            d = this.Density;
+        end
      end
 end

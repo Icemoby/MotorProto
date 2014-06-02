@@ -1,4 +1,4 @@
-classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
+classdef MeshFactory < matlab.mixin.Copyable
     properties (SetAccess = protected)
         Assembly = Stator.empty(1,0);
     end
@@ -50,24 +50,16 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
     
     properties
         UseUniformGrid     = false;
-        UniformGridType    = 'rectangular'
-        MinimumElementSize = MeshFactory.setProperty(0);
-        MaximumElementSize = MeshFactory.setProperty(inf);
+        UniformGridType    = 'rectangular';
+        ElementOrder       = 1;
+        MinimumElementSize = 0;
+        MaximumElementSize = inf;
     end
     
     methods
         %% Constructor
         function this = MeshFactory
             warning('MotorProto:Verbose','Create mesh preview method');
-        end
-        
-        %% Setters
-        function set.MinimumElementSize(this,valueIn)
-            this.MinimumElementSize = this.setProperty(valueIn);
-        end
-        
-        function set.MaximumElementSize(this,valueIn)
-            this.MaximumElementSize = this.setProperty(valueIn);
         end
         
         %% Getters
@@ -124,12 +116,12 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             
             x = (x(i) + x(j)) / 2 + (r(j) - r(i)) * cos(a) / 2;
             y = (y(i) + y(j)) / 2 + (r(j) - r(i)) * sin(a) / 2;
-            r  = (dr + r(i) + r(j)) / 2;
+            r = (dr + r(i) + r(j)) / 2;
         end
 
         function I = inBoundingBall(this,xIn,yIn)
             [x,y,r] = getBoundingBall(this);
-            dr      = hypot(xIn - x,yIn - y);
+            dr      = hypot(xIn - x, yIn - y);
             I       = (dr < r * (1 + sqrt(eps)));
         end
         
@@ -141,6 +133,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             % See also DiscretizedGeometry
             warning('MotorProto:Verbose', 'There is probably a more elegent way to handle the airgap situation');
             warning('MotorProto:Verbose', 'Add in auxillary boundaries from adjacent annuli');
+            
             nThis =  numel(this);
             for i = 1:nThis
                 %% determine the initial peicewise linear system
@@ -208,8 +201,12 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
 
                 %% finalize the mesh
                 this(i) = removeBoundingBox(this(i),false);
-
+                
                 this(i) = doPostProcessing(this(i));
+
+                this(i) = increaseElementOrder(this(i));
+                
+                this(i) = compileBoundaryData(this(i));
             end
         end
         
@@ -232,9 +229,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             cEdges  = curves.MinEdgeNumber;
             
             if this.UseUniformGrid
-                cLength = curves.length / (this.MaximumElementSize.Value * sqrt(3) * 7 / (sqrt(3) * 2 + sqrt(2)*3));
+                cLength = curves.length / (this.MaximumElementSize * sqrt(3) * 7 / (sqrt(3) * 2 + sqrt(2)*3));
             else
-                cLength = curves.length / (this.MaximumElementSize.Value * sqrt(3));
+                cLength = curves.length / (this.MaximumElementSize * sqrt(3));
             end
             
             cEdges = max(cEdges,ceil(cLength) + 1);
@@ -287,7 +284,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
                 isSame(:,sameNode) = false;
                 isSame(:,jNode)    = sameNode;
             end
-            [renumber,keep]  = find(isSame);
+            [renumber,keep] = find(isSame);
             
             for jNode = 1:numel(renumber)
                 iEdge        = (edges == renumber(jNode));
@@ -321,8 +318,8 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             edgeBound      = edgeBound(I);
             
             %% assign outputs
-            this.X              = x;
-            this.Y              = y;
+            this.X = x;
+            this.Y = y;
             
             this.ConstrainedEdges          = edges;
             this.ConstrainedEdgeParameters = edgeParam;
@@ -340,6 +337,8 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             %  based on the first stage of Ruperts algorithm for creating 
             %  constrained Delaunay Triangulations
             
+            warning('MotorProto:Verbose','This method can result in a non-terminating loop if two edges share a vertex and make an accute angle');
+            
             x      = this.X;
             y      = this.Y;
             cEdges = this.ConstrainedEdges;
@@ -350,28 +349,33 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             yem = mean(ye);
             dre = hypot(diff(xe),diff(ye)) / 2;
             
-            dr = hypot(bsxfun(@minus,xem,x.'),bsxfun(@minus,yem,y.'));
-            
-            inDiametralBall = bsxfun(@lt, dr, dre * (1 - sqrt(eps)));
-            
-            edgeHasPointInDiametralBall = any(inDiametralBall,1);
-            vertexIsInDiametralBall     = any(inDiametralBall,2).';
+            edgeHasPointInDiametralBall = false(numel(cEdges)/2, 1);
+            vertexIsInDiametralBall     = false(numel(this), 1);
+            for i = 1:(numel(cEdges)/2)
+                for j = 1:numel(this)
+                    if ~edgeHasPointInDiametralBall(i) || ~vertexIsInDiametralBall(j)
+                        dr = hypot(xem(i) - x(j), yem(i) - y(j));
+                        if dr < dre * (1 - sqrt(eps))
+                            edgeHasPointInDiametralBall(i) = true;
+                            vertexIsInDiametralBall(j)     = true;
+                        end
+                    end
+                end
+            end
             
             if any(edgeHasPointInDiametralBall)
                 this.EdgeRefinementQueue = find(edgeHasPointInDiametralBall);
 
-                removeVertex =     vertexIsInDiametralBall ...
-                                & ~this.IsConstrainedNode ...
-                                & ~this.IsFixedNode;
+                removeVertex = vertexIsInDiametralBall & ~this.IsConstrainedNode & ~this.IsFixedNode;
 
                 this.VertexRemovalQueue = find(removeVertex);
             end
         end
         
         function this = insertEdgeMidpoints(this)
-            erQueue      = this.EdgeRefinementQueue;
-          	cePairs      = this.ConstrainedEdgePairs;
-            nQueue       = numel(erQueue);
+            erQueue = this.EdgeRefinementQueue;
+          	cePairs = this.ConstrainedEdgePairs;
+            nQueue  = numel(erQueue);
             
             queuePair = false(size(cePairs));
             for i = 1:nQueue
@@ -432,7 +436,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         function this = addUniformGrid(this)
             %% get constrained edge data
         	xe = this.X(this.ConstrainedEdges);
-            dx =  xe(1,:) - xe(2,:);
+            dx = xe(1,:) - xe(2,:);
             
             ye = this.Y(this.ConstrainedEdges);
             dy = ye(1,:) - ye(2,:);
@@ -518,11 +522,11 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             x           = this.X(this.Elements);
             y           = this.Y(this.Elements);
             edgeLength2 = [(x(1,:)-x(2,:)).^2;...
-                                (x(2,:)-x(3,:)).^2;...
-                                (x(3,:)-x(1,:)).^2]...
+                           (x(2,:)-x(3,:)).^2;...
+                           (x(3,:)-x(1,:)).^2]...
                          +[(y(1,:)-y(2,:)).^2;...
-                                (y(2,:)-y(3,:)).^2;...
-                                (y(3,:)-y(1,:)).^2];
+                           (y(2,:)-y(3,:)).^2;...
+                           (y(3,:)-y(1,:)).^2];
                             
             edgeLength  = sqrt(edgeLength2);
             elementAngle = [(edgeLength2(1,:)-edgeLength2(2,:)-edgeLength2(3,:));...
@@ -626,12 +630,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             
             refineable = this.ElementAngles > sqrt(3) / 2;
             refineable = any(refineable);
-            refineable = refineable...
-                         | (circumradii > this.MaximumElementSize.Value);
-            refineable = refineable...
-                         & (inradii     > this.MinimumElementSize.Value);
-            refineable = refineable...
-                         & inDomainHull(this,incenters(1,:),incenters(2,:));
+            refineable = refineable | (circumradii > this.MaximumElementSize);
+            refineable = refineable & (inradii     > this.MinimumElementSize);
+            refineable = refineable & inDomainHull(this,incenters(1,:),incenters(2,:));
             
             
             nElements = length(this.Elements);
@@ -641,50 +642,29 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             k         = 1;
             while any(refineable)
                 %% get largest element that can be refined
-                [~,i]    = max(circumradii(refineable));
+                [~, i]   = max(circumradii(refineable));
                	j        = elementID(i);
                 queue(k) = j;
                 
                 %% remove all elements whose circumcenter is within
                 %  the largest element's circumscribed circle
-                dc = sqrt(sum(bsxfun(@minus,...
-                                            circumcenters(:,refineable),...
-                                            circumcenters(:,j)...
-                                     ).^2));
+                dc = sqrt(sum(bsxfun(@minus, circumcenters(:,refineable), circumcenters(:,j)).^2));
 
                 l             = dc < circumradii(j) * (1 + sqrt(eps));
                 f             = elementID(l);
                 refineable(f) = false;
                 elementID(l)  = [];                
-                
-                %% remove all elements whose circumscribed circle intersects
-                %  with the largest elements inscribed circle
-%                 dr = bsxfun(@plus,circumradii(refineable),inradii(j).');
-%                 dc = hypot(bsxfun(@minus,circumcenters(1,refineable),...
-%                                          incenters(1,j).'),...
-%                            bsxfun(@minus,circumcenters(2,refineable),...
-%                                          incenters(2,j).'));
-%                                 
-%                 l             = (dc < dr * (1 + sqrt(eps)));
-%                 f             = elementID(l);
-%                 refineable(f) = false;
-%                 elementID(l)  = [];   
                
                 %% get the element containing the largest element's circumcenter
-                dc = hypot(bsxfun(@minus,incenters(1,refineable),...
-                                         circumcenters(1,j).'),...
-                           bsxfun(@minus,incenters(2,refineable),...
-                                         circumcenters(2,j).'));
+                dc  = hypot(incenters(1,refineable) - circumcenters(1,j), incenters(2,refineable) - circumcenters(2,j));
                 jEl = find(any(dc < inradii(refineable) * (1 + sqrt(eps))));
                 
                 %% remove all elements whose circumscribed circle intersects
                 % with these elements inscribed circles
                 if ~isempty(jEl)
                     dr = bsxfun(@plus,circumradii(refineable),inradii(jEl).');
-                    dc = hypot(bsxfun(@minus,circumcenters(1,refineable),...
-                                             incenters(1,jEl).'),...
-                               bsxfun(@minus,circumcenters(2,refineable),...
-                                             incenters(2,jEl).'));
+                    dc = hypot(bsxfun(@minus,circumcenters(1,refineable),incenters(1,jEl).'),...
+                               bsxfun(@minus,circumcenters(2,refineable),incenters(2,jEl).'));
 
                     l = any(dc < dr * (1 + sqrt(eps)),1);
                     f = elementID(l);
@@ -721,45 +701,37 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             rc            = hypot(xc(1,:) - xc(2,:),yc(1,:) - yc(2,:)) / 2;
             
             nNew                = length(erQueue);
-            xNew                = zeros(1,nNew);
-            yNew                = zeros(1,nNew);
-            encroachedEdges     = zeros(1,nNew);
-            encroachingVertices = false(1,nNodes);
-            successfulInsertion = false(1,nNew);
+            xNew                = zeros(1, nNew);
+            yNew                = zeros(1, nNew);
+            encroachedEdges     = zeros(1, nNew);
+            encroachingVertices = false(1, nNodes);
+            successfulInsertion = false(1, nNew);
             
-            [blocksLOS, xint, yint]...
-                    = this.findIntersectingEdges(xe, ye, xc, yc);
+            [blocksLOS, xint, yint] = this.findIntersectingEdges(xe, ye, xc, yc);
             for i = 1:nNew
-                if any(blocksLOS(:,i))
+                if ~isempty(blocksLOS{i})
                     %% find the closest edge that blocks LOS
                     successfulInsertion(i) = false;
                     
-                    iBlock = find(blocksLOS(:,i));
-                    d2ic   = hypot(xint(iBlock,i) - incenters(1,i),...
-                                   yint(iBlock,i) - incenters(2,i));
+                    d2ic   = hypot(xint{i} - incenters(1,i), yint{i} - incenters(2,i));
                     [~,k]  = min(d2ic);
-                    k      = iBlock(k);
+                    k      = blocksLOS{i}(k);
                     encroachedEdges(i) = k;
                     
                     %% remove all nodes in the edge diametral ball
-                    d2ec                = hypot(x-xcc(k),y-ycc(k));
-                    encroachingVertices = encroachingVertices ...
-                                          | (d2ec < rc(k) * (1 - sqrt(eps)));
+                    d2ec                = hypot(x - xcc(k), y - ycc(k));
+                    encroachingVertices = encroachingVertices | (d2ec < rc(k) * (1 - sqrt(eps)));
                     
                 else
                     %% To avoid degenerate triangles, shift the vertex
                     %  toward the incenter of the triangle.               
                     successfulInsertion(i) = true;
                     
-                    xNew(i) = circumcenters(1,i) * (1-sqrt(eps))...
-                             +    incenters(1,i) * sqrt(eps);
-                    yNew(i) = circumcenters(2,i) * (1-sqrt(eps))...
-                             +    incenters(2,i) * sqrt(eps);
+                    xNew(i) = circumcenters(1,i) * (1-sqrt(eps)) + incenters(1,i) * sqrt(eps);
+                    yNew(i) = circumcenters(2,i) * (1-sqrt(eps)) + incenters(2,i) * sqrt(eps);
                 end
             end
-            removeVertices =   encroachingVertices...
-                             & ~this.IsFixedNode...
-                             & ~this.IsConstrainedNode;
+            removeVertices = encroachingVertices & ~this.IsFixedNode & ~this.IsConstrainedNode;
             
             nNew = sum(successfulInsertion);
             this.X(end+1:end+nNew)                 = xNew(successfulInsertion);
@@ -789,9 +761,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             s = [ones(1,3*nEl) -ones(1,6*nEl) ones(1,3*nEl) -ones(1,6*nEl)];
             
             %Create Laplacian summation matrix for calculating the gradient
-            S = sparse(i,j,s);
-            n = 1 - sum(S,2);
-            S = S + spdiags(n - 1,0,2*nNodes,2*nNodes);
+            S = sparse(i, j, s);
+            n = 1 - sum(S, 2);
+            S = S + spdiags(n - 1, 0, 2*nNodes, 2*nNodes);
             
             %Create Hessian matrix
             H = S;
@@ -801,47 +773,37 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             isMoveable   = find(~isUnmoveable);
             isUnmoveable = find(isUnmoveable);
 
-            H(isUnmoveable,:)        = 0;
-            H(nNodes+isUnmoveable,:) = 0;
-            H(:,isUnmoveable)        = 0;
-            H(:,nNodes+isUnmoveable) = 0;
+            H(isUnmoveable,:)          = 0;
+            H(nNodes + isUnmoveable,:) = 0;
+            H(:,isUnmoveable)          = 0;
+            H(:,nNodes + isUnmoveable) = 0;
             
-            H(isUnmoveable,isUnmoveable) ...
-            	= speye(nUnmoveable,nUnmoveable);
-            H(nNodes+isUnmoveable,nNodes+isUnmoveable) ...
-             	= speye(nUnmoveable,nUnmoveable);
+            H(isUnmoveable, isUnmoveable) = speye(nUnmoveable, nUnmoveable);
+            H(nNodes + isUnmoveable, nNodes + isUnmoveable) = speye(nUnmoveable, nUnmoveable);
 
             %minimize energy functional
-           	b                        = [x,y].';
+           	b                        = [x, y].';
             g                        = (S*b);
             g(isUnmoveable)          = 0;
             g(nNodes + isUnmoveable) = 0;
 
-            dx            = (H\g);
+            dx            = (H \ g);
             x(isMoveable) = x(isMoveable) - 1 * dx(isMoveable).';
             y(isMoveable) = y(isMoveable) - 1 * dx(isMoveable + nNodes).';
-            
-        	b                        = [x,y].';
-            g                        = (S*b);
-            g(isUnmoveable)          = 0;
-            g(nNodes + isUnmoveable) = 0;
             
             this.X = x;
             this.Y = y;
         end
         
         function this = updateBackgroundTriangulation(this)
-            this.BackgroundTriangulation = DelaunayTri(...
-                                            this.X.',...
-                                            this.Y.',...
-                                            this.ConstrainedEdges.');
+            this.BackgroundTriangulation = DelaunayTri(this.X.', this.Y.', this.ConstrainedEdges.');
         end
                 
         function this = removeVertices(this)
             %% this method does not remove vertices associated with constrained 
             %  edges properly
             vertices  = unique(this.VertexRemovalQueue);
-            vertices  = sort(vertices,'descend');
+            vertices  = sort(vertices, 'descend');
             nVertices = numel(vertices);
             
             this.X(vertices)                 = [];
@@ -894,10 +856,9 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             nElements   = sum(~notInDomain);
             
             this.Elements(:,notInDomain) = [];
-            this.VertexRemovalQueue      = setdiff(1:numel(this.X),....
-                                                    unique(this.Elements));
+            this.VertexRemovalQueue      = setdiff(1:numel(this.X), unique(this.Elements));
             this                         = this.removeVertices;
-            this.BackgroundTriangulation = TriRep(this.Elements.',this.X.',this.Y.');
+            this.BackgroundTriangulation = TriRep(this.Elements.', this.X.', this.Y.');
             
             this.ElementIncenters(:,notInDomain)     = [];
             this.ElementInradii(notInDomain)         = [];
@@ -908,9 +869,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             x   = this.X(this.Elements);
             y   = this.Y(this.Elements);
             
-            elA = 0.5 * ( x(1,:).*(y(2,:) - y(3,:))...
-                         +x(2,:).*(y(3,:) - y(1,:))...
-                         +x(3,:).*(y(1,:) - y(2,:)));
+            elA = 0.5 * ( x(1,:).*(y(2,:) - y(3,:)) + x(2,:).*(y(3,:) - y(1,:)) + x(3,:).*(y(1,:) - y(2,:)));
             
             isNegative                      = elA < 0;
             this.Elements([1,2],isNegative) = this.Elements([2,1],isNegative);
@@ -922,17 +881,95 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
             nRegions = numel(regions);
             elementRegion = zeros(1,nElements);
             for iRegion = 1:nRegions
-                I = regions(iRegion).Geometry.inOn(incenters(1,:),...
-                                                    incenters(2,:));
+                I = regions(iRegion).Geometry.inOn(incenters(1,:), incenters(2,:));
                 elementRegion(I) = iRegion;
             end
             
             this.ElementRegions = elementRegion;
-            
-            %% get boundary elements and edges
-            this.BoundaryEdges    = this.BackgroundTriangulation.freeBoundary.';
-            this.BoundaryElements = this.BackgroundTriangulation.edgeAttachments(this.BoundaryEdges.');
-            this.BoundaryElements = [this.BoundaryElements{:}];
+        end
+        
+        function this = increaseElementOrder(this)
+            if this.ElementOrder == 1
+                %% get boundary elements and edges
+                this.BoundaryEdges    = this.BackgroundTriangulation.freeBoundary.';
+                this.BoundaryElements = this.BackgroundTriangulation.edgeAttachments(this.BoundaryEdges.');
+                this.BoundaryElements = [this.BoundaryElements{:}];
+            elseif this.ElementOrder == 2
+                tic
+                %% get edges and elements
+                edges      = this.BackgroundTriangulation.edges;
+                cEdges     = this.ConstrainedEdges;
+                cParam     = this.ConstrainedEdgeParameters;
+                cBound     = this.ConstrainedEdgeBoundaries;
+                boundaries = this.Boundaries;
+                nEdges     = length(edges);
+                edge2El    = this.BackgroundTriangulation.edgeAttachments(edges(:,1),edges(:,2));
+                elements   = this.Elements;
+                nNodes     = length(this.X);
+                nConst     = length(cEdges);
+                
+                %% add edge midpoints to the node list
+                elements = [    elements(1,:);0*elements(1,:);
+                                elements(2,:);0*elements(2,:);
+                                elements(3,:);0*elements(3,:)];
+                cEdges   = [cEdges zeros(2,nConst)];
+                cParam   = [cParam zeros(2,nConst)];
+                cBound   = [cBound zeros(1,nConst)];
+                x        = [this.X (this.X(edges(:,1))+this.X(edges(:,2)))/2];
+                y        = [this.Y (this.Y(edges(:,1))+this.Y(edges(:,2)))/2];
+                
+                %% add midpoint nodes to triangles
+                %  adjust the position of constrained nodes
+                for i = 1:nEdges
+                    nNodes = nNodes + 1;
+                    for j = 1:numel(edge2El{i})
+                        k = edge2El{i}(j);
+                        l = [2 0 4] * (  (elements([1 3 5],k) == edges(i,1))...
+                                       + (elements([1 3 5],k) == edges(i,2)));
+
+                        elements(l,k) = nNodes;
+                    end
+                    
+                    c = find(  ((cEdges(1,:) == edges(i,1)) & (cEdges(2,:) == edges(i,2)))...
+                              |((cEdges(1,:) == edges(i,2)) & (cEdges(2,:) == edges(i,1))),1);
+                    
+                    if ~isempty(c)
+                        s  = (cParam(1,c)+cParam(2,c))/2;
+                        xs = boundaries(cBound(c)).x(s);
+                        ys = boundaries(cBound(c)).y(s);
+                        
+                        nConst               = nConst + 1;
+                        cEdges(:,[c nConst]) = [cEdges(1,c) cEdges(2,c);nNodes nNodes];
+                        cParam(:,[c nConst]) = [cParam(1,c) cParam(2,c);s      s     ];
+                        cBound(nConst)       = cBound(c);
+
+                        x(nNodes) = xs;
+                        y(nNodes) = ys;
+                    end
+                end
+                
+                this.X        = x;
+                this.Y        = y;
+                this.Elements = elements;
+               
+                this.ConstrainedEdges          = cEdges;
+                this.ConstrainedEdgeParameters = cParam;
+                this.ConstrainedEdgeBoundaries = cBound;
+               
+                elements2 = [elements(1,:) elements(2,:) elements(4,:) elements(2,:);
+                             elements(2,:) elements(3,:) elements(5,:) elements(4,:);
+                             elements(6,:) elements(4,:) elements(6,:) elements(6,:)];
+                        
+                bt2 = TriRep(elements2.',this.X.',this.Y.');
+               
+                this.BoundaryEdges    = bt2.freeBoundary.';
+                this.BoundaryElements = this.BackgroundTriangulation(1).edgeAttachments(this.BackgroundTriangulation(1).freeBoundary);
+                this.BoundaryElements = [this.BoundaryElements{:}];
+                
+                this = detectEdgePairs(this);
+            else
+                error('MotorProto:MeshFactory','ElementOrder must be less than 3');
+            end
         end
         
         function plot(this)
@@ -967,51 +1004,63 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
     end
     
     methods(Static)
-        function [I,xint,yint] = findIntersectingEdges(xei,yei,xej,yej)
+        function [I, X, Y] = findIntersectingEdges(xei, yei, xej, yej)
             leps = min(hypot(diff([xei, xej]), diff([yei, yej]))) * sqrt(eps);
-                     
-        	den  =   bsxfun(@times,xei(1,:)-xei(2,:),(yej(1,:)-yej(2,:)).')...
-                 	- bsxfun(@times,yei(1,:)-yei(2,:),(xej(1,:)-xej(2,:)).');
-
-            c1   = xei(1,:).*yei(2,:)-yei(1,:).*xei(2,:);
-            c2   = xej(1,:).*yej(2,:)-yej(1,:).*xej(2,:);
-            numx =    bsxfun(@times,c1,(xej(1,:) - xej(2,:)).')...
-                    - bsxfun(@times,xei(1,:) - xei(2,:),c2.');
+            I    = cell(1, size(xei,2));
+            X    = cell(1, size(xei,2));
+            Y    = cell(1, size(xei,2));
             
-            numy =    bsxfun(@times,c1,(yej(1,:) - yej(2,:)).')...
-                    - bsxfun(@times,yei(1,:) - yei(2,:),c2.');
-            
-            xint = numx ./ den;
-            yint = numy ./ den;
-
             verti = (abs(max(xei) - min(xei)) < (abs(max(yei) - min(yei)) * sqrt(eps)));
-            horzi = (abs(max(yei) - min(yei)) < (abs(max(xei) - min(xei)) * sqrt(eps)));
-            inxi  =   bsxfun(@gt,xint - leps, min(xei))...
-                    & bsxfun(@lt,xint + leps, max(xei));
-            inyi  =   bsxfun(@gt,yint - leps, min(yei))...
-                    & bsxfun(@lt,yint + leps, max(yei));
-            inxiv =   bsxfun(@gt,xint       , min(xei) - leps)...
-                    & bsxfun(@lt,xint       , max(xei) + leps);
-            inyih =   bsxfun(@gt,yint       , min(yei) - leps)...
-                    & bsxfun(@lt,yint       , max(yei) + leps);
+           	horzi = (abs(max(yei) - min(yei)) < (abs(max(xei) - min(xei)) * sqrt(eps)));
+                
+            vertj = (abs(max(xej) - min(xej)) < (abs(max(yej) - min(yej)) * sqrt(eps)));
+            horzj = (abs(max(yej) - min(yej)) < (abs(max(xej) - min(xej)) * sqrt(eps)));
             
-            vertj = (abs(max(xej) - min(xej)) < (abs(max(yej) - min(yej)) * sqrt(eps))).';
-            horzj = (abs(max(yej) - min(yej)) < (abs(max(xej) - min(xej)) * sqrt(eps))).';
-            inxj  =   bsxfun(@gt,xint - leps, min(xej).')...
-                    & bsxfun(@lt,xint + leps, max(xej).');
-            inyj  =   bsxfun(@gt,yint - leps, min(yej).')...
-                    & bsxfun(@lt,yint + leps, max(yej).');
-            inxjv =   bsxfun(@gt,xint       , min(xej).' - leps)...
-                    & bsxfun(@lt,xint 	    , max(xej).' + leps);
-            inyjh =   bsxfun(@gt,yint       , min(yej).' - leps)...
-                    & bsxfun(@lt,yint       , max(yej).' + leps);
+            minxei = min(xei);
+            maxxei = max(xei);
+            minyei = min(yei);
+            maxyei = max(yei);
             
-            I = (              (inxi & inyi)...
-                | bsxfun(@and,inxi, horzi) & inyih...
-                | bsxfun(@and,inyi, verti) & inxiv)...
-                &(              (inxj & inyj)...
-                | bsxfun(@and,inxj, horzj) & inyjh....
-                | bsxfun(@and,inyj, vertj) & inxjv);
+            minxej = min(xej);
+            maxxej = max(xej);
+            minyej = min(yej);
+            maxyej = max(yej);
+            
+            for i = 1:size(xei,2)
+                den  = (xei(1,i)-xei(2,i))*(yej(1,:)-yej(2,:)) - (yei(1,i)-yei(2,i))*(xej(1,:)-xej(2,:));
+                
+                c1   = xei(1,i).*yei(2,i)-yei(1,i).*xei(2,i);
+                c2   = xej(1,:).*yej(2,:)-yej(1,:).*xej(2,:);
+                
+                numx = c1*(xej(1,:) - xej(2,:)) - (xei(1,i) - xei(2,i))*c2;
+                numy = c1*(yej(1,:) - yej(2,:)) - (yei(1,i) - yei(2,i))*c2;
+
+                xint = numx ./ den;
+                yint = numy ./ den;
+
+                inxi  = (xint - leps > minxei(i)) & (xint + leps < maxxei(i));
+                inyi  = (yint - leps > minyei(i)) & (yint + leps < maxyei(i));
+                inxiv = (xint > minxei(i) - leps) & (xint < maxxei(i) + leps);
+                inyih = (yint > minyei(i) - leps) & (yint < maxyei(i) + leps);
+
+                inxj  = (xint - leps > minxej) & (xint + leps < maxxej);
+                inyj  = (yint - leps > minyej) & (yint + leps < maxyej);
+                inxjv = (xint > minxej - leps) & (xint < maxxej + leps);
+                inyjh = (yint > minyej - leps) & (yint < maxyej + leps);
+                
+                J = ((inxj & inyj) | (inxj & horzj & inyjh) | (inyj & vertj & inxjv));
+                if horzi(i)
+                    J = J & (inxi & inyih);
+                elseif verti(i)
+                    J = J & (inyi & inxiv);
+                else
+                    J = J & (inxi & inyi);
+                end
+                
+                X{i} = xint(J);
+                Y{i} = yint(J);
+                I{i} = find(J);
+            end
         end
     end
     
@@ -1019,6 +1068,7 @@ classdef MeshFactory < Parameterizable & matlab.mixin.Copyable
         curves = getAuxillaryBoundaries(this);
         this   = detectBoundaryPairs(this);
         this   = detectEdgePairs(this);
+        this   = compileBoundaryData(this)
     end
     
    	methods (Sealed,Access = protected)

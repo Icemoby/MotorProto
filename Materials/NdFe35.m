@@ -4,7 +4,8 @@ classdef NdFe35 < LinearMaterial
         Color               = 'm';
         
         RemanentFluxDensity = 1.23;
-        Conductivity        = 1.82e6;
+        Conductivity        = 6.67e5;
+        Density             = 7500;
         Permeability        = mu_o * 1.09978;
     end
 end

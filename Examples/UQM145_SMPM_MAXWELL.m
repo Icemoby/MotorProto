@@ -49,8 +49,8 @@ stator.Slot.Conductor.PackingFactor = 1;
 %% Define slot geometry
 slotWidth   = 0.5;
 slotLength  = 0.7;
-notchWidth  = 2 * 1 / 2 / nTeethPerPhase / 3 * 1.05;
-notchLength = 1/29;
+notchWidth  = (1-slotWidth)  * 0.35;
+notchLength = (1-slotLength) * 0.12;
 
 [slotOutline, ~] = slotTemplate(nTeeth, statorInnerRadius, statorOuterRadius, notchWidth, notchLength, slotWidth, slotLength, 1, 0);
 

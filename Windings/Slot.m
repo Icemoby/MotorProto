@@ -1,4 +1,4 @@
-classdef Slot < Parameterizable
+classdef Slot
     %Slot.m A concrete class representing Slots with a number of conductors
     %   Slot objects are objects with a set of properties to control various
     %   slot configurations.
@@ -96,12 +96,15 @@ properties:
 %}
 
     properties
-        WindingType         = 'Distributed'
-        ConductorType       = 'Homogenized'
-        ConductorDynamics   = DynamicsTypes.Static;        
+        WindingType         = WindingTypes.Distributed
+        ConductorType       = ConductorTypes.Homogenized;
+        ConductorDynamics   = DynamicsTypes.Static;      
+        
         Shape
-        ConductorBoundaries = Slot.setProperty([-inf inf]);
-        Turns               = Slot.setProperty(1);
+        
+        ConductorBoundaries = [-inf inf];
+        Layers              = 1;
+        Turns               = 1;
     end
     
     properties (Hidden)
@@ -119,12 +122,7 @@ properties:
     end
     
     properties (Hidden, Access = protected)
-        ConductorConfigurations = [HomogenizedConductor, CircularWire];
-    end
-    
-    properties (Hidden, Constant, GetAccess = protected)
-        Homogenized = 1;
-        Circular    = 2;
+        ConductorConfigurations
     end
     
     methods
@@ -135,29 +133,28 @@ properties:
                     this.(varargin{i}) = varargin{i+1};
                 end
             end
+            
+            this.ConductorConfigurations = [HomogenizedConductor, CircularWire];
         end
         
         %% Setters
         function this = set.WindingType(this, value)
-            switch lower(value)
-                case 'concentrated'
-                    error('MotorProto:Slot', 'No implementation for concentrated windings');
-                    this.WiningType = 'Concentrated';
-                case 'distributed'
-                    this.WindingType = 'Distributed';
-                otherwise
-                    error('MotorProto:Slot', 'Unknown WindingType %s', value);
+            if isa(value, 'WindingTypes')
+                this.WindingType = type;
+            elseif ischar(value)
+                this.WindingType = WindingTypes.(value);
+            else
+                this.WindingType = WindingTypes(value);
             end
         end
         
         function this = set.ConductorType(this, value)
-            switch lower(value)
-                case 'homogenized'
-                    this.ConductorType = 'Homogenized';
-                case 'circular'
-                    this.ConductorType = 'Circular';
-                otherwise
-                    error('MotorProto:Slot', 'Unknown WireType %s', value);
+            if isa(value, 'ConductorTypes')
+                this.ConductorType = type;
+            elseif ischar(value)
+                this.ConductorType = ConductorTypes.(value);
+            else
+                this.ConductorType = ConductorTypes(value);
             end
         end
             
@@ -177,27 +174,23 @@ properties:
         
         function this = set.ConductorBoundaries(this, value)
             assert(numel(value) == 2, 'MotorProto:Slot', 'Slot.ConductorBoundaries must be a 2-element vector');
-            this.ConductorBoundaries = this.setProperty(value);
+            this.ConductorBoundaries = value;
         end
         
         function this = set.Turns(this, value)
             assert(numel(value) == 1, 'MotorProto:Slot', 'Slot.Turns must be a scalar');
-            this.Turns = this.setProperty(value);
+            this.Turns = value;
+        end
+        
+        function this = set.Layers(this, value)
+            assert(numel(value) == 1, 'MotorProto:Slot', 'Slot.Layers must be a scalar');
+            this.Layers = value;
         end
 
         %% Getters
         function value = get.Conductor(this)
             conductorType  = this.ConductorType;
-            conductorConst = this.(conductorType);
-            value          = this.ConductorConfigurations(conductorConst);
-        end
-        
-        function value = get.ConductorBoundaries(this)
-        	value = this.ConductorBoundaries.Value;
-        end
-        
-        function value = get.Turns(this)
-            value = this.Turns.Value;
+            value          = this.ConductorConfigurations(conductorType);
         end
         
         %% Other
@@ -262,7 +255,7 @@ properties:
             %
             % See also Slot, Wire, slotTemplate
 
-            [conductors, nonConductors, connectionMatrix] = this.Conductor.build(this.Shape, this.ConductorBoundaries, this.Turns, this.ConductorDynamics, label);
+            [conductors, nonConductors, connectionMatrix] = this.Conductor.build(this.Shape, this.ConductorBoundaries, this.Turns, this.Layers, this.ConductorDynamics, this.WindingType, label);
         end
     end
 end

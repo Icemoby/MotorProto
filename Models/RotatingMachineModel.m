@@ -15,14 +15,12 @@ classdef RotatingMachineModel < Model
     %   $Revision 0.0.0.1$
 
     properties (Dependent, SetAccess = private)
-        %% New Properties
         SpatialSymmetries
-        
-        %% Old Properties
-        SolutionSpatialFrequency
-        SolutionTemporalFrequency
+        SpatialFrequency
+        TemporalFrequency
+        TemporalSubharmonics
         HasHalfWaveSymmetry
-        SpaceModelFraction
+        ModeledFraction
     end
     
     methods
@@ -32,20 +30,28 @@ classdef RotatingMachineModel < Model
             value    = min([assembly.SpatialSymmetries]);
         end
         
-        function value = get.SolutionSpatialFrequency(this)
+        function value = get.SpatialFrequency(this)
             assemblies  = this.Assemblies;
             value       = assemblies(1).SpatialSymmetries;
             nAssemblies = numel(assemblies);
             for i = 2:nAssemblies
-                value = gcd(value, assemblies(i).SpatialSymmetries);
+            	value = gcd(value, assemblies(i).SpatialSymmetries);
             end
         end
         
-        function value = get.SolutionTemporalFrequency(this)
-            omega   = this.Assemblies.ElectricalFrequency;
-            value   = [omega.Value];
-            dF      = bsxfun(@minus, value.', value);
-            isEqual = abs(dF) < sqrt(eps) * max(abs(value));
+        function value = get.TemporalSubharmonics(this)
+            value = this.ModeledFraction;
+            value = value * max([this.Assemblies.SpatialSymmetries]);
+            if this.HasHalfWaveSymmetry
+                value = value * 2;
+            end
+        end
+        
+        function value = get.TemporalFrequency(this)
+            assembly = this.Assemblies;
+            value    = [assembly.ElectricalFrequency];
+            dF       = bsxfun(@minus, value.', value);
+            isEqual  = abs(dF) < sqrt(eps) * max(abs(value));
             if all(all(isEqual))
                 value = value(1);
             end
@@ -56,8 +62,8 @@ classdef RotatingMachineModel < Model
             value      = all([assemblies.HasHalfWaveSymmetry]);
         end
         
-        function value = get.SpaceModelFraction(this)
-            value = this.SolutionSpatialFrequency;
+        function value = get.ModeledFraction(this)
+            value = this.SpatialFrequency;
             if this.HasHalfWaveSymmetry
                 value = value * 2;
             end
@@ -65,8 +71,7 @@ classdef RotatingMachineModel < Model
         end
         
         %% Build
-        function this = build(this, symmetryType)
-            symmetryType = 'space';
+        function this = build(this, ~)
             % build - Populates the object's Assemblies property based on the current configuration
             % build(M) Constructs the geometry, mesh, and source information of
             % the model based on the current configuration of the objects in the
@@ -119,33 +124,72 @@ classdef RotatingMachineModel < Model
             %   M.Mesh.plot;
             %
             % See also MotorProto, RotatingMachineModel
-
-            if nargin == 1 || isempty(symmetryType)
-                symmetryType = 'space';
-            end
             
             assemblies  = this.Assemblies;
           	nAssemblies = numel(assemblies);
-            switch lower(symmetryType)
-                case 'space'
-                    fraction = 1 / this.SpatialSymmetries;
-                    if this.HasHalfWaveSymmetry
-                        fraction = fraction / 2;
-                    end
-                    for i = 1:nAssemblies
-                        assemblies(i).build(fraction);
-                    end
-                case 'spacetime'
-                    warning('MotorProto:Verbose', 'This method is not completely general');
-                    for i = 1:nAssemblies
-                        assemblies(i).build(1 / assemblies(i).SolutionSpaceTimeSymmetry(1));
-                    end
-                otherwise
-                    error('MotorProto:RotatingMachineModel', 'Unknown symmetryType %s', lower(symmetryType));
+            fraction    = 1 / this.SpatialSymmetries;
+            if this.HasHalfWaveSymmetry
+                fraction = fraction / 2;
+            end
+            for i = 1:nAssemblies
+                assemblies(i).build(fraction);
             end
             
             warning('MotorProto:Verbose', 'Separate out this call');
             build(this.Mesh);
+        end
+    end    
+
+    methods (Sealed)
+%         function [t, h, dft_fun, idft_fun] = discretizeTimeAxis(this, N)
+%             assemblies  = this.Assemblies;
+%             nAssemblies = numel(assemblies);
+%             fe = zeros(nAssemblies,1);
+%             fr = zeros(nAssemblies,1);
+%             for i = 1:nAssemblies
+%                 fe(i) = assemblies(i).ElectricalFrequency;
+%                 fr(i) = assemblies(i).AngularVelocity / pi / assemblies(i).Poles;
+%             end
+%             
+%             df  = zeros(2*nAssemblies,1);
+%             for i = 1:ne
+%                 for j = 1:nr
+%                     df(nr*(i-1)+j) = abs(fe(i)-fr(j));
+%                 end
+%             end
+%             
+%             f = [];
+%             isUnique
+%             for i = 1:(ne+nr-1)
+%                 for j = i:(ne+nr)
+%                 end
+%             end
+%         end
+        
+        function [t, h] = getTimePoints(this, Nt)
+            f  = this.TemporalFrequency / this.TemporalSubharmonics;
+            T  = 1 / f;
+            Nt = Nt * this.TemporalSubharmonics;
+            
+            assemblies  = this.Assemblies;
+            nAssemblies = numel(assemblies);
+            
+            Nh      = ceil(Nt / 2);
+            NhSynch = floor((Nh + 2) / 6) * 6;
+            NhStat  = NhSynch + 1;
+            hStat   = 1:2:NhStat;
+            hSynch  = 0:6:NhSynch;
+            Nt      = (2 * NhSynch + 6) + 1;
+            t       = linspace(0, 1, Nt) * T;
+            h       = cell(1, nAssemblies);
+            
+            for i = 1:nAssemblies
+                if assemblies(i).AngularVelocity == 0
+                    h{i} = hStat;
+                else
+                    h{i} = hSynch;
+                end
+            end
         end
     end
 end

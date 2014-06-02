@@ -23,10 +23,12 @@ classdef StaticMatrixFactory < MatrixFactory
                 components   = assembly.Components;
                 regions      = assembly.Regions;
                 sources      = assembly.Sources;
+                circuits     = assembly.Circuits;
                 
                 nUnknowns    = index.Local(i).Unknowns;
                 nComponents  = numel(components);
                 nSources     = numel(sources);
+                nCircuits    = numel(circuits);
                 
                 I            = speye(nUnknowns, nUnknowns);
                 
@@ -47,7 +49,7 @@ classdef StaticMatrixFactory < MatrixFactory
 
                 %% Source Contribution Matrices
                 if nSources > 0
-                    nPhases            = sources.Phases.Value;
+                    nPhases            = sources.Phases;
                     connectionMatrices = sources.ConnectionMatrices;
                     connectionPolarity = sources.ConnectionPolarity;
                     
@@ -59,11 +61,16 @@ classdef StaticMatrixFactory < MatrixFactory
                         [nSeries, nParallel]   = size(connectionMatrices{k});
                         maxEntries             = maxEntries + nSeries * nParallel * nPhases;
                         connectionRegions      = components(connectionMatrices{k});
-                        connectionGeometry     = [connectionRegions.Geometry];
                         connectionMaterial     = [connectionRegions.Material];
                         connectionConductivity = [connectionMaterial.sigma];
-                        connectionArea         = [connectionGeometry.area];
-                        connectionResistance   = assembly.Length.Value ./ (connectionConductivity .* connectionArea);
+                        connectionArea         = zeros(1,nSeries*nParallel);
+                        for kk = 1:(nSeries*nParallel)
+                            kRegion            = find(connectionRegions(kk) == regions);
+                         	iElement           = (elRegion == kRegion);
+                          	connectionArea(kk) = sum(elAreas(iElement));
+                        end
+                        
+                        connectionResistance   = assembly.Length ./ (connectionConductivity .* connectionArea);
                         connectionResistance   = reshape(connectionResistance, nSeries, nParallel);
                         
                         seriesResistance       = sum(connectionResistance, 1);
@@ -96,7 +103,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                     rows(I) = reshape(connectionMatrices{k}, 1, []);
                                     cols(I) = l;
                                     valE(I) = reshape(connectionPolarity{k}, 1, []);
-                                    valE(I) = valE(I) / (assembly.Length.Value * nSeries) * assembly.ModeledFraction;
+                                    valE(I) = valE(I) / (assembly.Length * nSeries) * assembly.ModeledFraction;
                                     if k ~= l
                                         valE(I) = valE(I) * (  - parallelResistance / phaseResistance(l));
                                     else
@@ -122,7 +129,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                 rows(I) = reshape(connectionMatrices{k}, 1, []);
                                 cols(I) = k;
                                 valE(I) = reshape(connectionPolarity{k}, 1, []);
-                                valE(I) = valE(I) / (assembly.Length.Value * nSeries) * assembly.ModeledFraction;
+                                valE(I) = valE(I) / (assembly.Length * nSeries) * assembly.ModeledFraction;
                                 
                                 valJ(I) = valE(I) .* connectionConductivity;
                                 
@@ -136,7 +143,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                 rows(I) = reshape(connectionMatrices{k}, 1, []);
                                 cols(I) = l;
                                 valE(I) = - reshape(connectionPolarity{k}, 1, []);
-                                valE(I) = valE(I) / (assembly.Length.Value * nSeries) * assembly.ModeledFraction;
+                                valE(I) = valE(I) / (assembly.Length * nSeries) * assembly.ModeledFraction;
                                 
                                 valJ(I) = valE(I) .* connectionConductivity;
                                 
@@ -170,7 +177,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                     rows(I) = reshape(connectionMatrices{k}, 1, []);
                                     cols(I) = l;
                                     valJ(I) = reshape(connectionPolarity{k}, 1, []);
-                                    valJ(I) = valJ(I) .* (connectionConductivity / assembly.Length.Value / nSeries);
+                                    valJ(I) = valJ(I) .* (connectionConductivity / assembly.Length / nSeries);
                                     if k ~= l
                                         valJ(I) = valJ(I) * (  - phaseResistance(l) / seriesResistance) * phaseResistance(k);
                                     else
@@ -195,7 +202,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                 rows(I) = reshape(connectionMatrices{k}, 1, []);
                                 cols(I) = k;
                                 valJ(I) = reshape(connectionPolarity{k}, 1, []);
-                                valJ(I) = valJ(I) .* (connectionConductivity / assembly.Length.Value / nSeries) *  phaseResistance(k);
+                                valJ(I) = valJ(I) .* (connectionConductivity / assembly.Length / nSeries) *  phaseResistance(k);
                               	valE(I) = valJ(I) ./ connectionConductivity;
                                 
                                 ind     = ind + nSeries * nParallel;
@@ -208,7 +215,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                 rows(I) = reshape(connectionMatrices{k}, 1, []);
                                 cols(I) = l;
                                 valJ(I) = - reshape(connectionPolarity{k}, 1, []);
-                                valJ(I) = valJ(I) .* (connectionConductivity / assembly.Length.Value / nSeries) * phaseResistance(l);
+                                valJ(I) = valJ(I) .* (connectionConductivity / assembly.Length / nSeries) * phaseResistance(l);
                                 valE(I) = valJ(I) ./ connectionConductivity;
                                 
                                 ind     = ind + nSeries * nParallel;
@@ -268,7 +275,8 @@ classdef StaticMatrixFactory < MatrixFactory
                     postProcessing(i).F2E = F2E;
                     postProcessing(i).F2V = F2V;
                     postProcessing(i).F2I = F2I;
-                    
+                elseif nCircuits > 0
+                    error('TODO')
                 else
                     postProcessing(i).F2J = sparse(length(mesh(i).Elements), 0);
                     postProcessing(i).F2E = sparse(length(mesh(i).Elements), 0);
@@ -277,24 +285,24 @@ classdef StaticMatrixFactory < MatrixFactory
                 end
                 
                 %% Solution Contribution Matrices
-                %	Electric Field
+                %Electric Field
                 postProcessing(i).X2E          = sparse(nElements,nUnknowns);
                 [postProcessing(i).X_t2E{1:3}] = deal(sparse(nElements,nUnknowns));  
                 
-                %   Current Density
+                %Current Density
                 postProcessing(i).X2J          = sparse(nElements,nUnknowns);
                 [postProcessing(i).X_t2J{1:3}] = deal(sparse(nElements,nUnknowns));
                 
                 if nSources > 0
-                    nPhases = sources.Phases.Value;
-                    %   Voltage
+                    nPhases = sources.Phases;
+                    %Voltage
                     postProcessing(i).X2V   = sparse(nPhases, nUnknowns);
                     
-                    %   Current
+                    %Current
                     postProcessing(i).X2I   = sparse(nPhases, nUnknowns);
                     postProcessing(i).X_t2I = sparse(nPhases, nUnknowns);
                     
-                    %   Flux Linkage
+                    %Flux Linkage
                     rows = zeros(1,0);
                     cols = zeros(1,0);
                     vals = zeros(1,0);
@@ -325,7 +333,7 @@ classdef StaticMatrixFactory < MatrixFactory
                                 
                                 rows(ind2+1:ind2+3*N) = j;
                                 cols(ind2+1:ind2+3*N) = nodes;
-                                vals(ind2+1:ind2+3*N) = connectionPolarity{j}(k,l) * areas * assembly.Length.Value / (3 * assembly.ModeledFraction);
+                                vals(ind2+1:ind2+3*N) = connectionPolarity{j}(k,l) * areas * assembly.Length / (3 * assembly.ModeledFraction);
                                 
                                 ind2 = ind2 + 3*N;
                             end
@@ -336,14 +344,14 @@ classdef StaticMatrixFactory < MatrixFactory
                     postProcessing(i).X2Lambda = sparse(rows, cols, vals, nPhases, nUnknowns);
                     postProcessing(i).X_t2V    = sparse(rows, cols, vals, nPhases, nUnknowns);
                 else
-                    %   Voltage
+                    %Voltage
                     postProcessing(i).X2V   = sparse(0, nUnknowns);
                     
-                    %   Current
+                    %Current
                     postProcessing(i).X2I   = sparse(0, nUnknowns);
                     postProcessing(i).X_t2I = sparse(0, nUnknowns);
                     
-                    %   Flux Linkage
+                    %Flux Linkage
                     postProcessing(i).X2Lambda = sparse(0, nUnknowns);
                     postProcessing(i).X_t2V    = sparse(0, nUnknowns);
                     
@@ -439,8 +447,16 @@ classdef StaticMatrixFactory < MatrixFactory
             nonlinearFunction = cell2mat(nonlinearFunction);
         end
         
-        function                     conductivityMatrix = C(this, t, h)
-        	conductivityMatrix = this.Conductivity.El2El;
+        function                     conductivityMatrix = C(this, ~, ~)
+            assembly           = this.Assemblies_;
+            nAssemblies        = numel(assembly);
+            conductivityMatrix = cell(nAssemblies,nAssemblies);
+           
+            for i = 1:nAssemblies
+                conductivityMatrix{i,i} =   this.Mass.Conductivity(i).El2El;
+            end
+
+            conductivityMatrix = blkdiag(conductivityMatrix{:});
         end
         
         function                      exogenousFunction = f(this, t, h)
@@ -468,7 +484,7 @@ classdef StaticMatrixFactory < MatrixFactory
         end
         
         %% Postprocessing functions
-        function [y, y_t] = doPostProcessing(this, x, ~)
+        function [y, y_t] = doPostProcessing(this, x, fe)
             if ~iscell(x)
                 [n,m] = size(x);
                 x     = mat2cell(x, n, ones(1,m));
@@ -480,12 +496,7 @@ classdef StaticMatrixFactory < MatrixFactory
             if nTimes > 1
                 x_t    = x(:, 1:(nTimes - 1));
                 x_t    = cell2mat(x_t);
-                fe     = [this.Assemblies_.ElectricalFrequency];
-                fe     = [fe.Value];
-
-                sameFrequency = (abs(fe - mean(fe)) < sqrt(eps));
-                assert(all(sameFrequency), 'MotorProto:StaticMatrixFactory', 'All electrical frequencies must be the same');
-                fe           = mean(fe);
+                
                 hMax         = (nTimes - 1) / 2 - 1;
                 h            = [1:(hMax+1), (hMax+3):(2*hMax + 2)];
                 nyqEl        = hMax + 2;

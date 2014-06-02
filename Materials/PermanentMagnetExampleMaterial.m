@@ -4,7 +4,8 @@ classdef PermanentMagnetExampleMaterial < LinearMaterial
         Color               = 'm';
         
         RemanentFluxDensity = 1.2;
-        Conductivity        = 1.82e6;
+        Conductivity        = 6.67e5;
+        Density             = 7500;
         Permeability        = mu_o;
     end
 end

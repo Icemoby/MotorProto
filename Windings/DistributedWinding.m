@@ -9,28 +9,10 @@ classdef DistributedWinding < Winding
     end
     
     methods
-        %% Setters
-        function this = set.CoilSpan(this,value)
-            this.CoilSpan = this.setProperty(value);
-        end
-        
-        function this = set.Layers(this,value)
-            this.Layers = this.setProperty(value);
-        end
-        
-        %% Getters
-        function value = get.CoilSpan(this)
-            value = this.CoilSpan.Value;
-        end
-        
-        function value = get.Layers(this)
-            value = this.Layers.Value;
-        end
-        
         function windingDiagram = get.WindingDiagram(this)
-            phases     = this.Phases.Value;
-            poles      = this.Poles.Value;
-            slots      = this.Slots.Value;
+            phases     = this.Phases;
+            poles      = this.Poles;
+            slots      = this.Slots;
             
             gcdspp     = gcd(poles / 2,slots);
             isBalanced = (mod(slots / phases / gcdspp,2) == 0);
@@ -38,8 +20,8 @@ classdef DistributedWinding < Winding
             poles      = poles / gcdspp;
             slots      = slots / gcdspp;
             
-            layers     = this.Layers.Value;
-            coilSpan   = this.CoilSpan.Value;
+            layers     = this.Layers;
+            coilSpan   = this.CoilSpan;
             SPP        = slots / poles / phases;
             
             %% Error Checking

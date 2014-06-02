@@ -38,8 +38,8 @@ properties:
 %}
 
     properties
-        ElectricalFrequency = RotatingMachineAssembly.setProperty(60);
-        InitialAngle = RotatingMachineAssembly.setProperty(0);
+        ElectricalFrequency = 60;
+        InitialAngle        = 0;
     end
     
     properties (Abstract, Dependent)
@@ -58,15 +58,6 @@ properties:
         %% Constructor
         function this = RotatingMachineAssembly(varargin)
             this = this@CylindricalAssembly(varargin{:});
-        end
-
-        %% Setters
-        function this = set.ElectricalFrequency(this, value)
-            this.ElectricalFrequency = this.setProperty(value);
-        end
-        
-        function this = set.InitialAngle(this, value)
-            this.InitialAngle = this.setProperty(value);
         end
         
         %% Getters
@@ -117,7 +108,7 @@ properties:
             % See also MotorProto, Model, RotatingMachineAssembly
             
             if nargin < 2
-                if this.SolutionHalfWaveSymmetry
+                if this.HasHalfWaveSymmetry
                     modeledFraction = 1 / this.SpatialSymmetries / 2;
                 else
                     modeledFraction = 1 / this.SpatialSymmetries;
@@ -128,8 +119,7 @@ properties:
             validateattributes(modeledFraction, {'numeric'}, {'scalar'});
             nCopies = this.GeometricSymmetries * modeledFraction;
             
-          	assert(abs(nCopies-round(nCopies)) < sqrt(eps),...
-                    'MotorProto:RotatingMachineAssembly', 'ModelFraction must be an integer multiple of 1 / GeometricSymmetries');
+          	assert(abs(nCopies-round(nCopies)) < sqrt(eps), 'MotorProto:RotatingMachineAssembly', 'ModelFraction must be an integer multiple of 1 / GeometricSymmetries');
               
             nCopies = round(nCopies);
             
@@ -148,13 +138,13 @@ properties:
                 regions                 = copy(regions);
                 [regions.IsUserDefined] = deal(false);
                 
-                angles = 2 * pi / this.GeometricSymmetries * ((1:nCopies) - 0.5) + this.InitialAngle.Value;
+                angles = 2 * pi / this.GeometricSymmetries * ((1:nCopies) - 0.5) + this.InitialAngle;
                 angles = repmat(angles, nRegions,1);
                 angles = reshape(angles, nRegions * nCopies, 1).';
                 
                 rotate(regions, angles, [0 0]);
                 
-                evenCopies = mod(0:(nCopies * nRegions-1), nRegions * 2);
+                evenCopies = mod(0:(nCopies * nRegions-1), nRegions * 2)+1;
                 evenCopies = (evenCopies > nRegions);
                 
                 if any(evenCopies)
@@ -165,27 +155,36 @@ properties:
                 
                 %% Copy the connection matrix and renumber
                 if ~isempty(connectionMatrix)
-                    connectionMatrix = repmat(connectionMatrix,[1 1 nCopies]);
-                    offset           = reshape((0:(nCopies-1)) * nRegions, 1, 1, []);
-                    connectionMatrix = bsxfun(@plus, connectionMatrix, offset);
-
-                    %% Determine how the regions were stored in the assembly
-                    nConnections = numel(connectionMatrix);
-                    components   = repmat(this.Components, nConnections, 1);
-                    nComponents  = numel(components) / nConnections;
-                    conRegions   = (repmat(regions(connectionMatrix(:)).', 1, nComponents));
-                    eqMatrix     = (conRegions == components);
-                    [I,J]        = find(eqMatrix);
-
-                    connectionMatrix(I) = J;
+                    offset     = ((0:(nCopies-1)) * nRegions);
+                    newMatrix  = connectionMatrix;
+                    for i = 2:nCopies
+                        newMatrix = newMatrix + (offset(i) - offset(i-1)) * sign(newMatrix);
+                        connectionMatrix = cat(3,connectionMatrix,newMatrix);
+                    end
+                end
+                
+                %% Determine how the regions were stored in the assembly
+                %   Loop renumbers the connection matrix based on the
+                %   mapping between the conductors/regions and their
+                %   location in the components array after running the
+                %   addModelRegion command
+                
+                components = this.Components;
+                for i = 1:size(connectionMatrix,1)
+                    for j = 1:size(connectionMatrix,2)
+                        for k = 1:size(connectionMatrix,3)
+                            l = find(regions(connectionMatrix(i,j,k)) == components);
+                            connectionMatrix(i,j,k) = l;
+                        end
+                    end
                 end
             end
              
             %% Build the domain hull
             nRegions = nRegions * nCopies;
             ang      = 2 * pi * modeledFraction;
-            rot      = this.InitialAngle.Value;
-            rad      = [this.InnerRadius.Value, this.OuterRadius.Value];
+            rot      = this.InitialAngle;
+            rad      = [this.InnerRadius, this.OuterRadius];
           	dgOut    = Geometry2D.draw('Sector', 'Radius', rad, 'Angle', ang, 'Rotation', rot, 'PlotStyle', {'b'});
             this.DomainHull = copy(dgOut);
             if nRegions > 0
@@ -194,7 +193,7 @@ properties:
             
             addModelRegion(this, [this.Name,'_DefaultRegion'], dgOut, this.DefaultMaterial, DynamicsTypes.Static, -1);
             
-            this                 = buildPostProcessing(this, connectionMatrix);
+            this                 = buildPostProcessing(this, connectionMatrix, modeledFraction);
             this.ModeledFraction = modeledFraction;
         end
                 
@@ -205,7 +204,7 @@ properties:
             connectionMatrix = [];
         end
         
-        function this = buildPostProcessing(this, connectionMatrix)
+        function this = buildPostProcessing(this, connectionMatrix, modeledFraction)
             %% Noop, subclasses may implement behavior here
         end
         
@@ -217,18 +216,33 @@ properties:
     methods (Sealed)        
         function [t, h] = getTimePoints(this, Nt)
             nAssemblies = numel(this);
+            
+            %% Calculate Electrical Frequency
+            f           = [this.ElectricalFrequency];
+            assert(all(abs(f - f(1))) < sqrt(eps) * f(1), 'MotorProto:RotatingMachineAssembly', 'All assembly electrical frequencies must be the same');
+            T           = 1 / mean(f);
+            
+            %% Calculate Fundamental Period (possibly subharmonic)
+            Np = zeros(1,nAssemblies);
+            for i = 1:nAssemblies
+                Np(i) = this(i).Poles;
+            end
+            assert(all(abs(Np - Np(1)) < sqrt(eps) * Np(1)));
+            Np = Np(1);
+            
+            Mf = max([this.ModeledFraction]);
+            
+            if Np * Mf > 2
+                T  = T  * ceil(Np * Mf / 2);
+                Nt = Nt * ceil(Np * Mf / 2); 
+            end
+            
             Nh          = ceil(Nt / 2);
             NhSynch     = floor((Nh + 2) / 6) * 6;
             NhStat      = NhSynch + 1;
             hStat       = 1:2:NhStat;
             hSynch      = 0:6:NhSynch;
             Nt          = (2 * NhSynch + 6) + 1;
-            f           = [this.ElectricalFrequency];
-            f           = [f.Value];
-            
-            assert(all(abs(f - f(1))) < sqrt(eps) * f(1), 'MotorProto:RotatingMachineAssembly', 'All assembly electrical frequencies must be the same');
-                
-            T           = 1 / mean(f);
             t           = linspace(0, 1, Nt) * T;
             h           = cell(1, nAssemblies);
             

@@ -29,8 +29,8 @@ properties:
     MaxNewtonIterations;
 %}
     properties
-        MaxNewtonIterations = HarmonicBalance.setProperty(100);
-        NewtonTolerance     = HarmonicBalance.setProperty(sqrt(eps));
+        MaxNewtonIterations = 100;
+        NewtonTolerance     = sqrt(eps);
     end
     
     methods
@@ -42,21 +42,17 @@ properties:
             end
         end
         
-        function this = set.MaxNewtonIterations(this,value)
-            this.MaxNewtonIterations = HarmonicBalance.setProperty(value);
-        end
-        
         function solution = solve(this, model, x0)
             %% Configure matrices
             matrixFactory = HarmonicMatrixFactory(copy(model));
             this.Matrices = matrixFactory;
             
             %% Configure algorithm
-          	maxNIt = this.MaxNewtonIterations.Value;
+          	maxNIt = this.MaxNewtonIterations;
             resTol = this.NewtonTolerance;
             
             %% Get harmonics
-            [t,h]      = matrixFactory.getTimePoints(this.TimePoints.Value);
+            [t,h]      = matrixFactory.getTimePoints(this.TimePoints);
             this.Times = t;
             t(end)     = [];
             
@@ -98,6 +94,7 @@ properties:
             
             %% End Simulation Time
             this.SimulationTime = toc;
+            this.SimulationTime
             
             %% Post Processing
             [this.X, this.X_t] = matrixFactory.doPostProcessing(x, t, h);

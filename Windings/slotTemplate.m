@@ -62,6 +62,12 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
 %           When OuterSlotShape = 'straight', controls the transition from the
 %           body of the tooth to the backiron.
 %
+%       'AirgapLocation'
+%           {'inside'} | 'outside'
+%           Specifies the location of the airgap relative to the annulus
+%           containing the slot. This parameter controls the placement of
+%           the slot notch NCG.
+%
 %       Note: When both InnerSlotShape and OuterSlotShape are selected as
 %       'straight', it is required that InnerSlotLength + OuterSlotLength < NS.
 %
@@ -97,6 +103,7 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
     ip.addParamValue('OuterSlotShape', 'Rounded');
     ip.addParamValue('InnerSlotLength', 0);
     ip.addParamValue('OuterSlotLength', 0);
+    ip.addParamValue('AirgapLocation', 'Inside');
     
     ip.parse(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin{:});
     results = ip.Results;
@@ -106,15 +113,31 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
     
     assert(NL + SL < 1, 'MotorProto:slotTemplate', 'It is required that NL + SL < 1');
         
+    assert(SL > NL, 'MotorProto:slotTemplate', 'It is required that SL > NL');
+    
     %% Draw notch
     dr = RO - RI;
     da = 2 * pi / NS;
     
-    notch = Geometry2D.draw('Sector', 'Radius',     [RI, RI / 2 + RO / 2],...
-                                      'Rotation', - da * NW / 2, 'Angle', da * NW);
+    switch lower(results.AirgapLocation)
+        case 'inside'
+            notch = Geometry2D.draw('Sector', 'Radius',     [RI, RI + (RO-RI) * SL / 2],...
+                                              'Rotation', - da * NW / 2, 'Angle', da * NW);
+        case 'outside'
+            notch = Geometry2D.draw('Sector', 'Radius',     [RO - (RO-RI) * SL / 2, RO],...
+                                              'Rotation', - da * NW / 2, 'Angle', da * NW);
+    end
 
 	%% Draw polygonal portion of slot
-    x          =  RI + dr * NL;
+    switch lower(results.AirgapLocation)
+        case 'inside'
+            x = RI + dr * NL;
+        case 'outside'
+            x = RO - dr * NL;
+        otherwise
+            unknownOptionError('AirgapLocation',results.AirgapLocation);
+    end
+    
     slotPoints = [x, 0];
     switch lower(results.InnerSlotShape)
         case 'straight'
@@ -125,10 +148,21 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
             unknownOptionError('InnerSlotShape', results.InnerSlotShape);
     end
     
- 	slotPoints(2, :) = [x + dx, tan(da / 2 * SW) * (x + dx)];
+    switch lower(results.AirgapLocation)
+        case 'inside'
+            slotPoints(2, :) = [x + dx,  tan(da / 2 * SW) * (x + dx)];
+        case 'outside'
+            slotPoints(2, :) = [x - dx, tan(da / 2 * SW) * (x - dx)];
+    end
     
     dx = dr * SL;
-    slotPoints(4, :) = [x + dx, 0];
+    
+    switch lower(results.AirgapLocation)
+        case 'inside'
+            slotPoints(4, :) = [x + dx, 0];
+        case 'outside'
+            slotPoints(4, :) = [x - dx, 0];
+    end
     
     switch lower(results.OuterSlotShape)
         case 'straight'
@@ -139,14 +173,27 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
             unknownOptionError('InnerSlotShape', results.OuterSlotShape);
     end
     
-    m1 = tan(da / 2 * SA);
-    b1 = slotPoints(2, 2) - m1 * slotPoints(2, 1);
-    slotPoints(3, :) = [x + dx, m1 * (x + dx) + b1];
+    switch lower(results.AirgapLocation)
+        case 'inside'    
+            m1 = tan(da / 2 * SA);
+            b1 = slotPoints(2, 2) - m1 * slotPoints(2, 1);
+            slotPoints(3, :) = [x + dx, m1 * (x + dx) + b1];
+        case 'outside'    
+            m1 = tan(da / 2 * SA);
+            b1 = slotPoints(2, 2) - m1 * slotPoints(2, 1);
+            slotPoints(3, :) = [x - dx, m1 * (x - dx) + b1];
+    end
 
     %% Adjust slot geometry for inner slot curvature
     if strcmpi(results.InnerSlotShape, 'rounded')
-        m2 = tan(pi / 4 + (da / 2 * SA) / 2);
-        b2 = slotPoints(1, 2) - m2 * slotPoints(1, 1);
+        switch lower(results.AirgapLocation)
+            case 'inside'
+                m2 = tan(pi / 4 + (da / 2 * SA) / 2);
+                b2 = slotPoints(1, 2) - m2 * slotPoints(1, 1);
+            case 'outside'
+                m2 = -tan(pi / 4 + (da / 2 * SA) / 2);
+                b2 = slotPoints(1, 2) - m2 * slotPoints(1, 1);
+        end
         
         x3 = (b1 - b2) / (m2 - m1);
         y3 = m1 * x3 + b1;
@@ -160,18 +207,31 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
             xi = x3;
         end
         
-        ri = xi - slotPoints(1, 1);
-        ai = abs(atan2(yi - y3, xi - x3));
-        
+        switch lower(results.AirgapLocation)
+            case 'inside'
+                ri  = xi - slotPoints(1, 1);
+                ai  = abs(atan2(yi - y3, xi - x3));
+                rot = pi - ai;
+            case 'outside'
+                ri  = hypot(x3 - xi, y3 - yi);
+                ai  = pi-abs(atan2(yi - y3, xi - x3));
+                rot = -ai;
+        end
         slotPoints(2, :) = [x3, y3];
         
-        innerSlot = Geometry2D.draw('Sector', 'Radius', [0, ri], 'Position', [xi, yi], 'Angle', 2 * ai, 'Rotation', pi - ai);
+        innerSlot = Geometry2D.draw('Sector', 'Radius', [0, ri], 'Position', [xi, yi], 'Angle', 2 * ai, 'Rotation', rot);
     end
     
     %% Adjust slot geometry for outer slot curvature
     if strcmpi(results.OuterSlotShape, 'rounded')
-        m2 = - tan(pi / 4 + (da / 2 * SA) / 2);
-        b2 = slotPoints(4, 2) - m2 * slotPoints(4, 1);
+        switch lower(results.AirgapLocation)
+            case 'inside'
+                m2 = - tan(pi / 4 + (da / 2 * SA) / 2);
+                b2 = slotPoints(4, 2) - m2 * slotPoints(4, 1);
+            case 'outside'
+                m2 =   tan(pi / 4 + (da / 2 * SA) / 2);
+                b2 = slotPoints(4, 2) - m2 * slotPoints(4, 1);
+        end
         
         x3 = (b1 - b2) / (m2 - m1);
         y3 = m1 * x3 + b1;
@@ -185,20 +245,30 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
             xo = x3;
         end
         
-        ro = hypot(x3 - xo, y3 - yo);
-        ao = pi - abs(atan2(yo - y3, xo - x3));
-        
+       	switch lower(results.AirgapLocation)
+            case 'inside'
+                ro  = hypot(x3 - xo, y3 - yo);
+                ao  = pi - abs(atan2(yo - y3, xo - x3));
+                rot = -ao;
+            case 'outside'
+                ro  = abs(xo - slotPoints(4,1));
+                ao  = abs(atan2(yo - y3, xo - x3));
+                rot = pi -ao;
+        end
         slotPoints(3, :) = [x3, y3];
         
-        outerSlot = Geometry2D.draw('Sector', 'Radius', [0, ro], 'Position', [xo, yo], 'Angle', 2 * ao, 'Rotation', - ao);
+        outerSlot = Geometry2D.draw('Sector', 'Radius', [0, ro], 'Position', [xo, yo], 'Angle', 2 * ao, 'Rotation', rot);
     end
     
     %% Make all slot points counter clockwise
     slotPoints(5:6, :) =   slotPoints([3 2], :) * [1 0;0 -1];
-    slotPoints(:, 2)   = - slotPoints(:, 2);
+    
+    if strcmpi(results.AirgapLocation,'inside')
+        slotPoints(:, 2)   = - slotPoints(:, 2);
+    end
     
     %% Construct complete slot object
-    slot = Geometry2D.draw('Polygon2D', 'Points', slotPoints);
+    slot = Geometry2D.draw('Polygon2D', 'Points', slotPoints,'PlotStyle',{'w'});
     
     if strcmpi(results.InnerSlotShape, 'rounded') && strcmpi(results.OuterSlotShape, 'rounded')
         slot = slot + [notch, innerSlot, outerSlot];
@@ -212,19 +282,28 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
     
     %% Separate into conductor/nonconductor regions
     if isempty(CO) || all((CO == 0))
-        CG    = slot;
+        CG  = slot;
         NCG = slot.empty(1,0);
     else
-        if strcmpi(CO, 'auto')
-            CO = (slotPoints(2, 1) - RI) / dr;
+        switch lower(results.AirgapLocation)
+            case 'inside'
+                if strcmpi(CO, 'auto')
+                    CO = (slotPoints(2, 1) - RI) / dr;
+                end
+                conductorWindowPoints = [RI + dr * CO, max(slotPoints(:, 2)) * 2;
+                                         RI + dr * CO, min(slotPoints(:, 2)) * 2;
+                                         RO          , min(slotPoints(:, 2)) * 2;
+                                         RO          , max(slotPoints(:, 2)) * 2];
+            case 'outside'
+                if strcmpi(CO, 'auto')
+                    CO = (RO - slotPoints(2, 1)) / dr;
+                end
+                conductorWindowPoints = [RO - dr * CO, min(slotPoints(:, 2)) * 2;
+                                         RO - dr * CO, max(slotPoints(:, 2)) * 2;
+                                         RI          , max(slotPoints(:, 2)) * 2;
+                                         RI          , min(slotPoints(:, 2)) * 2];
         end
-        
-        conductorWindowPoints = [RI + dr * CO, max(slotPoints(:, 2)) * 2;
-                                 RI + dr * CO, min(slotPoints(:, 2)) * 2;
-                                 RO                       , min(slotPoints(:, 2)) * 2;
-                                 RO                       , max(slotPoints(:, 2)) * 2];
-                                 
-        conductorWindow = Geometry2D.draw('Polygon2D', 'Points', conductorWindowPoints);
+        conductorWindow = Geometry2D.draw('Polygon2D', 'Points', conductorWindowPoints, 'PlotStyle',{'w'});
         
         CG  = slot * conductorWindow;
         NCG = slot - conductorWindow;

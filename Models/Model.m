@@ -67,6 +67,7 @@ properties:
     properties (SetAccess = private,Dependent)
         Assemblies
         Components
+        Mass
     end
     
     methods
@@ -77,6 +78,19 @@ properties:
         
         function value = get.Components(this)
         	value = [this.Assemblies.Components];
+        end
+        
+        function value = get.Mass(this)
+            value = 0;
+            assemblies = this.Assemblies;
+            nAssemblies = length(assemblies);
+            try
+                for i = 1:nAssemblies
+                    value = value + assemblies(i).Mass;
+                end
+            catch ME
+                value = [];
+            end
         end
         
         %% Assembly Management

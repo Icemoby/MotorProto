@@ -123,6 +123,10 @@ properties
             s = this.Conductivity;
         end
         
+        function d = elementDensity(this,~)
+            d = this.Density;
+        end
+        
         %% Nonlinear Function Methods
         function [B, dBdH] = magnitudeB(this, H)
             switch lower(this.InterpolationType)
