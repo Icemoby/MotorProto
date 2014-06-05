@@ -176,12 +176,14 @@ classdef RotatingMachineMeshFactory < MeshFactory
                 xi = mean(x(:,boundaryPairI));
                 yi = mean(y(:,boundaryPairI));
                 ri = hypot(xi,yi);
-                ti = phase(xi + 1i * yi);
+                ti = atan2(yi,xi);
+                ti = unwrap(ti);
                 
                 xj = mean(x(:,boundaryPairJ));
                 yj = mean(y(:,boundaryPairJ));
                 rj = hypot(xj,yj);
-                tj = phase(xj + 1i * yj);
+                tj = atan2(yj,xj);
+                tj = unwrap(tj);
                 
                 r_eps = max(max(ri),max(rj)) * sqrt(eps);
                 t_eps = 2 * pi * sqrt(eps);
