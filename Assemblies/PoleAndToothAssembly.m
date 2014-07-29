@@ -35,39 +35,15 @@ properties:
     % See also PoleAndToothAssembly
     Teeth;
 %}
-    properties
-        Poles = 4;
-        Teeth = 12;
-    end
-
-  	properties (Dependent)
-        SolutionSpatialFrequency
-        SolutionHalfWaveSymmetry
-        SolutionTemporalFrequency
-        SolutionTemporalSymmetry
-        GeometryFrequency
+    properties (Abstract)
+        Poles
+        Teeth
     end
     
     methods
         %% Constructor
      	function this = PoleAndToothAssembly(varargin)
             this = this@RotatingMachineAssembly(varargin{:});
-        end
-
-        %% Getters
-        function value = get.GeometryFrequency(this)
-            warning('Use GeometricSymmetries instead');
-        	value = this.Teeth;
-        end
-
-        function value = get.SolutionSpatialFrequency(this)
-            warning('Use SpatialSymmetries instead');
-        	value = this.Poles  / 2;
-        end
-        
-        function value = get.SolutionHalfWaveSymmetry(~)
-            warning('Use HasHalfWaveSymmetry instead');
-        	value = true;
         end
     end
     

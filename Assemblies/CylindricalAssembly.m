@@ -42,21 +42,12 @@ properties:
     end
     
 	properties (Abstract,Dependent)
-        %% New Symmetry Properties
+        %% Symmetry Properties
         SpatialSymmetries
         HasHalfWaveSymmetry
         SpaceTimeSymmetries
-
         GeometricSymmetries
         
-        %% Old Symmetry Properties
-        SolutionSpatialFrequency
-        SolutionHalfWaveSymmetry
-        SolutionTemporalFrequency
-        SolutionTemporalSymmetry
-        SolutionSpaceTimeSymmetry
-        SolutionSpaceTimeCoefficients
-        GeometryFrequency
         GeometryMirrorSymmetry
     end
     

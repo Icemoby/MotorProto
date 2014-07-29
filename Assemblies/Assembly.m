@@ -27,9 +27,6 @@ classdef Assembly < Nameable
     % See also MotorProto, Model, MeshFactory, Stator, SynchronousRotor,
     %          Component, Region2D, Source, MaterialProperty
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%InputRegions - An array of user-defined Region2D objects
@@ -108,7 +105,7 @@ properties:
     end
     
     properties
-        DefaultMaterial = IronExampleMaterial
+        DefaultMaterial = Iron
     end
     
     methods
@@ -143,7 +140,7 @@ properties:
         end
         
         %% Component Addition
-     	function [this, newNames] = addRegion(this, arg1, geometry, material, dynamics, source, varargin)
+     	function [this, newNames] = addRegion(this, arg1, geometry, material, dynamics, varargin)
             % addRegion - Adds a new Region2D object to the Assembly object
             % addRegion(A, N, G, M, D, S) adds a user defined Region2D object
             % to the assembly object A giving it the string N as a name, 
@@ -184,18 +181,9 @@ properties:
             if nargin == 2
                 newRegion = arg1;
             else
-                if ischar(source)
-                    switch lower(source)
-                        case 'none'
-                            source = -1;
-                        case 'isolated'
-                            source = 0;
-                    end
-                end
-                
                 nameIn    = arg1;
-                newRegion = Region2D('Name',     nameIn,   'Geometry',        geometry, 'Material',      material, ...
-                                     'Dynamics', dynamics, 'InputComponents', source,   'IsUserDefined', true,     varargin{:});
+                newRegion = Region2D('Name',     nameIn,   'Geometry',      geometry, 'Material', material, ...
+                                     'Dynamics', dynamics, 'IsUserDefined', true,     varargin{:});
             end
             [this.InputRegions, newNames] = this.InputRegions.add(newRegion);
         end
@@ -213,7 +201,7 @@ properties:
             [this.Components, newNames]          = this.Components.add(newSource);
             this.IsRegion(end+1:end+nNewSources) = false;
             this.IsSource(end+1:end+nNewSources) = true;
-            this.IsCircuit(end+1:end+nNewSources) = false;
+            this.IsCircuit(end+1:end+nNewSources) = true;
         end
         
         function [this, newNames] = addCircuit(this, arg1, arg2, varargin)
@@ -264,15 +252,6 @@ properties:
             names = names(~[this.InputRegions.IsUserDefined]);
             this.InputRegions = remove(this.InputRegions, names);
         end
-        
-%         %% Component Editing
-%         function this = editSource(this, nameIn, varargin)
-%             this.Sources = edit(this.Sources, nameIn, varargin{:});
-%         end
-%         
-%         function this = editCircuit(this, nameIn, varargin)
-%             this.Circuits = edit(this.Circuits, nameIn, varargin{:});
-%         end
         
         %% Index Functions
         function J = convertComponentIndex(this, property, I)
@@ -328,11 +307,11 @@ properties:
                 nameIn = arg2;
                 newSource = ComponentAggregator.newComponent(typeIn, nameIn, 'IsUserDefined', false, varargin{:});
             end
-            nNewSources                          = numel(newSource);
-            [this.Components, newNames]          = this.Components.add(newSource);
-            this.IsRegion(end+1:end+nNewSources) = false;
-            this.IsSource(end+1:end+nNewSources) = true;
-            this.IsCircuit(end+1:end+nNewSources) = false;
+            nNewSources                           = numel(newSource);
+            [this.Components, newNames]           = this.Components.add(newSource);
+            this.IsRegion(end+1:end+nNewSources)  = false;
+            this.IsSource(end+1:end+nNewSources)  = true;
+            this.IsCircuit(end+1:end+nNewSources) = true;
         end
         
      	function [this, newNames] = addModelCircuit(this, arg1, arg2, varargin)
@@ -343,25 +322,25 @@ properties:
                 nameIn = arg2;
                 newCircuit = ComponentAggregator.newComponent(typeIn, nameIn, 'IsUserDefined', false, varargin{:});
             end
-            nNewCircuits                          = numel(newCircuit);
-            [this.Components, newNames]          = this.Components.add(newCircuit);
-            this.IsRegion(end+1:end+nNewCircuits) = false;
-            this.IsSource(end+1:end+nNewCircuits) = false;
+            nNewCircuits                           = numel(newCircuit);
+            [this.Components, newNames]            = this.Components.add(newCircuit);
+            this.IsRegion(end+1:end+nNewCircuits)  = false;
+            this.IsSource(end+1:end+nNewCircuits)  = false;
             this.IsCircuit(end+1:end+nNewCircuits) = true;
         end
         
-        function [this, newNames] = addModelRegion(this, arg1, geometry, material, dynamics, source)
+        function [this, newNames] = addModelRegion(this, arg1, geometry, material, dynamics)
             if nargin == 2
                 newRegion = arg1;
             else
                 nameIn    = arg1;
-                newRegion = Region2D('Name',     nameIn,   'Geometry',        geometry, 'Material',      material,...
-                                     'Dynamics', dynamics, 'InputComponents', source,   'IsUserDefined', false);
+                newRegion = Region2D('Name',     nameIn,   'Geometry',      geometry, 'Material', material,...
+                                     'Dynamics', dynamics, 'IsUserDefined', false);
             end
-            nNewRegions                          = numel(newRegion);
-            [this.Components, newNames]          = this.Components.add(newRegion);
-            this.IsRegion(end+1:end+nNewRegions) = true;
-            this.IsSource(end+1:end+nNewRegions) = false;
+            nNewRegions                           = numel(newRegion);
+            [this.Components, newNames]           = this.Components.add(newRegion);
+            this.IsRegion(end+1:end+nNewRegions)  = true;
+            this.IsSource(end+1:end+nNewRegions)  = false;
             this.IsCircuit(end+1:end+nNewRegions) = false;
         end
     end

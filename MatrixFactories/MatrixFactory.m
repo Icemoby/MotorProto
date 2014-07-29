@@ -1,89 +1,57 @@
 classdef MatrixFactory
-    properties (SetAccess = protected,Dependent)
-        %% Handle objects derived from Model_, copy on return
-        Model
+    properties (SetAccess = protected, Dependent)
         Mesh
         Assemblies
     end
     
     properties (SetAccess = protected)
+        Model
+        
         %% Matrix components are stored in structures for fast access
+        %   C(t)*x_t + K(t)*x + g(x,t)   = F*f(t), Continuous Time Equation
+        %   C(t)*y_t + K(t)*y + G(x,t)*y = - r(t), Linearized Equation
         
-        %% Discrete del operator matrices, div, grad, curl
-        Del
+        Del         %Discrete del operator matrices, div, grad, curl
+        Coupling    %Matrices related to external circuit coupling
+        Boundary    %Matrices for performing boundary operations
         
-        %% Boundary matrices
-        Boundary
-        
-        %% M(t)*x_t + K(t)*x + g(x,t) = F*f(t);
-        Mass
-        Stiffness
-        Jacobian
-        Exogenous
+        Mass        %C(t)
+        Stiffness   %K(t)
+        Jacobian    %g(x,t), G(x,t)
+        Exogenous   %F
 
-        %% Post Processing
-        PostProcessing    
+        PostProcessing	%Matrices for solution post processing
         
-        %% Indices
-        Index
-        DomainPartitions
+        Index 	%Local and global indices of unknowns
+        
+        DomainPartitions    %Domain partition information
     end
     
-    properties (Hidden,SetAccess = protected)
-        %% Input Argument
-        Model_
-    end
-    
-    properties (Hidden,SetAccess = protected,Dependent)
-        %% Internal arguments, no copy on output
-        Mesh_
-        Assemblies_
-    end
-    
-    methods
+    methods %Accessors
         %% Constructor
         function this = MatrixFactory(model)
-            warning('MotorProto:Verbose',...
-                    'Present implementation assumes anti-periodic symmetry');
             if nargin > 0
                 this.Model  = model;
+                this = build(this);
             end
-        end
-
-        %% Setters
-        function this = set.Model(this,model)
-            this.Model_  = model;
         end
         
         %% Getters
-        function value = get.Model(this)
-            value = copy(this.Model_);
-        end
-        
         function value = get.Mesh(this)
-            value = copy(this.Mesh_);
-        end
-        
-        function value = get.Mesh_(this)
-            value = this.Model_.Mesh;
+            value = this.Model.Mesh;
         end
         
         function value = get.Assemblies(this)
-            value = copy(this.Assemblies_);
+            value = [this.Mesh.Assembly];
         end
         
-        function value = get.Assemblies_(this)
-            value = [this.Mesh_.Assembly];
-        end
-        
-        %% preprocessing functions
-        function this  = build(this, symmetryType)
-            build(this.Model_, symmetryType);
-
+        %% Preprocessing functions
+        function this = build(this)
             this = buildIndexVectors(this);
             this = partitionDomains(this);
             
             this = buildDelMatrices(this);
+            this = buildCouplingPrimitives(this);
             
             this = buildPostProcessingMatrices(this);
             
@@ -94,9 +62,13 @@ classdef MatrixFactory
             this = buildJacobianMatrices(this);
             this = buildExogenousMatrices(this);
             
+            this = buildCircuitMatrices(this);
+            
             this = applyBoundaryConditions(this);
         end
-        
+    end
+    
+    methods %Matrix Construction
         function this  = buildIndexVectors(this)
             this.Index = buildMatrices(this, this.Index, 'buildLocalIndexVectors');
             this.Index = buildGlobalIndexVectors(this, this.Index);
@@ -146,12 +118,40 @@ classdef MatrixFactory
                 local = struct([]);
             end
             
-            mesh   = this.Mesh_(iMesh);
-            nNodes = numel(mesh.X);
+            nUnknowns = 0;
             
-            %% Vector Potential
-            local(iMesh).A        = 1:nNodes;
-            local(iMesh).Unknowns = nNodes;
+            %% Magnetic Vector Potential
+            mesh           = this.Mesh(iMesh);
+            nNodes         = numel(mesh.X);
+            local(iMesh).A = 1:nNodes;
+            
+            nUnknowns = nUnknowns + nNodes;
+            
+            %% Floating Regions (conducting regions where i = 0, e.g. permanent magnets)
+            assembly   = this.Assemblies(iMesh);
+         	regions    = assembly.Regions;
+            nRegions   = numel(regions);
+            dynamics   = [regions.Dynamics];
+            isFloating = (dynamics == DynamicsTypes.Floating);
+            nFloating  = sum(isFloating);
+            
+            local(iMesh).Regions             = NaN(1, nRegions);
+            local(iMesh).Regions(isFloating) = (1:nFloating) + nUnknowns;
+            
+            nUnknowns = nUnknowns + nFloating;
+            
+            %% Circuits
+           	circuits  = assembly.Circuits;
+            nCircuits = numel(circuits);
+            
+            if nCircuits > 0
+                nCircuitUnknowns      = circuits.getSize;
+                local(iMesh).Circuits = (1:nCircuitUnknowns) + nUnknowns;
+                circuits.Index        = local(iMesh).Circuits;
+                nUnknowns             = nUnknowns + nCircuitUnknowns;
+            else
+                local(iMesh).Circuits = [];
+            end
             
             %% Boundary Conditions
             local(iMesh).Boundary.Tangent(1).Nodes = mesh.PeriodicBoundaryNodes(1,:);
@@ -160,6 +160,7 @@ classdef MatrixFactory
             local(iMesh).Boundary.Radius(1).Nodes  = unique(mesh.RadialBoundaryEdges{1});
             local(iMesh).Boundary.Radius(2).Nodes  = unique(mesh.RadialBoundaryEdges{2});
             
+            local(iMesh).Unknowns = nUnknowns;
             structure.Local = local;
         end
         
@@ -186,8 +187,7 @@ classdef MatrixFactory
             pbcType   = {'None'};
             
             %% Build Matrices
-            index     = this.Index;
-            mesh      = this.Mesh_(iMesh);
+            mesh      = this.Mesh(iMesh);
            	el        = mesh.Elements;
             elArea    = mesh.ElementAreas;
             nElements = length(el);
@@ -202,19 +202,161 @@ classdef MatrixFactory
             i = [1:nElements,1:nElements,1:nElements];
             j = [el(1,:),el(2,:),el(3,:)];
             
-            %% Make node to element curl matrices
-            s = -[b(1,:)./elArea, b(2,:)./elArea, b(3,:)./elArea] / 2;
-            structure.Curl(iMesh).Zn2Ye = sparse(i,j,s,nElements,nUnknowns);
+            s = 1./elArea;
+            A = sparse(1:nElements,1:nElements,s,nElements,nElements);
             
-            s = [c(1,:)./elArea, c(2,:)./elArea, c(3,:)./elArea] / 2;
-            structure.Curl(iMesh).Zn2Xe = sparse(i,j,s,nElements,nUnknowns);
-
-            %% Make element to node curl matrices
+            %% Make node to element and element to node curl matrices
             s = [b(1,:), b(2,:), b(3,:)] / 2;
             structure.Curl(iMesh).Ye2Zn = sparse(j,i,s,nUnknowns,nElements);
-
+            structure.Curl(iMesh).Zn2Ye = -A * structure.Curl(iMesh).Ye2Zn';
+            
             s = -[c(1,:), c(2,:), c(3,:)] / 2;
             structure.Curl(iMesh).Xe2Zn = sparse(j,i,s,nUnknowns,nElements);
+            structure.Curl(iMesh).Zn2Xe = -A * structure.Curl(iMesh).Xe2Zn';
+        end
+        
+        %% Coupling matrices
+        function this = buildCouplingPrimitives(this)
+            mesh  = this.Mesh;
+            nMesh = numel(mesh);
+            coupling = struct('Integral', [], 'Area', [], 'Conductivity', [], 'ModeledFraction', [], 'Length', [], 'Region2Element', 'Node2Element');
+            
+            for i = 1:nMesh
+                index     = this.Index.Local(i);
+                nUnknowns = index.Unknowns;
+                assembly  = mesh(i).Assembly;
+                regions   = [assembly.Regions];
+            
+                nRegions = numel(regions);
+                inte     = cell(1, nRegions);
+                area     = zeros(1, nRegions);
+                cond     = zeros(1, nRegions);
+                r2el     = cell(1, nRegions);
+                n2el     = cell(3, nRegions);
+                
+                els       = mesh(i).Elements;
+                elRegions = mesh(i).ElementRegions;
+                elAreas   = mesh(i).ElementAreas;
+                nElements = numel(elRegions);
+                for j = 1:nRegions
+                    J = (elRegions == j);
+                    K = find(J);
+                    n = sum(J);
+                    
+                    rows = ones(1, 3*n);
+                    cols = [els(1, J), els(2, J), els(3, J)];
+                    vals = [elAreas(J), elAreas(J), elAreas(J)] / 3;
+
+                    inte{j} = sparse(rows, cols, vals, 1, nUnknowns);
+                    area(j) = sum(elAreas(J));
+                    cond(j) = regions(j).Material.sigma;
+                    r2el{j} = sparse(K, ones(1, n), ones(1, n), nElements, 1);
+                    
+                    for k = 1:3
+                        n2el{k,j} = sparse(K, els(k, J), ones(1, n), nElements, nUnknowns);
+                    end
+                end
+                
+                coupling(i).Integral        = inte;
+                coupling(i).Area            = area;
+                coupling(i).Conductivity    = cond;
+                coupling(i).Region2Element  = r2el;
+                coupling(i).Node2Element    = n2el;
+                coupling(i).ModeledFraction = assembly.ModeledFraction;
+                coupling(i).Length          = assembly.Length;
+                coupling(i).Elements        = nElements;
+                coupling(i).Unknowns        = index.Unknowns;
+            end
+            
+            this.Coupling = coupling;
+        end
+        
+        %% Post Processing Matrices
+        function this = buildPostProcessingMatrices(this)
+            mesh           = this.Mesh;
+            index          = this.Index;
+            coupling       = this.Coupling;
+            nMesh          = numel(mesh);
+            postProcessing = struct.empty(0,nMesh);
+            
+            for i = 1:nMesh
+                assembly  = mesh(i).Assembly;
+                circuits  = assembly.Circuits;
+                nCircuits = length(circuits);
+                nUnknowns = index.Local(i).Unknowns;
+                I         = speye(nUnknowns,nUnknowns);
+                
+              	postProcessing(i).Full2Reduced = this.applyPeriodicBoundaryConditions(I, i, 'ReduceRow');
+                postProcessing(i).Reduced2Full = this.applyPeriodicBoundaryConditions(I, i, 'RestoreRow');
+                
+                %% Solution to Magnetic Vector Potential
+                postProcessing(i).X2A = I(index.Local(i).A,:);
+                
+                %% Circuit contributions
+                if nCircuits > 0
+                    %% Bundle currents
+                    postProcessing(i).F2I   = circuits.F2I(coupling(i));
+                    postProcessing(i).X2I   = circuits.X2I(coupling(i));
+                    postProcessing(i).X_t2I = circuits.X_t2I(coupling(i));
+                    
+                    %% Bundle voltages
+                    postProcessing(i).F2V   = circuits.F2V(coupling(i));
+                    postProcessing(i).X2V   = circuits.X2V(coupling(i));
+                    postProcessing(i).X_t2V = circuits.X_t2V(coupling(i));
+                    
+                    %% Bundle flux linkages
+                    postProcessing(i).F2Lambda   = circuits.F2Lambda(coupling(i));
+                    postProcessing(i).X2Lambda   = circuits.X2Lambda(coupling(i));
+                    postProcessing(i).X_t2Lambda = circuits.X_t2Lambda(coupling(i));
+                    
+                    %% Electric fields
+                    postProcessing(i).F2E   = circuits.F2E(coupling(i));
+                    postProcessing(i).X2E   = circuits.X2E(coupling(i));
+                    postProcessing(i).X_t2E = circuits.X_t2E(coupling(i));
+                    
+                    %% Current density
+                    postProcessing(i).F2J   = circuits.F2J(coupling(i));
+                    postProcessing(i).X2J   = circuits.X2J(coupling(i));
+                    postProcessing(i).X_t2J = circuits.X_t2J(coupling(i));
+                else
+                    n = numel(mesh(i).ElementRegions);
+                    postProcessing(i).F2E= sparse(n, 0);
+                    postProcessing(i).F2J = sparse(n, 0);
+                    
+                    postProcessing(i).X2E = sparse(n, nUnknowns);
+                    postProcessing(i).X2J = sparse(n, nUnknowns);
+                    
+                    postProcessing(i).X_t2E = cell(1,3);
+                    postProcessing(i).X_t2J = cell(1,3);
+                    
+                    for j = 1:3
+                        postProcessing(i).X_t2E{j} = sparse(n, nUnknowns);
+                        postProcessing(i).X_t2J{j} = sparse(n, nUnknowns);
+                    end
+                end
+                
+                %% Floating regions
+                regions  = [assembly.Regions];
+                nRegions = numel(regions);
+                dynamics = [regions.Dynamics];
+                for j = 1:nRegions
+                    k = index.Local(i).Regions(j);
+                    s = coupling(i).Conductivity(j);
+                    
+                    if dynamics(j) == DynamicsTypes.Floating
+                        postProcessing(i).X2E(:,k) = -coupling(i).Region2Element{j};
+                        postProcessing(i).X2J(:,k) = -s * coupling(i).Region2Element{j};
+                    end
+                    
+                    if (dynamics(j) == DynamicsTypes.Floating) || (dynamics(j) == DynamicsTypes.Grounded)
+                        for l = 1:3
+                            postProcessing(i).X_t2E{l} = postProcessing(i).X_t2E{l} - coupling(i).Node2Element{l,j};
+                            postProcessing(i).X_t2J{l} = postProcessing(i).X_t2J{l} - s * coupling(i).Node2Element{l,j};
+                        end
+                    end
+                end
+            end
+            this.PostProcessing = postProcessing;
         end
         
         %% Boundary Matrices
@@ -232,7 +374,7 @@ classdef MatrixFactory
             end
             
             %% Get boundary radii
-            meshes    = this.Mesh_;
+            meshes    = this.Mesh;
             nMeshes   = numel(meshes);
             r         = [meshes.RadialBoundaryRadii];
             rSelf     = r((2*iMesh-1):(2*iMesh));
@@ -343,73 +485,94 @@ classdef MatrixFactory
         
         %% Stiffness Matrices
         function this = buildStiffnessMatrices(this)
-        	this.Stiffness = buildMatrices(this, this.Stiffness, 'buildReluctivityMatrices');
+            stiffness      = struct('Reluctivity', []);
+            this.Stiffness = this.buildReluctivityMatrices(stiffness);
         end
         
-      	function [structure, newFields, pbcType] = buildReluctivityMatrices(this, structure, iMesh)
-            %% New Field Definitions
-            newFields = {'Reluctivity'};
-            pbcType   = {'Both'};
+      	function structure = buildReluctivityMatrices(this, structure)
+            reluctivity = struct([]);
             
-            if isfield(structure, newFields{1})
-                reluctivity = structure.Reluctivity;
-            else
-                reluctivity = struct([]);
-            end
-            
-            %% Build Matrices
-            mesh      = this.Mesh_(iMesh);
-            regions   = mesh.Regions;
-            nRegions  = length(regions);
-            mu        = mu_o*ones(nRegions,1);
-            for iRegion = 1:nRegions
-                if regions(iRegion).Material.Linear
-                    mu(iRegion) = regions(iRegion).Material.Permeability;
+            for iMesh = numel(this.Mesh):-1:1
+                mesh      = this.Mesh(iMesh);
+                regions   = mesh.Regions;
+                nRegions  = length(regions);
+                mu        = mu_o*ones(nRegions,1);
+                for iRegion = 1:nRegions
+                    if regions(iRegion).Material.Linear
+                        mu(iRegion) = regions(iRegion).Material.Permeability;
+                    end
                 end
-            end
-            mu        = mu(mesh.ElementRegions);
-            el        = mesh.Elements.';
-           	x         = mesh.X(el);
-            y         = mesh.Y(el);
-            nUnknowns = this.Index.Local(iMesh).Unknowns;
-            dp        = this.DomainPartitions(iMesh);
-            nDomains  = dp.Domains;
-            
-            El2El = cell(1,nDomains);
-            for iDomain = 1:nDomains
-                I = dp.Domain(iDomain).Elements;
+                mu        = mu(mesh.ElementRegions,:);
+                el        = mesh.Elements.';
+                x         = mesh.X(el);
+                y         = mesh.Y(el);
+                index     = this.Index.Local(iMesh);
+                nUnknowns = index.Unknowns;
+                dp        = this.DomainPartitions(iMesh);
+                nDomains  = dp.Domains;
+
+                Kff = cell(1,nDomains);
+                for iDomain = 1:nDomains
+                    I = dp.Domain(iDomain).Elements;
+
+                    dLdX = -[y(I,2) - y(I,3), y(I,3) - y(I,1), y(I,1) - y(I,2)];
+                    dLdY = -[x(I,2) - x(I,3), x(I,3) - x(I,1), x(I,1) - x(I,2)];
+                    den  =  (2*(x(I,1).*y(I,2) - x(I,1).*y(I,3) - y(I,1).*x(I,2) + y(I,1).*x(I,3) + x(I,2).*y(I,3) - y(I,2).*x(I,3)).*mu(I));
+
+                    val = [ dLdX(:,1).*dLdX(:,1) + dLdY(:,1).*dLdY(:,1),...
+                            dLdX(:,1).*dLdX(:,2) + dLdY(:,1).*dLdY(:,2),...
+                            dLdX(:,1).*dLdX(:,3) + dLdY(:,1).*dLdY(:,3),...
+                            dLdX(:,2).*dLdX(:,1) + dLdY(:,2).*dLdY(:,1),...
+                            dLdX(:,2).*dLdX(:,2) + dLdY(:,2).*dLdY(:,2),...
+                            dLdX(:,2).*dLdX(:,3) + dLdY(:,2).*dLdY(:,3),...
+                            dLdX(:,3).*dLdX(:,1) + dLdY(:,3).*dLdY(:,1),...
+                            dLdX(:,3).*dLdX(:,2) + dLdY(:,3).*dLdY(:,2),...
+                            dLdX(:,3).*dLdX(:,3) + dLdY(:,3).*dLdY(:,3)];
+
+                    val = bsxfun(@rdivide, val, den);
+
+                    row = [ el(I,1), el(I,1), el(I,1),...
+                            el(I,2), el(I,2), el(I,2),...
+                            el(I,3), el(I,3), el(I,3)];
+
+                    col = [ el(I,1), el(I,2), el(I,3),...
+                            el(I,1), el(I,2), el(I,3),...
+                            el(I,1), el(I,2), el(I,3)];
+
+                    Kff{iDomain} = sparse(row, col, val, nUnknowns, nUnknowns);
+                end
+
+                if nDomains == 1
+                    reluctivity(iMesh).Kff = Kff{1};
+                else
+                    reluctivity(iMesh).Kff = Kff;
+                end
+
+                reluctivity(iMesh).Kfc = sparse(nUnknowns, nUnknowns);
+                reluctivity(iMesh).Kcf = sparse(nUnknowns, nUnknowns);
+                reluctivity(iMesh).Kcc = sparse(nUnknowns, nUnknowns);
+
+                %% Floating Regions
+                dynamics = [regions.Dynamics];
+                coupling = this.Coupling(iMesh);
+                index    = this.Index.Local(iMesh);
+                for i = 1:nRegions
+                    if dynamics(i) == DynamicsTypes.Floating
+                        [cols, rows, vals] = find(coupling.Integral{i});
+                        s    = coupling.Conductivity(i);
+                        vals = s * vals;
+
+                        j    = index.Regions(i);
+                        cols = j * cols;
+
+                        reluctivity(iMesh).Kfc = reluctivity(iMesh).Kfc + sparse(rows, cols, vals, nUnknowns, nUnknowns);
+
+                        reluctivity(iMesh).Kcc(j,j) = reluctivity(iMesh).Kcc(j,j) + s * coupling.Area(i);
+                    end
+                end
                 
-                dLdX = -[y(I,2) - y(I,3), y(I,3) - y(I,1), y(I,1) - y(I,2)];
-                dLdY = -[x(I,2) - x(I,3), x(I,3) - x(I,1), x(I,1) - x(I,2)];
-                den  =  (2*(x(I,1).*y(I,2) - x(I,1).*y(I,3) - y(I,1).*x(I,2) + y(I,1).*x(I,3) + x(I,2).*y(I,3) - y(I,2).*x(I,3)).*mu(I));
-
-                val = [ dLdX(:,1).*dLdX(:,1)+dLdY(:,1).*dLdY(:,1),...
-                        dLdX(:,1).*dLdX(:,2)+dLdY(:,1).*dLdY(:,2),...
-                        dLdX(:,1).*dLdX(:,3)+dLdY(:,1).*dLdY(:,3),...
-                        dLdX(:,2).*dLdX(:,1)+dLdY(:,2).*dLdY(:,1),...
-                        dLdX(:,2).*dLdX(:,2)+dLdY(:,2).*dLdY(:,2),...
-                        dLdX(:,2).*dLdX(:,3)+dLdY(:,2).*dLdY(:,3),...
-                        dLdX(:,3).*dLdX(:,1)+dLdY(:,3).*dLdY(:,1),...
-                        dLdX(:,3).*dLdX(:,2)+dLdY(:,3).*dLdY(:,2),...
-                        dLdX(:,3).*dLdX(:,3)+dLdY(:,3).*dLdY(:,3)];
-
-                val = bsxfun(@rdivide,val,den);
-
-                row = [ el(I,1),el(I,1),el(I,1),...
-                        el(I,2),el(I,2),el(I,2),...
-                        el(I,3),el(I,3),el(I,3)];
-
-                col = [ el(I,1),el(I,2),el(I,3),...
-                        el(I,1),el(I,2),el(I,3),...
-                        el(I,1),el(I,2),el(I,3)];
-
-                El2El{iDomain} = sparse(row,col,val,nUnknowns,nUnknowns);
-            end
-            
-            if nDomains == 1
-                reluctivity(iMesh).El2El = El2El{1};
-            else
-                reluctivity(iMesh).El2El = El2El;
+                %% Apply boundary conditions
+                reluctivity = applyPeriodicBoundaryConditions(this, reluctivity, iMesh, 'both');
             end
             
             %% Append to Structure
@@ -418,60 +581,82 @@ classdef MatrixFactory
         
         %% Mass Matrices
         function this = buildMassMatrices(this)
-            this.Mass = buildMatrices(this, this.Mass, 'buildConductivityMatrices');
+            mass      = struct('Conducitivity', []);
+        	this.Mass = this.buildConductivityMatrices(mass);
         end
         
-        function [structure, newFields, pbcType] = buildConductivityMatrices(this, structure, iMesh)
-            %% New Field Definitions
-          	newFields = {'Conductivity'};
-            pbcType  = {'Both'};
+        function structure = buildConductivityMatrices(this, structure)
+            conductivity = struct([]);
             
-            if isfield(structure, newFields{1})
-                conductivity = structure.Conductivity;
-            else
-                conductivity = struct([]);
-            end
-            
-            %% Build Matrices
-            mesh      = this.Mesh_(iMesh);
-            regions   = mesh.Regions;
-            materials = [regions.Material];
-            elCond    = [materials.sigma];
-            
-            isStatic  = regions.hasStaticDynamics;
-            elRegions = mesh.ElementRegions;
-            isDynamic = ismember(elRegions, find(~isStatic));
-            nUnknowns = this.Index.Local(iMesh).Unknowns;
-            dp        = this.DomainPartitions(iMesh);
-            nDomains  = dp.Domains;
-            
-            %% Make element to element coupling (through A_t)
-            El2El = cell(1,nDomains);
-            for iDomain = 1:nDomains
-                I         = isDynamic & dp.Domain(iDomain).Elements;
-                elRegions = elRegions(I);
-                el        = mesh.Elements(:,I);
-                elArea    = mesh.ElementAreas(I);
-                elCond    = elCond(elRegions);
+            for iMesh = numel(this.Mesh):-1:1
+                mesh      = this.Mesh(iMesh);
+                regions   = mesh.Regions;
+                nRegions  = numel(regions);
+                elRegions = mesh.ElementRegions;
+                dynamics  = [regions.Dynamics];
+                materials = [regions.Material];
+                elCond    = [materials.sigma];
 
-                i = [el(1,:), el(2,:), el(3,:),...
-                     el(1,:), el(2,:), el(1,:),...
-                     el(2,:), el(3,:), el(3,:)];
+                isStatic  = (dynamics == DynamicsTypes.Static);
+                isDynamic = ismember(elRegions, find(~isStatic));
 
-                j = [el(1,:), el(2,:), el(3,:),...
-                     el(2,:), el(3,:), el(3,:),...
-                     el(1,:), el(2,:), el(1,:)];
+                dp        = this.DomainPartitions(iMesh);
+                nDomains  = dp.Domains;
 
-                s = elCond .* elArea / 12;
-                s = [repmat(2*s,1,3), repmat(s,1,6)];
+                index     = this.Index.Local(iMesh);
+                nUnknowns = index.Unknowns;
 
-                El2El{iDomain} = sparse(i,j,s,nUnknowns,nUnknowns);
-            end
-            
-            if nDomains == 1
-                conductivity(iMesh).El2El = El2El{1};
-            else
-                conductivity(iMesh).El2El = El2El;
+                %% Finite Element Mass Matrix
+                Cff = cell(1,nDomains);
+                for iDomain = 1:nDomains
+                    I         = isDynamic & dp.Domain(iDomain).Elements;
+                    elRegions = elRegions(I);
+                    el        = mesh.Elements(:,I);
+                    elArea    = mesh.ElementAreas(I);
+                    elCond    = elCond(elRegions);
+
+                    i = [el(1,:), el(2,:), el(3,:),...
+                         el(1,:), el(2,:), el(1,:),...
+                         el(2,:), el(3,:), el(3,:)];
+
+                    j = [el(1,:), el(2,:), el(3,:),...
+                         el(2,:), el(3,:), el(3,:),...
+                         el(1,:), el(2,:), el(1,:)];
+
+                    s = elCond .* elArea / 12;
+                    s = [repmat(2*s,1,3), repmat(s,1,6)];
+
+                    Cff{iDomain} = sparse(i,j,s,nUnknowns,nUnknowns);
+                end
+
+                if nDomains == 1
+                    conductivity(iMesh).Cff = Cff{1};
+                else
+                    conductivity(iMesh).Cff = Cff;
+                end
+                
+                conductivity(iMesh).Cfc = sparse(nUnknowns, nUnknowns);
+                conductivity(iMesh).Ccf = sparse(nUnknowns, nUnknowns);
+                conductivity(iMesh).Ccc = sparse(nUnknowns, nUnknowns);
+
+                %% Floating Regions
+                coupling = this.Coupling(iMesh);
+                index    = this.Index.Local(iMesh);
+                for i = 1:nRegions
+                    if dynamics(i) == DynamicsTypes.Floating
+                        [rows, cols, vals] = find(coupling.Integral{i});
+
+                        vals = coupling.Conductivity(i) * vals;
+
+                        j    = index.Regions(i);
+                        rows = j * rows;
+
+                        conductivity(iMesh).Ccf = conductivity(iMesh).Ccf + sparse(rows, cols, vals, nUnknowns, nUnknowns);
+                    end
+                end
+
+                %% Apply boundary conditions
+                conductivity = applyPeriodicBoundaryConditions(this, conductivity, iMesh, 'both');
             end
             
             %% Append to Structure
@@ -542,163 +727,66 @@ classdef MatrixFactory
                 mqsInput = struct([]);
             end
             
-            warning('MotorProto:Verbose', 'Put the conductivity/length into the source/region coefficients');
-            warning('MotorProto:Verbose', 'This function might be made faster. E.g. short circuit for no sources');
-            %error('Update for new source class, multiple parallel paths, etc. Calculate total current from each parallel path as input to take into account unequal resistances due to unequal geometry discretization');
+            assembly  = this.Assemblies(iMesh);
+            circuits  = assembly.Circuits;
+            nCircuits = numel(circuits);
+            index     = this.Index.Local(iMesh);
+            nUnknowns = index.Unknowns;
+            coupling  = this.Coupling(iMesh);
             
-            %% Build Matrices
-            row = zeros(1,0);
-            col = zeros(1,0);
-            val = zeros(1,0);
-            
-            mesh       = this.Mesh_(iMesh);
-            assembly   = mesh.Assembly;
-            regions    = assembly.Regions;
-            sources    = assembly.Sources;
-            components = assembly.Components;
-            geometry   = [regions.Geometry];
-            
-            nComponents = numel(components); 
-            nRegions    = numel(regions);
-            nSources    = numel(sources);
-            nUnknowns   = this.Index.Local(iMesh).Unknowns;
-            
-            %% Create Current Density to Nodal Current Conversion Matrix
-            if nSources > 0
-                ind = 0;
-                nEntries = numel(mesh.Elements);
-                rows     = zeros(1, nEntries);
-                cols     = zeros(1, nEntries);
-                vals     = zeros(1, nEntries);
-                for i = 1:nComponents
-                    jRegion = find(components(i) == regions);
-                    if ~isempty(jRegion)
-                        iElement = (mesh.ElementRegions == jRegion);
-                        iNode    = reshape(       mesh.Elements(:,  iElement)       , 1, []);
-                        vAreas   = reshape(repmat(mesh.ElementAreas(iElement), 3, 1), 1, []) / 3;
-                        iElement = reshape(repmat(             find(iElement), 3, 1), 1, []);
-                        
-                        I        = (ind+1):(ind+numel(iNode));
-                        
-                        rows(I)  = iNode;
-                        cols(I)  = iElement;
-                        vals(I)  = vAreas;
-                        
-                        ind      = ind + numel(iNode);
-                    end
-                end
-                J2Node = sparse(rows, cols, vals, nUnknowns, length(mesh.Elements));
-            end
-
-%             %% Create Source to Current Density Conversion Matrix
-%             for i = 1:nSources
-%                 nPhases            = sources(i).Phases;
-%                 connectionMatrices = sources(i).ConnectionMatrices;
-%                 connectionPolarity = sources(i).ConnectionPolarity;
-%                 
-%                 phaseResistance    = zeros(1,nPhases);
-%                 maxEntries         = 0;
-%                 
-%                 %% Calculate Resistances
-%                 for j = 1:nPhases
-%                     [nSeries, nParallel]   = size(connectionMatrices{j});
-%                     maxEntries               = maxEntries + nSeries * nParallel * nPhases;
-%                     connectionRegions      = components(connectionMatrices{j});
-%                     connectionGeometry     = [connectionRegions.Geometry];
-%                     connectionMaterial     = [connectionRegions.Material];
-%                     connectionConductivity = [connectionMaterial.Conductivity];
-%                     connectionArea         = [connectionGeometry.area];
-%                     connectionResistance   = assembly.Length ./ (connectionConductivity .* connectionArea);
-%                     connectionResistance   = reshape(connectionResistance, nSeries, nParallel);
-%                     
-%                     seriesResistance       = sum(connectionResistance, 1);
-%                     phaseResistance(j)     = 1 ./ sum(1 ./ seriesResistance, 2);
-%                 end
-%                 parallelResistance = 1 ./ sum(1 ./ phaseResistance, 2);
-%                 
-%                 %% Calculate Matrix
-%                 if (sources(i).ConnectionType == ConnectionTypes.Wye)
-%                     rows = zeros(1, maxEntries);
-%                     cols = zeros(1, maxEntries);
-%                     vals = zeros(1, maxEntries);
-%                     
-%                     for j = 1:nPhases
-%                         ind  = 0;
-%                         [nSeries, nParallel]   = size(connectionMatrices{j});
-%                         connectionRegions      = components(connectionMatrices{j});
-%                         connectionMaterial     = [connectionRegions.Material];
-%                         connectionConductivity = [connectionMaterial.Conductivity];
-%                         
-%                         if (sources(i).Type == SourceTypes.VoltageSource) && (assembly.ConnectionType == ConnectionTypes.Wye)
-%                             %% Wye Connected Voltage Source, Wye Connected Load
-%                             for k = 1:nPhases
-%                                 I = (ind + 1):(ind + nSeries * nParallel);
-%                                 
-%                                 rows(I) = reshape(connectionMatrices{j}, 1, []);
-%                                 cols(I) = k;
-%                                 vals(I) = reshape(connectionPolarity{j}, 1, []) .* (connectionConductivity / assembly.Length / nSeries * assembly.ModeledFraction);
-%                                 if j ~= k
-%                                     vals(I) = vals(I) * (  - parallelResistance / phaseResistance(k));
-%                                 else
-%                                     vals(I) = vals(I) * (1 - parallelResistance / phaseResistance(k));
-%                                 end
-%                                 
-%                                 ind = ind + nSeries * nParallel;
-%                             end
-%                         elseif (sources(i).Type == SourceTypes.VoltageSource) && (assembly.ConnectionType == ConnectionTypes.Delta)
-%                             %% Wye Connected Voltage Source, Delta Connected Load
-%                           	I = (ind + 1):(ind + nSeries * nParallel);
-%                             
-%                             rows(I) = reshape(connectionMatrices{j}, 1, []);
-%                             cols(I) = j;
-%                             vals(I) = reshape(connectionPolarity{j}, 1, []) / phaseResistance(j);
-%                             vals(I) = vals(I) .* (connectionConductivity / assembly.Length / nSeries * assembly.ModeledFraction);
-%                             
-%                             ind = ind + nSeries * nParallel;
-%                             
-%                             I = (ind + 1):(ind + nSeries * nParallel);
-%                             
-%                             warning('MotorProto:Verbose', 'This can be generalized to allow all possible m-phase wye-delta connections');
-%                             k = mod(j + ceil(nPhases / 2) - 1, nPhases) + 1; %maximum voltage connection
-%                             
-%                             rows(I) = reshape(connectionMatrices{j}, 1, []);
-%                             cols(I) = k;
-%                             vals(I) = - reshape(connectionPolarity{j}, 1, []) / phaseResistance(j);
-%                             vals(I) = vals(I) .* (connectionConductivity / assembly.Length / nSeries * assembly.ModeledFraction);
-%                             
-%                             ind = ind + nSeries * nParallel;
-%                         else
-%                             error('MotorProto:MatrixFactory', 'No implementation for %s connected %s with a %s connected load',...
-%                                     char(sources(i).ConnectionType), char(sources(i).Type), char(assembly.ConnectionType));
-%                         end
-%                     end
-%                 elseif (sources(i).ConnectionType == ConnectionTypes.Delta)
-%                     error('No Implementation');
-%                 else
-%                     error('MotorProto:MatrixFactory','No implementation for %s connected sources',char(sources(i).ConnectionType));
-%                 end
-%                 
-%                 rows(ind+1:end) = [];
-%                 cols(ind+1:end) = [];
-%                 vals(ind+1:end) = [];
-%                 
-%                 Sr2J = sparse(rows, cols, vals, nComponents, nPhases);
-%             end
-
-            if nSources > 0
-                mqsInput(iMesh).Sr2El = J2Node * this.PostProcessing(iMesh).F2J;
+            %% External Circuit Coupling
+            if nCircuits > 0
+                mqsInput(iMesh).Ff = circuits.Ff(coupling);
+                mqsInput(iMesh).Fc = circuits.Fc(coupling);
             else
-                mqsInput(iMesh).Sr2El = sparse(nUnknowns,1);
+                mqsInput(iMesh).Ff = sparse(nUnknowns, 0);
+                mqsInput(iMesh).Fc = sparse(nUnknowns, 0);
             end
             
             %% UpdateStructure
             structure.Magnetic = mqsInput;
         end
         
+        %% Circuit Matrices
+        function this = buildCircuitMatrices(this)
+            assemblies  = this.Assemblies;
+            nAssemblies = numel(assemblies);
+            bcFuns      = this.getBCFuns;
+            coupling    = this.Coupling;
+            for i = 1:nAssemblies
+                circuit = assemblies(i).Circuits;
+                if numel(circuit) > 0
+                	circuit.build(coupling(i), bcFuns{i});
+                end
+            end
+        end
+        
         %% Boundary Conditions
         function this = applyBoundaryConditions(this)
             this = applyTangentialBoundaryConditions(this);
             this = applyRadialBoundaryConditions(this);
+        end
+        
+        function bcFuns = getBCFuns(this)
+            if this.Model.HasHalfWaveSymmetry
+                sgn = -1;
+            else
+                sgn = 1;
+            end
+            
+            nMesh  = numel(this.Mesh);
+            bcFuns = cell(1,nMesh);
+            
+            for i = 1:nMesh
+                mesh = this.Mesh(i);
+                mf   = mesh.Assembly.ModeledFraction;
+                I    = mesh.PeriodicBoundaryNodes(1, :);
+                J    = mesh.PeriodicBoundaryNodes(2, :);
+                N    = numel(mesh.X);
+                K    = setdiff(1:N, [I, J]);
+                
+                bcFuns{i} = @(mat,action)(MatrixFactory.pbcSubroutine(mat,action,I,J,K,sgn,mf));
+            end
         end
         
         function mats = applyPeriodicBoundaryConditions(this, mats, iMesh, action)
@@ -709,7 +797,7 @@ classdef MatrixFactory
                     sgn = 1;
                 end
 
-                mesh = this.Mesh_(iMesh);
+                mesh = this.Mesh(iMesh);
                 mf   = mesh.Assembly.ModeledFraction;
                 I    = mesh.PeriodicBoundaryNodes(1, :);
                 J    = mesh.PeriodicBoundaryNodes(2, :);
@@ -724,14 +812,14 @@ classdef MatrixFactory
                         if iscell(mats(iMesh).(field{iField}))
                             nCells = numel(mats(iMesh).(field{iField}));
                             for iCell = 1:nCells
-                                mats(iMesh).(field{iField}){iCell} = this.applyPeriodBoundaryConditionsSubroutine(mats(iMesh).(field{iField}){iCell},action,I,J,K,sgn,mf);
+                                mats(iMesh).(field{iField}){iCell} = this.pbcSubroutine(mats(iMesh).(field{iField}){iCell},action,I,J,K,sgn,mf);
                             end
                         else
-                            mats(iMesh).(field{iField}) = this.applyPeriodBoundaryConditionsSubroutine(mats(iMesh).(field{iField}),action,I,J,K,sgn,mf);
+                            mats(iMesh).(field{iField}) = this.pbcSubroutine(mats(iMesh).(field{iField}),action,I,J,K,sgn,mf);
                         end
                     end
                 else
-                    mats = this.applyPeriodBoundaryConditionsSubroutine(mats,action,I,J,K,sgn,mf);
+                    mats = this.pbcSubroutine(mats,action,I,J,K,sgn,mf);
                 end
             end
         end
@@ -743,7 +831,7 @@ classdef MatrixFactory
             %  perform a rotation of the x and y components of the element
             %  to node curl matrices
             
-            mesh  = this.Mesh_;
+            mesh  = this.Mesh;
             index = this.Index;
             nMesh = numel(mesh);
             for i = 1:nMesh
@@ -781,16 +869,20 @@ classdef MatrixFactory
                 for j = i:nMesh
                     index.Global(j).Unknowns = index.Global(j).Unknowns - numel(J);
                 end
+                
+             	index.Local(i).Regions  = index.Local(i).Regions  - numel(J);
+                index.Global(i).Regions = index.Global(i).Regions - numel(J);
             end
+            
             this.Index = index;
         end
         
         function this = applyRadialBoundaryConditions(this)
-            for i = 1:numel(this.Mesh_)
-                this.Stiffness.Reluctivity(i).El2El ...
-                    = this.Stiffness.Reluctivity(i).El2El ...
-                        + real(this.Boundary.Radial.S(i).Inner * this.Boundary.Radial.F(i).Inner * this.Boundary.Radial.D(i).Inner) ...
-                        + real(this.Boundary.Radial.S(i).Outer * this.Boundary.Radial.F(i).Outer * this.Boundary.Radial.D(i).Outer);
+            for i = 1:numel(this.Mesh)
+                M =   real(this.Boundary.Radial.S(i).Inner * this.Boundary.Radial.F(i).Inner * this.Boundary.Radial.D(i).Inner) ...
+                    + real(this.Boundary.Radial.S(i).Outer * this.Boundary.Radial.F(i).Outer * this.Boundary.Radial.D(i).Outer);
+                M = (M + M') / 2;
+                this.Stiffness.Reluctivity(i).Kff = this.Stiffness.Reluctivity(i).Kff + M;
             end
         end
         
@@ -801,29 +893,47 @@ classdef MatrixFactory
         
         %% Master Loop Function
       	function structure = buildMatrices(this, structure, methodName)
-            for iMesh = numel(this.Mesh_):-1:1;
+            for iMesh = numel(this.Mesh):-1:1;
                 [structure, newFields, pbcType] = this.(methodName)(structure, iMesh);
                 for iField = 1:numel(newFields)
                     structure.(newFields{iField}) = applyPeriodicBoundaryConditions(this, structure.(newFields{iField}), iMesh, pbcType{iField});
                 end
             end
         end
+    end
+    
+    methods %AuxillaryFunctions
+        function [y, y_t] = doPostProcessing(this, x, x_t)
+            %% Recover Full Solution
+            nTimes      = numel(x);
+            ppMatrices  = this.PostProcessing;
+            nAssemblies = numel(ppMatrices);
+            y           = cell(nAssemblies,nTimes);
+            y_t         = cell(nAssemblies,nTimes);
+            index       = this.Index;
+            for i = 1:nAssemblies
+                I = index.Global(i).X;
+                for j = 1:nTimes
+                    y{i,j}   = ppMatrices(i).Reduced2Full * x{j}(I);
+                    y_t{i,j} = ppMatrices(i).Reduced2Full * x_t{j}(I);
+                end
+            end
+        end
         
-        %% Auxillary Functons
-        function [t, h]    = getTimePoints(this, Nt)
+        function [t, h] = getTimePoints(this, Nt)
             warning('MotorProto:Verbose', 'Present implementation assumes synchronous operation');
-            [t,h] = this.Assemblies_.getTimePoints(Nt);
+            [t,h] = this.Assemblies.getTimePoints(Nt);
         end
         
         function harmonics = getRadialBoundaryHarmonics(this, iMesh)
            	%% Determine the number of boundaries and edges
-            edges       = [this.Mesh_.RadialBoundaryEdges];
+            edges       = [this.Mesh.RadialBoundaryEdges];
             nBoundaries = numel(edges);
             nEdges      = cellfun('prodofsize',edges) / 2;
             
             %% Determine the range and spacing of spatial harmonics to include in the Fourier expansion
-            nMin = this.Model_.SpatialSymmetries;
-            if this.Model_.HasHalfWaveSymmetry
+            nMin = this.Model.SpatialSymmetries;
+            if this.Model.HasHalfWaveSymmetry
                 hasHalfWaveSymmetry = true;
                 dn = 2 * nMin;
             else
@@ -891,8 +1001,8 @@ classdef MatrixFactory
         end
     end
     
-    methods (Static)        
-        function mats = applyPeriodBoundaryConditionsSubroutine(mats,action,I,J,K,sgn,mf)
+    methods (Static) %Apply Boundary Conditions
+        function mats = pbcSubroutine(mats,action,I,J,K,sgn,mf)
             switch lower(action)
                 case {'row', 'rows'}
                     mats(I,:) = mats(I,:) + sgn * mats(J,:);
@@ -925,8 +1035,7 @@ classdef MatrixFactory
         end
     end
     
-    methods (Abstract)
-     	%% Matrix and Vector Functions
+    methods (Abstract) %Matrix and Vector Functions
         linearMatrix       = K(this,t,h)
         
         conductivityMatrix = C(this,t,h)
@@ -935,8 +1044,8 @@ classdef MatrixFactory
         
         [nonlinearJacobian, nonlinearFunction] = G(this,t,x)
     end
-    
-    methods%% Post Processing
+
+    methods %Post Processing
        	%% Field Variables
         function [x, x_t, labels, text, nTimes] = continuumVariablePreProcessing(~, solver, dataType, dataPoints)
          	times = solver.Times;
@@ -998,7 +1107,7 @@ classdef MatrixFactory
             ppMatrices  = this.PostProcessing;
             nAssemblies = numel(ppMatrices);
             e           = cell(nAssemblies,nTimes);
-            assembly    = this.Assemblies_;
+            assembly    = this.Assemblies;
             
             nRows       = zeros(nAssemblies,1);
           	nVertPerEl  = numel(ppMatrices(1).X_t2E);
@@ -1007,9 +1116,9 @@ classdef MatrixFactory
                 for j = 1:nTimes
                     e{i,j} = ppMatrices(i).X2E * x{i,j};
 
-                    sources = assembly(i).Sources;
-                    if numel(sources) > 0
-                        e{i,j} = e{i,j} + ppMatrices(i).F2E * sources.f(t(j));
+                    circuits = assembly(i).Circuits;
+                    if numel(circuits) > 0
+                        e{i,j} = e{i,j} + ppMatrices(i).F2E * circuits.f(t(j));
                     end
 
                     e{i,j}     = repmat(e{i,j},1,nVertPerEl);
@@ -1043,7 +1152,7 @@ classdef MatrixFactory
             ppMatrices  = this.PostProcessing;
             nAssemblies = numel(ppMatrices);
             j           = cell(nAssemblies,nTimes);
-            assembly    = this.Assemblies_;
+            assembly    = this.Assemblies;
             nRows       = zeros(nAssemblies,1);
             nVertPerEl  = numel(ppMatrices(1).X_t2J);
             
@@ -1051,9 +1160,9 @@ classdef MatrixFactory
                 for k = 1:nTimes
                     j{i,k} = ppMatrices(i).X2J * x{i,k};
 
-                    sources = assembly(i).Sources;
-                    if numel(sources) > 0
-                        j{i,k} = j{i,k} + ppMatrices(i).F2J * sources.f(t(k));
+                    circuits = assembly(i).Circuits;
+                    if numel(circuits) > 0
+                        j{i,k} = j{i,k} + ppMatrices(i).F2J * circuits.f(t(k));
                     end
 
                     j{i,k} = repmat(j{i,k},1,nVertPerEl);
@@ -1129,8 +1238,8 @@ classdef MatrixFactory
             my          = cell(nAssemblies,nTimes);
             
             del         = this.Del;
-            assembly    = this.Assemblies_;
-            mesh        = this.Mesh_;
+            assembly    = this.Assemblies;
+            mesh        = this.Mesh;
             nRows       = zeros(nAssemblies,1);
             
             for i = 1:nAssemblies
@@ -1205,13 +1314,13 @@ classdef MatrixFactory
             pHarmonics = CoreLossDensity(this, solver);
             text       = '(P_{core} = %0.3g W)';
             
-            mesh   = this.Mesh_;
+            mesh   = this.Mesh;
             nMesh  = numel(mesh);
             l      = cell(nMesh,1);
             labels = zeros(1,nMesh);
             for i = 1:nMesh
                 l{i}      = sum([pHarmonics{i,:}],2);
-                labels(i) = mesh(i).ElementAreas * l{i} * this.Model_.Assemblies(i).Length / this.Model_.Assemblies(i).ModeledFraction;
+                labels(i) = mesh(i).ElementAreas * l{i} * this.Model.Assemblies(i).Length / this.Model.Assemblies(i).ModeledFraction;
             end
         end
                 
@@ -1250,14 +1359,14 @@ classdef MatrixFactory
             h          = 0:(nHarmonics - 1);
             
             [b, text, labels] = this.B(solver, 'Harmonic', h);
-            f_e = this.Model_.TemporalFrequency / this.Model_.TemporalSubharmonics;
+            f_e = this.Model.TemporalFrequency / this.Model.TemporalSubharmonics;
             
             assert( all(f_e - mean(f_e) < sqrt(eps) * mean(f_e)) || all(f_e == 0), 'MotorProto:StaticMatrixFactory', 'All electrical frequencies should be identical');
             
             f_e = mean(f_e);
             f   = f_e * h;
             
-            mesh   = this.Mesh_;
+            mesh   = this.Mesh;
             nMesh  = numel(mesh);
             l      = cellfun(@(x)(x*0),b,'UniformOutput',false);
             for i = 1:nMesh
@@ -1280,7 +1389,7 @@ classdef MatrixFactory
         end
         
         %% Bulk Power Variables
-        function [p, figLabels, figTitles]   = AverageLosses(this, solver, dataType)
+        function [p, figLabels, figTitles] = AverageLosses(this, solver, dataType)
             if nargin < 3
                 dataType = [];
             end
@@ -1294,15 +1403,15 @@ classdef MatrixFactory
             figTitles = {''};
         end
 
-        function [l, figLabels, figTitles]   = AverageCoreLosses(this, solver, dataType)            
+        function [l, figLabels, figTitles] = AverageCoreLosses(this, solver, dataType)            
             switch lower(dataType)
                 case {'default','time'}
                     pHarmonics = CoreLossDensity(this, solver);
-                    mesh   = this.Mesh_;
+                    mesh   = this.Mesh;
                     nMesh  = numel(mesh);
                     l      = zeros(1,nMesh);
                     for i = 1:nMesh
-                        l(i) = mesh(i).ElementAreas * sum([pHarmonics{i,:}],2) * this.Model_.Assemblies(i).Length / this.Model_.Assemblies(i).ModeledFraction;
+                        l(i) = mesh(i).ElementAreas * sum([pHarmonics{i,:}],2) * this.Model.Assemblies(i).Length / this.Model.Assemblies(i).ModeledFraction;
                     end
             
                     l         = {l};
@@ -1313,13 +1422,13 @@ classdef MatrixFactory
             end
         end
         
-     	function [l, figLabels, figTitles]   = InstantaneousConductionLosses(this, solver, dataType)
+     	function [l, figLabels, figTitles] = InstantaneousConductionLosses(this, solver, dataType)
             x           = solver.X;
             x_t         = solver.X_t;
             t           = solver.Times;
             Nt          = numel(t);
-            mesh        = this.Mesh_;
-            assembly    = this.Assemblies_;
+            mesh        = this.Mesh;
+            assembly    = this.Assemblies;
             nAssemblies = numel(assembly);
             l           = zeros(nAssemblies,numel(t));
             ppMatrix    = this.PostProcessing;
@@ -1380,7 +1489,7 @@ classdef MatrixFactory
                     end
                 end
                 
-                l(p,:) = l(p,:) * this.Model_.Assemblies(p).Length / this.Model_.Assemblies(p).ModeledFraction;
+                l(p,:) = l(p,:) * this.Model.Assemblies(p).Length / this.Model.Assemblies(p).ModeledFraction;
             end
             
             if strcmpi(dataType,'harmonic')
@@ -1392,7 +1501,7 @@ classdef MatrixFactory
             figTitles = {''};
         end
         
-        function [l, figLabels, figTitles]   = AverageConductionLosses(this, solver, dataType)
+        function [l, figLabels, figTitles] = AverageConductionLosses(this, solver, dataType)
             switch lower(dataType)
                 case {'default','time'}
                     [l, figLabels, figTitles] = InstantaneousConductionLosses(this, solver, 'Time');
@@ -1414,8 +1523,8 @@ classdef MatrixFactory
                     x_t      = fft(full(x_t(:,1:(Nt-1))),[],2) / (Nt - 1);
                     x_t      = mat2cell(x_t,nRows,ones(1,Nt-1));
                     
-                    mesh     = this.Mesh_;
-                    assembly = this.Assemblies_;
+                    mesh     = this.Mesh;
+                    assembly = this.Assemblies;
                     l        = zeros(1,numel(t));
                     ppMatrix = this.PostProcessing;
 
@@ -1475,7 +1584,7 @@ classdef MatrixFactory
                                     l(k) = l(k) + c*j1(:,j)'*(ela.*e1(:,i));
                                 end
                             end
-                        	l(k) = l(k) * this.Model_.Assemblies(1).Length / this.Model_.SpaceModelFraction;
+                        	l(k) = l(k) * this.Model.Assemblies(1).Length / this.Model.SpaceModelFraction;
                         end
                     end
                  	l         = {l};
@@ -1485,88 +1594,61 @@ classdef MatrixFactory
         end
         
         function [tau, figLabels, figTitles] = Torque(this, solver, dataType)
-        	warning('MotorProto:Verbose', 'Generalize length calculation');
-            warning('MotorProto:Verbose', 'Generalize torque calculation to multiple annulii');
+            x   = solver.X;
+            t   = solver.Times;
+            ppm = this.PostProcessing;
             
-            x    = solver.X;
-            t    = solver.Times;
-            ppm  = this.PostProcessing;
+            R = this.Boundary.Radial.R;
+            D = this.Boundary.Radial.D;
+            F = this.Boundary.Radial.F;
+            G = this.Boundary.Radial.G;
             
-            R    = this.Boundary.Radial.R;
-            D    = this.Boundary.Radial.D;
-            F    = this.Boundary.Radial.F;
-            G    = this.Boundary.Radial.G;
-            
-            tau  = zeros(2,length(t));
-            nh   = this.getRadialBoundaryHarmonics(2);
-            nh   = nh{1}.';
-            r    = this.Assemblies_(2).InnerRadius;
-            l    = this.Assemblies_(2).Length;
-            Nt   = length(t);
+            assemblies  = this.Assemblies;
+            nAssemblies = numel(assemblies);
+            tau         = cell(1,nAssemblies);
                 
-            if iscell(D(1).Outer)
-                [xRe, xIm] = dscfft(cell2mat(x(1,1:(end-1))),[],2);
-                xRe = ppm(1).Full2Reduced * xRe;
-                xIm = ppm(1).Full2Reduced * xIm;
-                hRe = cell(1,(Nt - 1) / 2);
-                hIm = cell(1,(Nt - 1) / 2);
-                for i = 1:((Nt - 1) / 2)
-                    j      = mod(i-1,numel(D(1).Outer)) + 1;
-                    hRe{i} = D(1).Outer{j}{1,1} * xRe(:,i) + D(1).Outer{j}{1,2} * xIm(:,i);
-                    hIm{i} = D(1).Outer{j}{2,1} * xRe(:,i) + D(1).Outer{j}{2,2} * xIm(:,i);
-                end
-                hRe     = cell2mat(hRe);
-                hIm     = cell2mat(hIm);
-                htOuter = [hRe + 1i*hIm, hIm(:,1), fliplr(hRe(:,2:end) - 1i*hIm(:,2:end))];
-                htOuter = ifft(htOuter, [], 2) * (Nt-1);
+            for j = 1:nAssemblies
+                nh = this.getRadialBoundaryHarmonics(j);
+                ri = assemblies(j).InnerRadius;
+                ro = assemblies(j).OuterRadius;
+                l  = assemblies(j).Length;
+                Nt = length(t);
+                tau{j} = zeros(2,Nt);
                 
-                [xRe, xIm] = dscfft(cell2mat(x(2,1:(end-1))),[],2);
-                xRe = ppm(2).Full2Reduced * xRe;
-                xIm = ppm(2).Full2Reduced * xIm;
-                hRe = cell(1,(Nt - 1) / 2);
-                hIm = cell(1,(Nt - 1) / 2);
-                for i = 1:((Nt - 1) / 2)
-                    j      = mod(i-1,numel(D(2).Inner)) + 1;
-                    hRe{i} = D(2).Inner{j}{1,1} * xRe(:,i) + D(2).Inner{j}{1,2} * xIm(:,i);
-                    hIm{i} = D(2).Inner{j}{2,1} * xRe(:,i) + D(2).Inner{j}{2,2} * xIm(:,i);
+                for i = 1:Nt
+                    ht = (F(j).Inner * D(j).Inner * ppm(j).Full2Reduced * x{j,i});
+                    if j > 1
+                        ht = exp(1i * (R(j).Inner - R(j-1).Outer) * t(i)) .* (G(j-1).Outer * D(j-1).Outer * ppm(j-1).Full2Reduced * x{j-1,i});
+                    end
+                    br = 1i * nh{1}.' .* (D(j).Inner * ppm(j).Full2Reduced *  x{j,i}) / ri;
+                    tau{j}(1,i) = 2*pi*l*ri^2*real(sum(conj(ht).*br));
+                    
+                    ht = (F(j).Outer * D(j).Outer * ppm(j).Full2Reduced * x{j,i});
+                    if j < nAssemblies
+                        ht = exp(1i * (R(j).Outer - R(j+1).Inner) * t(i)) .* (G(j+1).Inner * D(j+1).Inner * ppm(j+1).Full2Reduced * x{j+1,i});
+                    end
+                    br = 1i * nh{2}.' .* (D(j).Outer * ppm(j).Full2Reduced * x{j,i}) / ro;
+                    tau{j}(2,i) = 2*pi*l*ro^2*real(sum(conj(ht).*br));
                 end
-                hRe     = cell2mat(hRe);
-                hIm     = cell2mat(hIm);
-                htInner = [hRe + 1i*hIm, hIm(:,1), fliplr(hRe(:,2:end) - 1i*hIm(:,2:end))];
-                htInner = ifft(htInner, [], 2) * (Nt-1);
-                
-                for i = 1:(Nt-1)
-                    ht = exp(1i * (R(2).Inner - R(1).Outer) * t(i)) .* (G(1).Outer * htOuter(:,i)) + (F(2).Inner * htInner(:,i));
-
-                    br = 1i * nh .* htInner(:,i) / r;
-
-                    tau(1,i) = 2*pi*l*r^2*real(sum(conj(ht).*br));
-                    tau(2,i) = tau(1,i);
-                end
-                tau(:,end) = tau(:,1);
-            else
-                for i = 1:Nt;
-                    ht =   exp(1i * (R(2).Inner - R(1).Outer) * t(i)).* ...
-                                (G(1).Outer * D(1).Outer * ppm(1).Full2Reduced * x{1,i})...
-                         + (F(2).Inner * D(2).Inner * ppm(2).Full2Reduced * x{2,i});
-
-                    br = 1i * nh .* (D(2).Inner * ppm(2).Full2Reduced *  x{2,i}) / r;
-
-                    tau(1,i) = 2*pi*l*r^2*real(sum(conj(ht).*br));
-                    tau(2,i) = tau(1,i);
-                end
+                tau{j} = tau{j}(2,:)-tau{j}(1,:);
             end
-            tau = mean(tau);
+            
             if strcmpi(dataType,'harmonic')
-                tau = fft(tau(1:(Nt-1)),[],2) / (Nt - 1);
+                for j = 1:nAssemblies
+                    tau{j} = fft(tau{j}(1:(Nt-1)),[],2) / (Nt - 1);
+                end
             end
-            tau       = {tau};
-            figLabels = {''};
-            figTitles = {''};
+            
+            figLabels = cell(1,nAssemblies);
+            figTitles = cell(1,nAssemblies);
+            for i = 1:nAssemblies
+                figLabels{i} = '';
+                figTitles{i} = assemblies(i).Name;
+            end
         end
         
         function [tau, figLabels, figTitles] = AverageTorque(this, solver, dataType)
-        	warning('MotorProto:Verbose', 'Generalize this calculation');
+        	% #TODO - Generalize for multiple annuli
             switch lower(dataType)
                 case {'default','time'}
                     [tau, figLabels, figTitles] = Torque(this, solver, 'Time');
@@ -1577,17 +1659,17 @@ classdef MatrixFactory
         end
         
         function [pow, figLabels, figTitles] = AverageOutputPower(this, solver, dataType)
-        	warning('MotorProto:Verbose', 'Generalize this calculation');
+        	% #TODO - Generalize for multiple annuli
             switch lower(dataType)
                 case {'default','time'}
                     [tau, figLabels, figTitles] = AverageTorque(this, solver, 'Time');
-                    pow                         = {tau{1} * this.Assemblies_(1).AngularVelocity};
+                    pow                         = {tau{1} * this.Assemblies(1).AngularVelocity};
                 case 'harmonic'
             end
         end
         
         function [eff, figLabels, figTitles] = Efficiency(this, solver, dataType)
-        	warning('MotorProto:Verbose', 'Generalize this calculation');
+        	% #TODO - Generalize for multiple annuli
             if nargin < 3
                 dataType = [];
             end
@@ -1601,12 +1683,12 @@ classdef MatrixFactory
         end
         
         %% Other Bulk Variables
-        function [v, figLabels, figTitles]      = Voltage(this, solver, dataType)
+        function [v, figLabels, figTitles] = Voltage(this, solver, dataType)
             x           = solver.X;
             x_t         = solver.X_t;
             t           = solver.Times;
             Nt          = numel(t);
-            assembly    = this.Assemblies_;
+            assembly    = this.Assemblies;
             nAssemblies = numel(assembly);
             v           = cell(nAssemblies, 1);
             figLabels   = cell(nAssemblies, 1);
@@ -1615,43 +1697,20 @@ classdef MatrixFactory
             ppMatrices  = this.PostProcessing;
             
             for i = 1:nAssemblies                
-                source     = assembly(i).Sources;
-                hasSource  = (numel(source) > 0);
                 circuit    = assembly(i).Circuits;
                 hasCircuit = (numel(circuit) > 0);
-                if hasSource
-                    figTitles{i} = [source.Name ' Phase'];
-                    
-                    nPhases      = source.Phases;
-                    figLabels{i} = cell(1,nPhases);
-                    for j = 1:nPhases
-                        figLabels{i}{j} = ['Phase ' char(num2str('A')+j-1)];
-                    end
+                if hasCircuit
+                    figTitles{i} = circuit.getTitle('voltage');
+                    figLabels{i} = circuit.getLabels('voltage');
                     
                     v{i} = ppMatrices(i).X2V * x{i,1};
                     v{i} = v{i} + ppMatrices(i).X_t2V * x_t{i,1};
-                	v{i} = v{i} + ppMatrices(i).F2V * source.f(t(1));
+                	v{i} = v{i} + ppMatrices(i).F2V * circuit.f(t(1));
                     v{i} = repmat(v{i},1,Nt);
                     for j = 2:Nt
                         v{i}(:,j) = ppMatrices(i).X2V * x{i,j};
-                        v{i}(:,j) = v{i}(:,j) + ppMatrices(i).X_t2V * x_t{i,j}; 
-                      	v{i}(:,j) = v{i}(:,j) + ppMatrices(i).F2V * source.f(t(j));
-                    end
-                
-                    if strcmpi(dataType,'harmonic')
-                        v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
-                    end
-                    v{i}         = num2cell(v{i},2);
-                elseif hasCircuit
-                    figTitles{i} = [circuit.Name];
-                    figLabels{i} = circuit.TerminalNames;
-                    
-                    v{i} = ppMatrices(i).X2V * x{i,1};
-                    v{i} = v{i} + ppMatrices(i).X_t2V * x_t{i,1};
-                    v{i} = repmat(v{i},1,Nt);
-                    for j = 2:Nt
-                        v{i}(:,j) = ppMatrices(i).X2V * x{i,j};
-                        v{i}(:,j) = v{i}(:,j) + ppMatrices(i).X_t2V * x_t{i,j}; 
+                        v{i}(:,j) = v{i}(:,j) + ppMatrices(i).X_t2V * x_t{i,j};
+                      	v{i}(:,j) = v{i}(:,j) + ppMatrices(i).F2V * circuit.f(t(j));
                     end
                 
                     if strcmpi(dataType,'harmonic')
@@ -1671,7 +1730,7 @@ classdef MatrixFactory
             x           = solver.X;
             t           = solver.Times;
             Nt          = numel(t);
-            assembly    = this.Assemblies_;
+            assembly    = this.Assemblies;
             nAssemblies = numel(assembly);
             lambda      = cell(nAssemblies, 1);
             figLabels   = cell(nAssemblies, 1);
@@ -1680,37 +1739,11 @@ classdef MatrixFactory
             ppMatrices  = this.PostProcessing;
             
             for i = 1:nAssemblies                
-                source    = assembly(i).Sources;
-                hasSource = (numel(source) > 0);
                 circuit   = assembly(i).Circuits;
                 hasCircuit = (numel(circuit) > 0);
-                if hasSource
-                    figTitles{i} = [source.Name];
-                    
-                    nPhases      = source.Phases;
-                    figLabels{i} = cell(1,nPhases);
-                    for j = 1:nPhases
-                        figLabels{i}{j} = ['Phase ' char(num2str('A')+j-1)];
-                    end
-                    
-                    lambda{i} = ppMatrices(i).X2Lambda * x{i,1};
-                    lambda{i} = repmat(lambda{i},1,Nt);
-                    for j = 2:Nt
-                        lambda{i}(:,j) = ppMatrices(i).X2Lambda * x{i,j};
-                    end
-                
-                    if strcmpi(dataType,'harmonic')
-                        lambda{i} = fft(lambda{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
-                    end
-                    lambda{i} = num2cell(lambda{i},2);
-                elseif hasCircuit
-                    figTitles{i}  = [circuit.Name];
-                    terminalNames = circuit.TerminalNames;
-                    nTerminals    = numel(terminalNames);
-                    figLabels{i}  = cell(1,nTerminals);
-                    for j = 1:nTerminals
-                        figLabels{i}{j} = terminalNames{j};
-                    end
+                if hasCircuit
+                    figTitles{i} = circuit.getTitle('flux linkage');
+                    figLabels{i} = circuit.getLabels('flux linkage');
                     
                     lambda{i} = ppMatrices(i).X2Lambda * x{i,1};
                     lambda{i} = repmat(lambda{i},1,Nt);
@@ -1731,12 +1764,12 @@ classdef MatrixFactory
             figTitles(remove) = [];
         end
         
-        function [i, figLabels, figTitles]      = Current(this, solver, dataType)
+        function [i, figLabels, figTitles] = Current(this, solver, dataType)
             x           = solver.X;
             x_t         = solver.X_t;
             t           = solver.Times;
             Nt          = numel(t);
-            assembly    = this.Assemblies_;
+            assembly    = this.Assemblies;
             nAssemblies = numel(assembly);
             i           = cell(nAssemblies, 1);
             figLabels   = cell(nAssemblies, 1);
@@ -1745,51 +1778,24 @@ classdef MatrixFactory
             ppMatrices  = this.PostProcessing;
             
             for j = 1:nAssemblies
-                source    = assembly(j).Sources;
                 circuit   = assembly(j).Circuits;
-                hasSource = (numel(source) > 0);
                 hasCircuit = (numel(circuit) > 0);
-                if hasSource
-                    figTitles{j} = [source.Name ' Phase'];
-                    
-                    nPhases      = source.Phases;
-                    figLabels{j} = cell(1,nPhases);
-                    for k = 1:nPhases
-                        figLabels{j}{k} = ['Phase ' char(num2str('A')+k-1)];
-                    end
+
+                if hasCircuit
+                    figTitles{j} = circuit.getTitle('current');
+                    figLabels{j} = circuit.getLabels('current');
                     
                     i{j} = ppMatrices(j).X2I * x{j,1};
                     i{j} = i{j} + ppMatrices(j).X_t2I * x_t{j,1};
-                    i{j} = i{j} + ppMatrices(j).F2I * source.f(t(1));
+                    i{j} = i{j} + ppMatrices(j).F2I * circuit.f(t(1));
                     i{j} = repmat(i{j},1,Nt);
                     for k = 2:Nt
                         i{j}(:,k) = ppMatrices(j).X2I * x{j,k};
                         i{j}(:,k) = i{j}(:,k) + ppMatrices(j).X_t2I * x_t{j,k};
-                        i{j}(:,k) = i{j}(:,k) + ppMatrices(j).F2I * source.f(t(k));
+                        i{j}(:,k) = i{j}(:,k) + ppMatrices(j).F2I * circuit.f(t(k));
                     end
                     
-                    if strcmpi(dataType,'harmonic')
-                        i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
-                    end
-                    i{j} = num2cell(i{j},2);
-                elseif hasCircuit
-                    figTitles{j}  = [circuit.Name];
-                    terminalNames = circuit.TerminalNames;
-                    nTerminals    = numel(terminalNames);
-                    figLabels{j}  = cell(1,nTerminals);
-                    for k = 1:nTerminals
-                        figLabels{j}{k} = terminalNames{k};
-                    end
-                    
-                    i{j} = ppMatrices(j).X2I * x{j,1};
-                    i{j} = i{j} + ppMatrices(j).X_t2I * x_t{j,1};
-                    i{j} = repmat(i{j},1,Nt);
-                    for k = 2:Nt
-                        i{j}(:,k) = ppMatrices(j).X2I * x{j,k};
-                        i{j}(:,k) = i{j}(:,k) + ppMatrices(j).X_t2I * x_t{j,k};
-                    end
-                    
-                    if strcmpi(dataType,'harmonic')
+                    if strcmpi(dataType, 'harmonic')
                         i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
                     end
                     i{j} = num2cell(i{j},2);
@@ -1803,12 +1809,12 @@ classdef MatrixFactory
         end
     end
     
- 	methods (Sealed)
+ 	methods (Sealed) %Copy
         function copyOut = copy(this)
             nThis   = numel(this);
             copyOut = this;
             for i = 1:nThis
-                copyOut(i).Model_ = copy(this.Model_);
+                copyOut(i).Model = copy(this.Model);
             end
         end
     end

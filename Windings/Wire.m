@@ -11,9 +11,6 @@ classdef Wire < handle & matlab.mixin.Heterogeneous
     %
     % See also MotorProto, Model, Assembly, Stator, Slot
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%ConductorMaterial - Material for the wire's conductor
@@ -27,18 +24,18 @@ properties:
     InsulatorMaterial;
 %}
     properties
-        ConductorMaterial = CopperExampleMaterial;
+        ConductorMaterial = Copper;
         InsulatorMaterial = Air;
     end
     
     methods
         %% Setters
-        function this = set.ConductorMaterial(this, value)
+        function set.ConductorMaterial(this, value)
             assert(isa(value, 'MaterialProperty'), 'MotorProto:Wire', 'ConductorMaterial must be a MaterialProperty object');
             this.ConductorMaterial = value;
         end
         
-        function this = set.InsulatorMaterial(this, value)
+        function set.InsulatorMaterial(this, value)
             assert(isa(value, 'MaterialProperty'), 'MotorProto:Wire', 'InsulationMaterial must be a MaterialProperty object');
             this.InsulatorMaterial = value;
         end

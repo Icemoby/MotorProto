@@ -24,10 +24,14 @@ classdef RotatingMachineModel < Model
     end
     
     methods
-        %% Getters
+        %% Getters #TODO - Check these methods for correctness in unconventional models
         function value = get.SpatialSymmetries(this)
             assembly = this.Assemblies;
-            value    = min([assembly.SpatialSymmetries]);
+            ss = [assembly.SpatialSymmetries];
+            value = ss(1);
+            for i = 2:numel(ss)
+                value = gcd(value,ss(i));
+            end
         end
         
         function value = get.SpatialFrequency(this)
@@ -71,7 +75,7 @@ classdef RotatingMachineModel < Model
         end
         
         %% Build
-        function this = build(this, ~)
+        function this = build(this, fp)
             % build - Populates the object's Assemblies property based on the current configuration
             % build(M) Constructs the geometry, mesh, and source information of
             % the model based on the current configuration of the objects in the
@@ -125,18 +129,18 @@ classdef RotatingMachineModel < Model
             %
             % See also MotorProto, RotatingMachineModel
             
-            assemblies  = this.Assemblies;
-          	nAssemblies = numel(assemblies);
-            fraction    = 1 / this.SpatialSymmetries;
-            if this.HasHalfWaveSymmetry
-                fraction = fraction / 2;
-            end
-            for i = 1:nAssemblies
-                assemblies(i).build(fraction);
+            if nargin == 1
+                fp = 1 / this.SpatialSymmetries;
+                if this.HasHalfWaveSymmetry
+                    fp = fp / 2;
+                end
             end
             
-            warning('MotorProto:Verbose', 'Separate out this call');
-            build(this.Mesh);
+            assemblies  = this.Assemblies;
+          	nAssemblies = numel(assemblies);
+            for i = 1:nAssemblies
+                assemblies(i).build(fp);
+            end
         end
     end    
 

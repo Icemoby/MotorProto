@@ -1,4 +1,4 @@
-classdef Source < Component
+classdef Source < Circuit
     properties
         ElectricalFrequency = 60;      
         HarmonicNumbers     = 1;
@@ -6,9 +6,10 @@ classdef Source < Component
         HarmonicPhases      = 0;
         Phases              = 3;
         
-        ConnectionType      = ConnectionTypes.Wye;
-        ConnectionMatrices  = {};
-        ConnectionPolarity  = {};
+        ConnectionType = ConnectionTypes.Wye;
+        
+    	Rs = eps;
+        Ls = eps;
     end
     
     properties (Abstract, Constant)
@@ -25,11 +26,16 @@ classdef Source < Component
                     this.ElectricalFrequency = inputObject.ElectricalFrequency;
                     this.HarmonicAmplitudes  = inputObject.HarmonicAmplitudes;
                     this.HarmonicPhases      = inputObject.HarmonicPhases;
-                    this.ExternalResistance  = inputObject.ExternalResistance;
                     this.Phases              = inputObject.Phases;
                     this.ConnectionType      = inputObject.ConnectionType;
-                    this.ConnectionMatrices  = inputObject.ConnectionMatrices;
-                    this.ConnectionPolarity  = inputObject.ConnectionPolarity;
+                    this.CouplingType        = inputObject.CouplingType;
+                    this.PathSets            = inputObject.PathSets;
+                    this.PathPolarity        = inputObject.PathPolarity;
+                    this.RegionSets          = inputObject.RegionSets;
+                    this.RegionPolarity      = inputObject.RegionPolarity;
+                    this.StrandSets          = inputObject.StrandSets;
+                    this.TurnSets            = inputObject.TurnSets;
+                    this.TurnPolarity        = inputObject.TurnPolarity;
                     for i = 2:2:(nargin-1)
                         this.(varargin{i}) = varargin{i+1};
                     end
@@ -42,7 +48,7 @@ classdef Source < Component
             end
         end
         
-        %% Setters        
+        %% Setters
         function this = set.ConnectionType(this, value)
             if ischar(value)
                 this.ConnectionType = ConnectionTypes.(value);
@@ -54,15 +60,18 @@ classdef Source < Component
     
     methods (Sealed)        
         function waveform = f(this, t, h)
+            % #FIXME
             m        = this.Phases;
             waveform = zeros(m, numel(t));
             
             if nargin == 2
                 n = this.HarmonicNumbers;
-                J = true(size(n));
+                J = 1:size(n,2);
             else
-                J = ismember(this.HarmonicNumbers, h);
-                n = this.HarmonicNumbers(J);
+%                 J = ismember(this.HarmonicNumbers, h);
+%                 n = this.HarmonicNumbers(:,J);
+                n = this.HarmonicNumbers;
+                J = 1:size(n,2);
             end
             
             w = 2 * pi * this.ElectricalFrequency;
@@ -75,9 +84,13 @@ classdef Source < Component
                 for i = 1:m
                     waveform(i,:) = A * cos(w * n' * t + (p' - n' * s(i)) * I);
                 end
+            elseif numel(p) > numel(J)
+                for i = 1:m
+                	waveform(i,:) = A(i,:) * cos((w * n(i,:)') * t + p(i,:)');
+                end
             else
                 for i = 1:m
-                    waveform(i,:) = A(i,:) * cos(w * n' * t + (p(i,:)' - n' * s(i)) * I);
+                    waveform(i,:) = A * cos(w * n' * t + (p' - n' * s(i)) * I);
                 end
             end
         end

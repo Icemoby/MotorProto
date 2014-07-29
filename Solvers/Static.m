@@ -7,13 +7,13 @@ classdef Static < Solver
     % Static properties:
     %   NewtonTolerance     - Sets the relative residual tolerance
     %   MaxNewtonIterations - Sets the maximum number of iterations
-    %
+    %   TimeInterval        - Optionally specifies a time window over which to perform analysis
+    
     % Static inherits properties and methods Solver.
     %
     % See also MotorProto, Solver, 
     
     %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
     
 %{
 properties:
@@ -35,6 +35,7 @@ properties:
     properties
         NewtonTolerance     = sqrt(eps);
         MaxNewtonIterations = 100;
+        TimeInterval        = [];
     end
     
     methods
@@ -47,10 +48,8 @@ properties:
         end
         
         function solution = solve(this, model, x0)
-            %See also Solver/solve
-
             %% Configure matrices
-            matrixFactory = StaticMatrixFactory(model);
+            matrixFactory = DynamicMatrixFactory(model);
             this.Matrices = matrixFactory;
             
             %% Configure algorithm
@@ -59,10 +58,10 @@ properties:
             verbose = this.Verbose;
             
             %% Get times points
-            t = model.getTimePoints(this.TimePoints);
-            
-            if this.TimePoints == 1
-                t = t(1);
+            if isempty(this.TimeInterval)
+                t = model.getTimePoints(this.TimePoints);
+            else
+                t = linspace(this.TimeInterval(1),this.TimeInterval(2),this.TimePoints);
             end
 
             this.Times = t;
@@ -102,39 +101,12 @@ properties:
                     r = K * x{i} + g - f;
                     J = K + G;
                     
-                   	if i == 1 && nIter == 1
-                        [~,~,p,S] = ldl(J, 'vector');
-                        [~, q]    = sort(p);
-                        spparms('autoamd', 1);
-                    end
-                    
-                    %Explicit symmetrization ensures MA57 is called for ldl decomposition
-                    %SYMAMD preording is precalculated since all matrices have
-                    %the same structure. spparms('autoamd',0) turns of this
-                    %stage in the sparse solver.
-                    
-                    J  = (J + J.');
-                    r  = 2 * r(p);
-                    J  = J(p,p);
                     dx = J \ r;
-                    dx = dx(q);
-                    
-                    %Equivalent direct call to ldl. Tends to be slower than the explicit
-                    %symmetrization above. May be faster if (J+J.') is
-                    %expensive to compute.
-
-%                     r       = r(p);
-%                     J       = J(p,p);
-%                     [L,D,P] = ldl(J);
-%                     dx      = (P' \ (L' \ (D \ (L \ (P \ r)))));
-%                     dx      = dx(q);
                     
                     x{i} = x{i} - dx;
                     
                     nIter  = nIter + 1;
-                    relRes = norm(S * r) / norm(S * (g - f));
-                    
-                    this.ConvergenceHistory(end+1) = relRes;
+                    relRes = norm(r) / norm(g-f);
                 end
             end
             spparms('autoamd', 1);
@@ -145,22 +117,50 @@ properties:
                 SimulationTime = this.SimulationTime
             end
             
-            %% Save Solution
-            this.X = x;
-            fe     = 1 / t(end);
-            
-            [this.X, this.X_t] = matrixFactory.doPostProcessing(x, fe);
-            solution           = Solution(this);
-        end
-        
-        function this = updateFrequency(this, fNew)
-            fOld       = 1 / this.Times(end);
-            this.Times = this.Times * fOld / fNew;
-            x_t        = this.X_t;
-            N          = numel(x_t);
-            for i = 1:N
-                x_t{i} = x_t{i} * fNew / fOld;
+            %% Estimate Derivatives
+            if isempty(this.TimeInterval)
+                x_t = x(:, 1:(Nt - 1));
+                x_t = cell2mat(x_t);
+                
+                hMax         = (Nt - 1)/2 - 1;
+                h            = [1:(hMax+1), (hMax+3):(2*hMax + 2)];
+                nyqEl        = hMax + 2;
+                I            = 1:(2*hMax + 1);
+                fe           = 1 / t(end);
+                omega        = 1i*2*pi*fe * sparse(I, I, [0:1:hMax -hMax:1:-1]);
+                x_t          = fft(x_t, [], 2);
+                x_t(:,h)     = x_t(:, h) * omega;
+                x_t(:,nyqEl) = 0;
+                x_t          = ifft(x_t, [], 2);
+                x_t          = mat2cell(x_t, length(x_t(:,1)), ones(1, Nt - 1));
+                x_t(:,end+1) = x_t(:, 1);
+            else
+                x   = cell2mat(x);
+                x_t = x;
+                Nu  = size(x,1);
+                t   = repmat(t,Nu,1);
+                
+                p = polyfit(t(:,1:3),x(:,1:3),2);
+                x_t(:,1) = p(:,1)*t(1,1)^2 + p(:,2)*t(1,1) + p(:,3);
+                x_t(:,2) = p(:,1)*t(1,2)^2 + p(:,2)*t(1,2) + p(:,3);
+
+                for i = 3:(Nt-1)
+                    I = (i-1):(i+1);
+                    p = polyfit(t(:,I), x(:,I),2);
+                    x_t(:,i) = p(:,1)*t(1,I(2))^2 + p(:,2)*t(1,I(2)) + p(:,3);
+                end
+                
+                x_t(:,Nt) = p(:,1)*t(1,Nt)^2 + p(:,2)*t(1,Nt) + p(:,3);
+                
+                x_t = mat2cell(x_t, Nu, ones(1, Nt));
+                x   = mat2cell(x, Nu, ones(1, Nt));
             end
+            
+            %% Save Solution
+            [x, x_t] = matrixFactory.doPostProcessing(x, x_t);
+            this.X   = x;
+            this.X_t = x_t;
+            solution = Solution(this);
         end
     end
     

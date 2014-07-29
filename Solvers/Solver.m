@@ -50,11 +50,12 @@ properties:
     end
     
     properties (SetAccess = protected)
+        Y
+        
         X
         X_t
         
      	SimulationTime
-        ConvergenceHistory
     end
     
     methods (Static)        

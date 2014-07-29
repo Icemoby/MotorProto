@@ -16,9 +16,6 @@ classdef Slot
     %
     % See also MotorProto, Model, Assembly, Stator, Wire
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%WindingType - Configuration of the windings
@@ -96,20 +93,20 @@ properties:
 %}
 
     properties
-        WindingType         = WindingTypes.Distributed
-        ConductorType       = ConductorTypes.Homogenized;
-        ConductorDynamics   = DynamicsTypes.Static;      
-        
+        WindingType    = WindingTypes.Distributed
+        ConductorType  = ConductorTypes.Homogenized;
+        CouplingType   = CouplingTypes.Dynamic;
+        AirgapLocation = AirgapLocations.Inside;
         Shape
+        Angle
         
         ConductorBoundaries = [-inf inf];
         Layers              = 1;
         Turns               = 1;
     end
     
-    properties (Hidden)
-        %% Not Yet Implemented
-        ConductorGrid = {'Rectangular', 'Hexogonal'};
+    properties (SetAccess = private, Dependent)
+        ConductorDynamics
     end
     
     properties (Dependent)
@@ -140,11 +137,21 @@ properties:
         %% Setters
         function this = set.WindingType(this, value)
             if isa(value, 'WindingTypes')
-                this.WindingType = type;
+                this.WindingType = value;
             elseif ischar(value)
                 this.WindingType = WindingTypes.(value);
             else
                 this.WindingType = WindingTypes(value);
+            end
+        end
+        
+        function this = set.CouplingType(this, value)
+            if isa(value, 'CouplingTypes')
+                this.CouplingType = value;
+            elseif ischar(value)
+                this.CouplingType = CouplingTypes.(value);
+            else
+                this.CouplingType = WindingTypes(value);
             end
         end
         
@@ -189,12 +196,23 @@ properties:
 
         %% Getters
         function value = get.Conductor(this)
-            conductorType  = this.ConductorType;
-            value          = this.ConductorConfigurations(conductorType);
+            conductorType = this.ConductorType;
+            value         = this.ConductorConfigurations(conductorType);
+        end
+        
+        function value = get.ConductorDynamics(this)
+            switch this.CouplingType
+                case CouplingTypes.Static
+                    value = DynamicsTypes.Static;
+                case CouplingTypes.Dynamic
+                    value = DynamicsTypes.Dynamic;
+                otherwise
+                    error('Unknown Coupling Type %s', char(this.CouplingType));
+            end     
         end
         
         %% Other
-        function [conductors, nonConductors, connectionMatrix] = build(this, label)
+        function [conductors, nonConductors, locationMatrix] = build(this, label)
             %build - Divides the slot into conducting/nonconducting regions
             %   [C, N, M] = build(S, L) constructs from the Slot object S, an
             %   array C of Region2D objects representing the conductors in the
@@ -254,8 +272,8 @@ properties:
             %       wireframe(N);
             %
             % See also Slot, Wire, slotTemplate
-
-            [conductors, nonConductors, connectionMatrix] = this.Conductor.build(this.Shape, this.ConductorBoundaries, this.Turns, this.Layers, this.ConductorDynamics, this.WindingType, label);
+                    
+         	[conductors, nonConductors, locationMatrix] = this.Conductor.build(this.Shape, this.ConductorBoundaries, this.Turns, this.Layers, this.ConductorDynamics, this.CouplingType, this.WindingType, this.Angle, this.AirgapLocation, label);
         end
     end
 end

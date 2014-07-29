@@ -328,9 +328,9 @@ classdef (Sealed) Arc < Geometry1D
             if abs(deltaZ) < sqrt(eps)
                 inClosure = true(size(zIn));
             else
-                dZ             = zIn - zMid + eps*zNormal;
+                dZ             = zIn - zMid;
               	zNInnerProduct = dZ*conj(zNormal);
-               	inClosure      = real(zNInnerProduct) > sqrt(eps);
+               	inClosure      = real(zNInnerProduct) >= 0;
             end
             
             containsPole = inClosure & inCircle;

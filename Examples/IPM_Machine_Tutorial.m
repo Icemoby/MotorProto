@@ -5,7 +5,6 @@ tic
 
 %% Initialize the toolbox
 simulation = MotorProto('IPM Machine Tutorial');
-%warning on 'MotorProto:Verbose';
 
 %% Add components to the model
 model  = simulation.Model;

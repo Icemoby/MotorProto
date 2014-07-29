@@ -14,9 +14,6 @@ classdef SynchronousRotor < PoleAssembly
     %
     % See also MotorProto, Model, PoleAssembly
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%OperatingMode - Sets one of two operating states of the object
@@ -43,13 +40,11 @@ properties:
 %}
 
     properties (Dependent)
-        SolutionSpaceTimeSymmetry
-        SolutionSpaceTimeCoefficients
         AngularVelocity
     end
     
     properties
-        OperatingMode = 'synchronous';
+        OperatingMode = OperatingModes.Synchronous;
     end
     
     methods
@@ -59,31 +54,12 @@ properties:
         end
         
         %% Getters
-        function value = get.SolutionSpaceTimeSymmetry(this)
-            warning('MotorProto:Verbose', 'Use SpaceTimeSymmetries instead')
-            value = [this.Poles, inf];
-        end
-        
-        function value = get.SolutionSpaceTimeCoefficients(this)
-            value = [-1, 1, 1];
-        end
-        
         function value = get.AngularVelocity(this)
             switch this.OperatingMode
-                case 'synchronous'
-                    value = 4 * pi * this.ElectricalFrequency / this.Poles;
-                case 'locked'
+                case OperatingModes.Synchronous
+                    value = 2 * pi * this.ElectricalFrequency / (this.Poles / 2);
+                case OperatingModes.Locked
                     value = 0;
-            end
-        end
-        
-        %% Setters
-        function this = set.OperatingMode(this, value)
-            switch lower(value)
-                case {'synchronous', 'locked'}
-                    this.OperatingMode = lower(value);
-                otherwise
-                    error('MotorProto:SynchronousRotor', 'Operating mode must be either  "synchronous" or "locked"');
             end
         end
     end

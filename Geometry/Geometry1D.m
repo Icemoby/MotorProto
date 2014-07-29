@@ -32,9 +32,6 @@ classdef Geometry1D < Geometry & matlab.mixin.Copyable
     %
     % See also Arc, Polyline, Rotation1D, Geometry, Parameterizable, MotorProto
     
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
-    
 %{
 properties:    
     %Dimension - 1, The spatial dimension of a curve
@@ -180,9 +177,10 @@ properties:
     end
     
     properties
-        PlotStyle       = {'Color', 'k'};
-        PlotResolution  = 100;
-        Orientation     = true;
+        PlotStyle      = {'Color', 'k'};
+        PlotResolution = 100;
+        Orientation    = true;
+        MaxEdgeLength  = inf;
     end
     
 	properties (Abstract, Dependent)
@@ -504,6 +502,7 @@ properties:
             nThis = numel(this);
             for iThis = 1:nThis
                 N(iThis) = elementMinEdgeNumber(this(iThis));
+                N(iThis) = max(N(iThis), ceil(this(iThis).length / this(iThis).MaxEdgeLength));
             end
         end
     end
