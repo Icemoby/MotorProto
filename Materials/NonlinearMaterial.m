@@ -118,7 +118,7 @@ properties
                 M(end) = M(end-1) * (1+eps^2);
             elseif abs(M(end)-M(end-1)) > sqrt(eps) * M(end)
                 M(end+1) = M(end) * (1+eps^2);
-                B(end+1) = B(end) + 0.1;
+                B(end+1) = B(end) + H(end)*mu_o;
             end
 
             H = B/mu_o - M;

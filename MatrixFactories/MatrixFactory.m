@@ -31,7 +31,7 @@ classdef MatrixFactory
         %% Constructor
         function this = MatrixFactory(model)
             if nargin > 0
-                this.Model  = model;
+                this.Model = model;
                 this = build(this);
             end
         end

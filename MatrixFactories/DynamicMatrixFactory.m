@@ -71,8 +71,8 @@ classdef DynamicMatrixFactory < MatrixFactory
             curlE2N  = this.Jacobian.MagnetizationCurrent;
             curlN2E  = this.Jacobian.FluxDensity;
             
-            nMesh     = numel(mesh);
-            nRows     = zeros(nMesh,1);
+            nMesh = numel(mesh);
+            nRows = zeros(nMesh,1);
             for i = 1:nMesh
                 nRows(i) = index.Local(i).Unknowns;
             end
@@ -90,7 +90,7 @@ classdef DynamicMatrixFactory < MatrixFactory
                 materials   = [assembly(i).Regions.Material];
                 isNonlinear = ~[materials.Linear];
                 
-                I         = index.Global(i).X;
+                I = index.Global(i).X;
                 
                 Bx     = curlN2E(i).dBxdXz * x(I);
                 By     = curlN2E(i).dBydXz * x(I);

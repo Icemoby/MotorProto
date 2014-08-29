@@ -33,7 +33,7 @@ properties:
 %}
 
     properties
-        NewtonTolerance     = sqrt(eps);
+        NewtonTolerance     = 1e-6;
         MaxNewtonIterations = 100;
         TimeInterval        = [];
     end
@@ -70,7 +70,6 @@ properties:
             
             %% For each time point, 
             tic
-            
             for i = 1:Nt
                 %% Create constant matrices,
                 f = matrixFactory.f(t(i));
@@ -109,8 +108,6 @@ properties:
                     relRes = norm(r) / norm(g-f);
                 end
             end
-            spparms('autoamd', 1);
-            
             this.SimulationTime = toc;
             
             if verbose
