@@ -1,5 +1,6 @@
+%% Concentrated_Winding_SMPM.m
+
 %%% Call this part once %%%
-%% Concentrated_Winding_SMPM_Tutorial.m
 clear all;
 close all;
 
@@ -7,7 +8,7 @@ close all;
 simulation = MotorProto('Concentrated Winding SMPM');
 
 %% Add components to the model
-model  = simulation.Model;
+model = simulation.Model;
 
 %%% Put the rest within an optimizaiton loop %%%
 %% Define General Machine Parameters
@@ -51,9 +52,9 @@ pmMaterial         = NdFe35;
 
 %% Set mesh parameters
 mesh = simulation.Mesh;
-mesh(1).MaximumElementSize = inf;
+mesh(1).MaximumElementSize = (pi*statorInnerRadius/nTeeth-2*slotPadding)/6;
 mesh(1).MaximumAirgapEdgeLength = [inf, airgapLength/2];
-mesh(2).MaximumElementSize = inf;
+mesh(2).MaximumElementSize = pmLength / 3;
 mesh(2).MaximumAirgapEdgeLength = [airgapLength/2,1];
 
 %% Voltage Source
@@ -74,14 +75,13 @@ stator.Circuits.HarmonicPhases     = pi/6;
 timePointsPerPeriod = 10;
 
 %% Static Simulation
-stator.CouplingType = CouplingTypes.Static;
 simulation.configureAlgorithm('Static', 'TimePoints', timePointsPerPeriod, 'Verbose', true);
 
 %% Dynamic Simulation
-% stator.CouplingType = CouplingTypes.Dyanmic;
+% stator.CouplingType = CouplingTypes.Dynamic;
 % stator.Slot.ConductorType = 'Circular';
-% stator.Slot.Conductor.ConductorDiameter   = 2.0*sqrt(0.5*stator.Slot.Shape.area/stator.Turns/pi/stator.Layers)*0.9 / sqrt(2);
-% stator.Slot.Conductor.InsulationThickness = 2.0*sqrt(0.5*stator.Slot.Shape.area/stator.Turns/pi/stator.Layers)*0.1 / sqrt(2);
+% stator.Slot.Conductor.ConductorDiameter   = 2.0*sqrt(0.5*stator.Slot.Shape.area/stator.Turns/pi/stator.Layers)*0.9 / 2;
+% stator.Slot.Conductor.InsulationThickness = 2.0*sqrt(0.5*stator.Slot.Shape.area/stator.Turns/pi/stator.Layers)*0.1 / 2;
 % rotor.InputRegions(1).Dynamics = DynamicsTypes.Floating; %PM Dynamics
 % simulation.configureAlgorithm('ShootingNewton', 'TimePoints', timePointsPerPeriod, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true,'ShootingTolerance',1e-4);
 
@@ -98,7 +98,7 @@ solution = simulation.run;
 % solution.plot('H','Harmonic',0);
 % solution.plot('A','Harmonic',[0, model.TemporalSubharmonics]);
 % solution.plot('B','Harmonic',[0, model.TemporalSubharmonics]);
-% solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
+solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
 % solution.plot('J','Harmonic',model.TemporalSubharmonics);
 % solution.plot('J','Time',1);
 % solution.plot('E','Time',1);

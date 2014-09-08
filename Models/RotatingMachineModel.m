@@ -10,9 +10,6 @@ classdef RotatingMachineModel < Model
     %   See the help for Model for more information.
     %
     % See also Model, RotatingMachineMeshFactory, RotatingMachineAssembly
-    
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
 
     properties (Dependent, SetAccess = private)
         SpatialSymmetries
@@ -24,7 +21,8 @@ classdef RotatingMachineModel < Model
     end
     
     methods
-        %% Getters #TODO - Check these methods for correctness in unconventional models
+        %% Getters
+        %TODO - Check these methods for correctness in unconventional models
         function value = get.SpatialSymmetries(this)
             assembly = this.Assemblies;
             ss = [assembly.SpatialSymmetries];

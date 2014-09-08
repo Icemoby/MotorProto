@@ -16,9 +16,6 @@ classdef (Sealed) Polygon2D < Geometry2D
     %
     % See also Geometry2D, Geometry, Parameterizable, MotorProto
     
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
-    
     %% Public Properties
     properties (SetAccess=protected)
         Points

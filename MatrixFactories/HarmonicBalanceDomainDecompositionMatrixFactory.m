@@ -2,7 +2,6 @@ classdef HarmonicBalanceDomainDecompositionMatrixFactory < DynamicMatrixFactory
     methods
         %% Constructor
         function this = HarmonicBalanceDomainDecompositionMatrixFactory(varargin)
-            warning('MotorProto:Verbose', 'Present implementation assumes anti-periodic symmetry');
             if nargin > 0
                 this.Model = varargin{1};
                 this = build(this,'space');

@@ -10,10 +10,7 @@ classdef HarmonicBalanceDomainDecomposition < Solver
     %
     % HarmonicBalanceDD inherits properties and methods Solver.
     %
-    % See also MotorProto, Solver,
-    
-    %   Copyright 2013 Jason Pries
-    %   $Revision 0.0.0.1$
+    % See also MotorProto, Solver
     
 %{
 properties:

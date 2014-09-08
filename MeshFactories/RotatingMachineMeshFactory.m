@@ -21,7 +21,6 @@ classdef RotatingMachineMeshFactory < MeshFactory
     
     methods
         function this = RotatingMachineMeshFactory(rma)
-            warning('MotorProto:Verbose', 'Implement the abstract methods in MeshFactory (for default mesh)');
             if nargin > 0
                 assert(isa(rma, 'RotatingMachineAssembly'), 'Assembly must be a RotatingMachineAssembly');
                 assert(numel(rma) == 1, 'Assembly must be a scalar object');
@@ -69,7 +68,7 @@ classdef RotatingMachineMeshFactory < MeshFactory
         end
         
         function this = detectBoundaryPairs(this)
-            warning('MotorProto:Verbose', 'Clean up this method. Specifically, when numel(tRot) > 1');
+            %TODO - Clean up this method. Specifically, when numel(tRot) > 1'
             
             %% get boundary endpoints
             boundary    = this.Boundaries;

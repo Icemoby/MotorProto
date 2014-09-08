@@ -14,9 +14,6 @@ classdef PoleAndToothAssembly < RotatingMachineAssembly
     %
     % See also MotorProto, Model, RotatingMachineAssembly, Stator
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%Poles - The number of poles of the object

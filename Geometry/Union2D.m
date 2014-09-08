@@ -42,9 +42,6 @@ classdef Union2D < Geometry2D
     %   for Composite2D for more information.
     %
     % See also Composite2D, Geometry2D, Geometry, Parameterizable, MotorProto
- 	
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
     
     properties (SetAccess = protected)
         InputGeometry

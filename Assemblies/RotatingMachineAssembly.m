@@ -16,9 +16,6 @@ classdef RotatingMachineAssembly < CylindricalAssembly
     %
     % See also MotorProto, Model, CylindricalAssembly, Stator, SynchronousRotor
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%ElectricalFrequency - The fundamental electrical frequency of the object

@@ -30,9 +30,6 @@ classdef Geometry2D < Geometry & matlab.mixin.Copyable
     % See also Rect, Sector, Rotation2D, Polygon2D, Geometry, Parameterizable, 
     %          MaterialProperty, MotorProto
     
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
-
 %{
 properties:
  	%Dimension - 2, The spatial dimension of a plane

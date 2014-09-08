@@ -5,11 +5,9 @@
 % See also if
 
 function valueOut=inlineIf(testBool,trueValue,falseValue)
-    
     if testBool
         valueOut = trueValue;
     else
         valueOut = falseValue;
     end
-    
 end

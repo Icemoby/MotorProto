@@ -13,9 +13,6 @@ classdef Point < Geometry0D
     %   help for Geometry0D for more details.
     %
     % See also Geometry0D, Geometry, Parameterizable, MotorProto
-    
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
 
 %{
 properties:

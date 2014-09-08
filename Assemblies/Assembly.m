@@ -111,7 +111,7 @@ properties:
     methods
         %% Constructor
      	function this = Assembly(nameIn, varargin)
-            warning('MotorProto:Verbose', 'Clean up interface');
+            %TODO - Clean up interface
             if nargin ~= 0
                 this.Name = nameIn;
                 for i = 1:2:(nargin-1)
@@ -255,7 +255,7 @@ properties:
         
         %% Index Functions
         function J = convertComponentIndex(this, property, I)
-            warning('MotorProto:Verbose', 'Use convert index instead');
+            %TODO - Use convert index instead
             if isempty(I) || (numel(I) == 1 && (I == 0 || I == -1))
                 J = [];
             else

@@ -16,9 +16,6 @@ classdef (HandleCompatible) Geometry <  matlab.mixin.Heterogeneous
     %
     % See also Geometry0D, Geometry1D, Geometry2D, Parameterizable, MotorProto
     
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
-    
 %{
 properties:
     %Name - The name of the object

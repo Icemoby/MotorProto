@@ -17,9 +17,6 @@ classdef Stator < PoleAndToothAssembly
     %
     % See also MotorProto, Model, PoleAndToothAssembly, Slot, ConnectionTypes
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%Slot - An object representing the conductor layout and shape of a single slot of the stator.
@@ -203,12 +200,16 @@ properties:
             
             oldSource = this.Circuits;
             if isempty(oldSource)
-                newSource   = Component.newComponent(char(newType), [this.Name,' Source']);
-                this        = addSource(this, newSource);
+                newSource = Component.newComponent(char(newType), [this.Name,' Source']);
+                this = addSource(this, newSource);
             elseif ~(oldSource.Type == newType)
-                newSource   = Component.newComponent(char(newType), [this.Name,' Source']);
-                this        = removeComponent(this, oldSource.Name);
-                this        = addCircuit(this, newSource);
+                newSource = Component.newComponent(char(newType), [this.Name,' Source']);
+                this = removeComponent(this, oldSource.Name);
+                this = addCircuit(this, newSource);
+            end
+            
+            if ~isempty(this.Slot)
+                newSource.CouplingType = this.Slot.CouplingType;
             end
         end
         

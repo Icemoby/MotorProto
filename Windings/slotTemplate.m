@@ -83,9 +83,6 @@ function [CG, NCG] = slotTemplate(NS, RI, RO, NW, NL, SW, SL, SA, CO, varargin)
 %
 %   See also Geometry2D, Slot, Stator
 
-%   Copyright 2012 Jason Pries
-%   $Revision: 0.0.0.1 $
-
     %% Parse Inputs
   	ip = inputParser;
     

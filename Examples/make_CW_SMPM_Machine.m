@@ -23,12 +23,12 @@ function [model, stator, rotor] = make_CW_SMPM_Machine(model,f_r,nPoles,nTeeth,s
     stator.DefaultMaterial     = statorIronMaterial;
     stator.WindingType         = WindingTypes.Concentrated;
     stator.CouplingType        = CouplingTypes.Static;
-    stator.Slot.Layers         = 1;
+    stator.Slot.Layers         = 2;
     stator.Slot.Turns          = turnsPerTooth;
     stator.Slot.AirgapLocation = AirgapLocations.Outside;
     
     %% Bus-Bar Style Conductors
-    stator.Slot.ConductorType           = 'Homogenized';
+    stator.Slot.ConductorType           = ConductorTypes.Homogenized;
     stator.Slot.Conductor.PackingFactor = slotPackingFactor;
 
     stator.Sources.ElectricalFrequency = f_r * nPoles / 2;

@@ -20,11 +20,11 @@ classdef MatrixFactory
         Jacobian    %g(x,t), G(x,t)
         Exogenous   %F
 
-        PostProcessing	%Matrices for solution post processing
+        PostProcessing %Matrices for solution post processing
         
-        Index 	%Local and global indices of unknowns
+        Index %Local and global indices of unknowns
         
-        DomainPartitions    %Domain partition information
+        DomainPartitions %Domain partition information
     end
     
     methods %Accessors
@@ -825,7 +825,6 @@ classdef MatrixFactory
         end
         
         function this = applyTangentialBoundaryConditions(this)
-            warning('MotorProto:Verbose', 'When generalizing beyond the assumption of antiperiodic symmetry, check for symmetry type here');
           	%% apply periodic boundary conditions to curl matrices
             %  remember in the three-dimensional case we will need to
             %  perform a rotation of the x and y components of the element
@@ -838,7 +837,7 @@ classdef MatrixFactory
                 J = mesh(i).PeriodicBoundaryNodes(2,:);
                 
             	%% Indices
-                warning('MotorProto:Verbose', 'Create general function to remove indices / nodes');
+                %TODO - Create general function to remove indices / nodes');
                     
                 index.Local(i).A(J)  = [];
                 index.Global(i).A(J) = [];
@@ -921,7 +920,7 @@ classdef MatrixFactory
         end
         
         function [t, h] = getTimePoints(this, Nt)
-            warning('MotorProto:Verbose', 'Present implementation assumes synchronous operation');
+            %TODO - Present implementation assumes synchronous operation
             [t,h] = this.Assemblies.getTimePoints(Nt);
         end
         
@@ -1325,7 +1324,7 @@ classdef MatrixFactory
         end
                 
       	function [l, labels, text] = ConductionLossDensity(this, solver, dataType, dataPoints)
-            warning('MotorProto:Verbose','Need to take into account shape functions when multiplying E and J. Quadratic terms are introduced');
+            %TODO - Need to take into account shape functions when multiplying E and J. Quadratic terms are introduced
                 
             [~, ~, text,labels] = continuumVariablePreProcessing(this, solver, dataType, dataPoints);
             switch lower(dataType)
