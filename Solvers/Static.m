@@ -13,8 +13,6 @@ classdef Static < Solver
     %
     % See also MotorProto, Solver, 
     
-    %   Copyright 2012 Jason Pries
-    
 %{
 properties:
  	%NewtonTolerance - Sets the relative residual tolerance

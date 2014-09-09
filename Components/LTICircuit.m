@@ -1,2 +1,0 @@
-classdef LTICircuit < Circuit
-end

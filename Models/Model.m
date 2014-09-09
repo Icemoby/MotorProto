@@ -21,9 +21,6 @@ classdef Model < matlab.mixin.Copyable
     %
     % See also MotorProto, RotatingMachineModel, MeshFactory, Assembly, Component
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1 $
-    
 %{
 properties:
  	%Assemblies - An array of Assembly objects

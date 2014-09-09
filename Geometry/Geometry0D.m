@@ -16,9 +16,6 @@ classdef Geometry0D < Geometry
     %
     % See also Point, Geometry, Parameterizable, MotorProto
     
-	%   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
-
 %{
 properties:    
     %Dimension - 0, The spatial dimension of a point

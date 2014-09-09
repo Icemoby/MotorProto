@@ -14,10 +14,7 @@ classdef Solver
     % Solver methods:
     %   solve - Run the simulation
     %
-    % See also MotorProto, 
-    
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
+    % See also MotorProto
     
 %{
 properties:

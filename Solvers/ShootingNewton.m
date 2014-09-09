@@ -13,10 +13,7 @@ classdef ShootingNewton < Solver
     %
     % ShootingNewton inherits properties and methods Solver.
     %
-    % See also MotorProto, Solver,
-    
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
+    % See also MotorProto, Solver
     
 %{
 properties:
@@ -90,7 +87,7 @@ properties:
             
             %% Begin Simulation            
             if this.Verbose
-                display(sprintf('GMRES %d/%d\n',Ns,Nt));
+                display(sprintf('Shooting-Newton %d/%d\n',Ns,Nt));
             end
             
             tic;

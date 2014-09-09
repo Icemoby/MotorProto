@@ -1,5 +1,4 @@
-classdef Region2D < Component
-    
+classdef Region2D < Component    
     properties
         Geometry
         Material

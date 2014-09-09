@@ -157,7 +157,7 @@ properties:
         
         function this = set.ConductorType(this, value)
             if isa(value, 'ConductorTypes')
-                this.ConductorType = type;
+                this.ConductorType = value;
             elseif ischar(value)
                 this.ConductorType = ConductorTypes.(value);
             else

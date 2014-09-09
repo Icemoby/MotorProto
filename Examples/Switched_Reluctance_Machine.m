@@ -1,4 +1,6 @@
 %% Switched_Reluctance_Machine.m
+%   Data and model parameters from Tim Burress at ORNL
+
 clear all;
 close all;
 
@@ -71,17 +73,17 @@ tooth1 = Geometry2D.draw('Rect','Length',2*statorOuterRadius,'Width',2*statorInn
 tooth2 = Geometry2D.draw('Rect','Length',2*statorOuterRadius,'Width',2*statorInnerRadius*sin(stAngle),'Rotation',pi/StatorTeeth);
 slot = slot-tooth1-tooth2;
 
-% coilInset = 1e-3;
-% gapAngle  = 2*pi/StatorTeeth-0.95*2*pi/(2*StatorTeeth)*2;
-% insetTrim = Geometry2D.draw('Sector','Radius',[statorInnerRadius,statorInnerRadius + coilInset],'Angle',2*pi/Poles,'Rotation',-pi/Poles);
-% gapTrim = Geometry2D.draw('Sector','Radius',[statorInnerRadius,statorOuterRadius],'Angle',gapAngle,'Rotation',-gapAngle/2);
-% slotGap = (insetTrim + gapTrim) * slot;
-% slot = slot - insetTrim - gapTrim;
-% stator.addRegion('SlotGap',slotGap, Air, DynamicsTypes.Static);
+coilInset = 1e-3;
+gapAngle  = 2*pi/StatorTeeth-0.95*2*pi/(2*StatorTeeth)*2;
+insetTrim = Geometry2D.draw('Sector','Radius',[statorInnerRadius,statorInnerRadius + coilInset],'Angle',2*pi/Poles,'Rotation',-pi/Poles);
+gapTrim = Geometry2D.draw('Sector','Radius',[statorInnerRadius,statorOuterRadius],'Angle',gapAngle,'Rotation',-gapAngle/2);
+slotGap = (insetTrim + gapTrim) * slot;
+slot = slot - insetTrim - gapTrim;
+stator.addRegion('SlotGap',slotGap, Air, DynamicsTypes.Static);
 
-stator.Slot.ConductorType = 'Circular';
-stator.Slot.Conductor.ConductorDiameter   = 2.0*sqrt(0.5*slot.area/stator.Turns/pi/stator.Layers)*0.9;
-stator.Slot.Conductor.InsulationThickness = 2.0*sqrt(0.5*slot.area/stator.Turns/pi/stator.Layers)*0.1;
+% stator.Slot.ConductorType = ConductorTypes.Circular;
+% stator.Slot.Conductor.ConductorDiameter   = 2.0*sqrt(0.5*slot.area/stator.Turns/pi/stator.Layers)*0.9;
+% stator.Slot.Conductor.InsulationThickness = 2.0*sqrt(0.5*slot.area/stator.Turns/pi/stator.Layers)*0.1;
 
 stator.Slot.Shape = slot;
 
@@ -95,7 +97,7 @@ mesh(2).MaximumAirgapEdgeLength = [1e-3,inf];
 
 mesh.build;
 
-N = 1;
+N = 6;
 J = 100*(1:N);
 tau = cell(1,N);
 nTimePoints = 19;

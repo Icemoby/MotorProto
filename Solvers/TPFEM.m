@@ -13,9 +13,6 @@ classdef TPFEM < Solver
     %
     % See also MotorProto, Solver,
     
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
-    
 %{
 properties:
  	%NewtonTolerance - Sets the relative residual tolerance

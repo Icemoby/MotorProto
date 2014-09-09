@@ -12,10 +12,7 @@ classdef CylindricalAssembly < Assembly
     %
     % See the help file for Assembly for more information.
     %
-    % See also MotorProto, Model, Assembly, 
-    
-    %   Copyright 2012 Jason Pries
-    %   $Revision 0.0.0.1$
+    % See also MotorProto, Model, Assembly
     
 %{
 properties:

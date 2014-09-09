@@ -59,7 +59,6 @@ classdef MeshFactory < matlab.mixin.Copyable
     methods
         %% Constructor
         function this = MeshFactory
-            warning('MotorProto:Verbose','Create mesh preview method');
         end
         
         %% Getters
@@ -131,8 +130,9 @@ classdef MeshFactory < matlab.mixin.Copyable
             %	Planes property.
             %
             % See also DiscretizedGeometry
-            warning('MotorProto:Verbose', 'There is probably a more elegent way to handle the airgap situation');
-            warning('MotorProto:Verbose', 'Add in auxillary boundaries from adjacent annuli');
+            
+            %TODO - There is probably a more elegent way to handle the airgap situation
+            %TODO - Add in auxillary boundaries from adjacent annuli
             
             nThis = numel(this);
             for i = 1:nThis
@@ -338,7 +338,7 @@ classdef MeshFactory < matlab.mixin.Copyable
             %  based on the first stage of Ruperts algorithm for creating 
             %  constrained Delaunay Triangulations
             
-            warning('MotorProto:Verbose','This method can result in a non-terminating loop if two edges share a vertex and make an accute angle');
+            %TODO - This method can result in a non-terminating loop if two edges share a vertex and make an accute angle
             
             x      = this.X;
             y      = this.Y;

@@ -40,7 +40,7 @@ classdef AsynchronousRotor < PoleAndToothAssembly
         end
         
         function value = get.SolutionSpaceTimeSymmetry(this)
-            warning('MotorProto:Verbose', 'Use SpaceTimeSymmetries instead')
+            %TODO - Use SpaceTimeSymmetries instead
             value = [this.Poles, inf];
         end
         

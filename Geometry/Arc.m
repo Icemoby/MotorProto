@@ -16,9 +16,6 @@ classdef (Sealed) Arc < Geometry1D
     %
     %   See also Geometry1D, Geometry, Parameterizable, MotorProto
     
-    %   Copyright 2011 Jason Pries
-    %   $Revision 0.0.0.2 $
-    
     properties (Dependent)
         Order
     end
