@@ -74,23 +74,24 @@ classdef Source < Circuit
                 J = 1:size(n,2);
             end
             
-            w = 2 * pi * this.ElectricalFrequency;
+            T = 1 / this.ElectricalFrequency;
+            w = 2 * pi / T;
             A = this.HarmonicAmplitudes(:,J);
             p = this.HarmonicPhases(:,J);
-            s = -(0:(m-1)) * 2 * pi / m;
+            s = -(0:(m-1)) / m;
             I = ones(1,numel(t));
             
             if numel(A) == 1
                 for i = 1:m
-                    waveform(i,:) = A * cos(w * n' * t + (p' - n' * s(i)) * I);
+                    waveform(i,:) = A * cos(w * n' * (t - s(i) * T) + p');
                 end
             elseif numel(p) > numel(J)
                 for i = 1:m
-                	waveform(i,:) = A(i,:) * cos((w * n(i,:)') * t + p(i,:)');
+                	waveform(i,:) = A(i,:) * cos((w * n(i,:)') * (t - s(i) * T) + p(i,:)');
                 end
             else
                 for i = 1:m
-                    waveform(i,:) = A * cos(w * n' * t + (p' - n' * s(i)) * I);
+                    waveform(i,:) = A * cos(w * n' * (t - s(i) * T) + p');
                 end
             end
         end

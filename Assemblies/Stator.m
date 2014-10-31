@@ -306,7 +306,7 @@ properties:
             
             Nb = 3;                                         %Three bundles/phases
             Nc = nConductors * nSlots;                     	%Total number of conductor regions
-            sp = 2 * mod(fp*Np, 1) - 1;                     %Periodicity coefficient
+            sp = 2 * mod(fp*Np-1, 2) - 1;                   %Periodicity coefficient
 
             %% Copy the regions and rotate them
             locationMatrix = repmat(locationMatrix, nCopies, 1);
@@ -547,20 +547,28 @@ properties:
             end
             regionMatrix = repmat(regionMatrix, 1/fp, 1);
             
+            %% Shift-strands in each pole-pair
+            nSlots = size(regionMatrix,1);
+            Nsbp   = nSlots / Np / Nb; %Number of slots per bundle per pole
+            for i = 1:(Np/2)
+                I = (i*Nsbp*2*Nb+1):nSlots;
+                regionMatrix(I,:)   = circshift(regionMatrix(I,:),[0,1]);
+                locationMatrix(I,:) = circshift(locationMatrix(I,:),[0,1]);
+            end
+            
             %% Place strands
             i = 1;
             s = 1;
-            nSlots = size(locationMatrix,1);
-            Nsbp   = nSlots / Np / Nb; %Number of slots per bundle per pole
             for m = 1:nSlots
                 j = 1;
+                
                 for n = 1:size(locationMatrix,2)
                     if s == 1 %Ordering of strands depends on polarity due to winding
                         L = 1:1:length(locationMatrix{m,n});
                     else % s==-1
                         L = length(locationMatrix{m,n}):-1:1;
                     end
-                    
+
                     for l = L
                         k  = locationMatrix{m,n}(l);
                         ks = floor((k-1) / (fp*Nc));

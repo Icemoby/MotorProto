@@ -14,16 +14,19 @@ stator = model.newAssembly('SMPM Stator','Stator');
 nPoles            = 18;
 nTeethPerPhase    = 2;
 nTeeth            = 3 * nPoles * nTeethPerPhase;
-nTurnsPerSlot     = 3;
-len               = 0.1428877;
+nTurnsPerSlot     = 6;
+nParallelPaths    = 3;
+len               = 0.1428877 * 2 / 3; %modify length to give effect number of turns = 4
 statorOuterRadius = 0.1250908;
 statorInnerRadius = 0.0986028;
 rotorOuterRadius  = 0.0971550;
 rotorInnerRadius  = 0.0853906;
-w_r               = 135;
+f_r               = 8000/60;
+f_e               = f_r*nPoles / 2;
+T                 = 1/f_e;
 
 %% Define Stator Geometry and Material Properties
-stator.ElectricalFrequency = w_r * nPoles / 2;
+stator.ElectricalFrequency = f_e;
 stator.Length              = len;
 stator.Poles               = nPoles;
 stator.Teeth               = nTeeth;
@@ -33,21 +36,25 @@ stator.DefaultMaterial     = Arnon7;
 stator.SourceType          = SourceTypes.CurrentSource;
 stator.CouplingType        = CouplingTypes.Dynamic;
 stator.WindingType         = WindingTypes.Distributed;
+stator.ParallelPaths       = nParallelPaths;
 
 %% Slot
 stator.Slot.Turns = nTurnsPerSlot;
 
 %% Stranded Conductors
 stator.Slot.ConductorType                 = ConductorTypes.Circular;
-stator.Slot.Conductor.ConductorDiameter   = 1.0e-3 * 0.9 * 2 / (2^(0));
-stator.Slot.Conductor.InsulationThickness = 0.10e-3 * 1.1 * 2 / (2^(0));
+stator.Slot.Conductor.ConductorDiameter   = 1.0e-3 * 0.9 * 2 / (2^(0.0));
+stator.Slot.Conductor.InsulationThickness = 0.10e-3 * 1.1 * 2 / (2^(0.0));
+
+% stator.Slot.Conductor.ConductorDiameter = 0.7239*1e-3;
+% stator.Slot.Conductor.InsulationThickness = 0.04405*1e-3;
 
 %% Solid Conductors
 % stator.Slot.ConductorType           = 'Homogenized';
 % stator.Slot.Conductor.PackingFactor = 0.5;
 
 %% Define slot geometry
-Bsat = 2;
+Bsat = 2.0;
 Bmag = 1.23;
 
 slotWidth   = 1-statorInnerRadius/rotorOuterRadius*Bmag/Bsat;
@@ -64,7 +71,7 @@ stator.addRegion('slot', slotNotch, Air, DynamicsTypes.Static);
 %% Set Rotor Parameters
 rotor.Poles               = nPoles;
 rotor.Length              = len;
-rotor.ElectricalFrequency = w_r * nPoles / 2;
+rotor.ElectricalFrequency = f_r * nPoles / 2;
 rotor.InnerRadius         = rotorInnerRadius;
 rotor.OuterRadius         = rotorOuterRadius;
 rotor.DefaultMaterial     = Arnon7;
@@ -82,7 +89,6 @@ pmPosition = [statorOuterRadius / 2 + rotorOuterRadius - pmWidth / 2, 0];
 pmBody = Geometry2D.draw('Rect', 'Width', pmLength, 'Length', pmWidth + statorOuterRadius, 'Base', 'Center', 'Position', pmPosition, 'PlotStyle', {'m'});
 pmTrim = Geometry2D.draw('Sector', 'Radius', [rotorInnerRadius, rotorOuterRadius-pmRing], 'Angle', 2 * pi / nPoles, 'Rotation', - pi / nPoles);
 permanentMagnet = pmBody * pmTrim;
-
 rotor.addRegion('pm', permanentMagnet,  NdFe35, DynamicsTypes.Floating);
 
 %% Trim Iron Between Magnets
@@ -119,26 +125,31 @@ mesh(1).MaximumElementSize = pmWidth / 4;
 mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
 
 %% Set Excitation
+%% Voltage Source
+stator.SourceType = SourceTypes.VoltageSource;
+stator.ParallelPaths = nParallelPaths;
+stator.Circuits.ElectricalFrequency = f_e;
+stator.Circuits.HarmonicNumbers     = 1;
+stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
+stator.Circuits.HarmonicPhases      = -pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256);
 
-%Voltage Source, 200 N-m, Maximum Current/Field Weakening
-% stator.SourceType = SourceTypes.VoltageSource
-% stator.Circuits.ElectricalFrequency = w_r * nPoles / 2;
-% stator.Circuits.HarmonicNumbers     = 1;
-% stator.Circuits.HarmonicAmplitudes  = 2*257.6445;
-% stator.Circuits.HarmonicPhases      = -1.2727;
+%% Current Source
+% Iq = 150;
+% Id = 500;
+% I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
+% 
+% stator.SourceType = SourceTypes.CurrentSource;
+% stator.ParallelPaths = nParallelPaths;
+% stator.Circuits.ElectricalFrequency = f_e;
+% stator.Circuits.HarmonicNumbers    = 1;
+% stator.Circuits.HarmonicAmplitudes = abs(I);
+% stator.Circuits.HarmonicPhases     = angle(I);
 
-%Current Source, 200 N-m, Maximum Current/Field Weakening
-stator.SourceType = SourceTypes.CurrentSource;
-stator.Circuits.ElectricalFrequency = w_r * nPoles / 2;
-stator.Circuits.HarmonicNumbers    = 1;
-stator.Circuits.HarmonicAmplitudes = 250*1;
-stator.Circuits.HarmonicPhases     = -2*pi/3 + pi*(1/4+1/8+1/16-1/32-1/64+1/128-1/256-1/512) + pi/2*0;
-
-nSlotHarmonics = 2;
-nTimePoints    = nSlotHarmonics*2*(3*nTeethPerPhase);
-%simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
-simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 25, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true);
-%simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 5, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true);
+nTimePoints = 54;
+% simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
+% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 4, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20);
+% simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-8, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true);
+simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 2*3^4-1, 'Verbose', true, 'AdaptiveTol', 1e-2, 'NewtonTol', 1e-2, 'GMRESTol', 1e-4, 'ColocationTol', 1e-5, 'Strategy','plan','Plan',[3,2,3,3,3]);
 
 model.build;
 mesh.build;
@@ -149,16 +160,16 @@ solution = simulation.run;
 % solution.plot('B','Time',1);
 % solution.plot('H','Time',1);
 % solution.plot('M','Time',1);
-% solution.plot('A','Harmonic',[0, 5]);
-% solution.plot('B','Harmonic',[0, 5]);
-% solution.plot('H','Harmonic',[0, 5]);
-% solution.plot('M','Harmonic',[0, 5]);
-% solution.plot('LossDensity', 'UseSinglePlot', true);
+% solution.plot('A','Harmonic',[0, 1]);
+% solution.plot('B','Harmonic',[0, 1]);
+% solution.plot('H','Harmonic',[0, 1]);
+% solution.plot('M','Harmonic',[0, 1]);
+solution.plot('LossDensity', 'UseSinglePlot', true);
 solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
 % solution.plot('J','Time',1);
-% solution.plot('J','Harmonic',5);
+% solution.plot('J','Harmonic',1);
 % solution.plot('E','Time',1);
-% solution.plot('E','Harmonic',5);
+% solution.plot('E','Harmonic',1);
 % 
 solution.plot('Flux Linkage','Time');
 solution.plot('Flux Linkage','Harmonic');
@@ -168,3 +179,12 @@ solution.plot('Voltage','Time');
 solution.plot('Voltage','Harmonic');
 solution.plot('Current','Time');
 solution.plot('Current','Harmonic');
+
+v = solution.getBulkVariableData('Voltage','Time');
+figure;plot(v{1}{1}-v{1}{2})
+hold on;plot(v{1}{2}-v{1}{3},'g--');
+hold on;plot(v{1}{3}-v{1}{1},'r-.');
+legend('AB','BC','CA');
+xlabel('Time [s]');
+ylabel('Voltage [V]');
+title('Line to Line Voltage');
