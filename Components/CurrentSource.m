@@ -212,7 +212,7 @@ classdef CurrentSource < Source
                         for j = 1:Nk(i)
                             k = Tk{i}(j);
                             
-                            vals(i) = vals(i) + ls * Tf{i}(j)^2 / (sigma(k) * area(k) * fp * Npp(i));
+                            vals(i) = vals(i) + ls * Tf{i}(j)^2 / (sigma(k) * area(k) * fp * Npp(i)^2);
                         end
                     end
                     
