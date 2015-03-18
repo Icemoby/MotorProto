@@ -17,7 +17,11 @@ classdef RotatingMachineModel < Model
         TemporalFrequency
         TemporalSubharmonics
         HasHalfWaveSymmetry
-        ModeledFraction
+        %ModeledFraction
+    end
+    
+    properties (SetAccess = private)
+        ModeledFraction = 0;
     end
     
     methods
@@ -61,16 +65,24 @@ classdef RotatingMachineModel < Model
         
         function value = get.HasHalfWaveSymmetry(this)
             assemblies = this.Assemblies;
-            value      = all([assemblies.HasHalfWaveSymmetry]);
+            if all([assemblies.HasHalfWaveSymmetry])
+                if this.ModeledFraction == 0 || abs(2*this.SpatialSymmetries * this.ModeledFraction - 1) < sqrt(eps)
+                    value = true;
+                else
+                    value = false;
+                end
+            else
+                value = false;
+            end 
         end
         
-        function value = get.ModeledFraction(this)
-            value = this.SpatialFrequency;
-            if this.HasHalfWaveSymmetry
-                value = value * 2;
-            end
-            value = 1 / value;
-        end
+%         function value = get.ModeledFraction(this)
+%             value = this.SpatialFrequency;
+%             if this.HasHalfWaveSymmetry
+%                 value = value * 2;
+%             end
+%             value = 1 / value;
+%         end
         
         %% Build
         function this = build(this, fp)
@@ -139,6 +151,8 @@ classdef RotatingMachineModel < Model
             for i = 1:nAssemblies
                 assemblies(i).build(fp);
             end
+            
+            this.ModeledFraction = fp;
         end
     end    
 

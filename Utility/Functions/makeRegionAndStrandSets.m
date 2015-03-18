@@ -16,7 +16,7 @@ function [Rk,Rs,Sk] = makeRegionAndStrandSets(Pk,Ps)
         Pk{i}     = Pk{i}(J);
         Ps{i}     = Ps{i}(J);
 
-        [Pkcat,I] = unique(Pkcat,'rows');
+        [Pkcat,I] = unique(Pkcat,'rows','first');
         Pscat     = Pscat(I,:);
 
         Rk{i} = cell(1,numel(I));
@@ -24,7 +24,7 @@ function [Rk,Rs,Sk] = makeRegionAndStrandSets(Pk,Ps)
         Sk{i} = cell(1,numel(I));
 
         %% Construct Region Sets
-        %   First get the unique region indices
+        %First get unique region indices
         for m = 1:size(Pkcat,1)
             [Rk{i}{m},K] = unique(Pkcat(m,:));
             Rs{i}{m}     = Pscat(m,K);
@@ -35,7 +35,7 @@ function [Rk,Rs,Sk] = makeRegionAndStrandSets(Pk,Ps)
             end
         end
         
-        %   If any two sets share an indices, merge them
+        %If any two sets share an index, merge them
         j = 1;
         N = length(Rk{i});
         while j < N

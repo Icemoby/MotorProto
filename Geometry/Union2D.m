@@ -81,7 +81,7 @@ classdef Union2D < Geometry2D
             
             inPlane      = any(inPlane, 2);
             innerProduct =  bsxfun(@times, normalX, reshape(normalX, nCurves, 1, nPlanes))...
-                          + bsxfun(@times, normalY, reshape(normalY, nCurves, 1, nPlanes));
+                          + bsxfun(@times, normalY, reshape(normalY, nCurves, 1, nPlanes)); %TODO, FIXME - Out of memory error for large models
             innerProduct = min(min(innerProduct, [], 3), [], 2);
             
             internalInterface = any(onBoundary, 2) & (innerProduct < -sqrt(eps));

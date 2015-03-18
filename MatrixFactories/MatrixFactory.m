@@ -924,6 +924,30 @@ classdef MatrixFactory
             [t,h] = this.Assemblies.getTimePoints(Nt);
         end
         
+        function I = getGlobalIndex(this, var)
+            index = this.Index.Local;
+            
+            I = [index(1).(var)];
+            n = index(1).Unknowns;
+            for i = 2:length(index);
+                I = [I,  index(i).(var)+n];
+                n = n + index(i).Unknowns;
+            end
+        end
+        
+        function I = getLocalIndex(this, var)
+            index = this.Index.Local;
+            m = length(index);
+            
+            I = cell(1, m);
+            I{1} = index(1).(var);
+            n = index(1).Unknowns;
+            for i = 2:m
+                I{i} = index(i).(var) + n;
+                n = n + index(i).Unknowns;
+            end
+        end
+        
         function harmonics = getRadialBoundaryHarmonics(this, iMesh)
            	%% Determine the number of boundaries and edges
             edges       = [this.Mesh.RadialBoundaryEdges];
@@ -1044,7 +1068,7 @@ classdef MatrixFactory
         [nonlinearJacobian, nonlinearFunction] = G(this,t,x)
     end
 
-    methods %Post Processing
+    methods %Post Processing - %TODO - Seperate post processing into another class
        	%% Field Variables
         function [x, x_t, labels, text, nTimes] = continuumVariablePreProcessing(~, solver, dataType, dataPoints)
          	times = solver.Times;
@@ -1433,16 +1457,16 @@ classdef MatrixFactory
             ppMatrix    = this.PostProcessing;
             
             for p = 1:nAssemblies;
-                source   = [assembly(p).Sources];
-                nSources = numel(source);
+                circuits   = [assembly(p).Circuits];
+                nSources = numel(circuits);
                 ela      = mesh(p).ElementAreas.';
                 for k = 1:Nt;
                     e0 = ppMatrix(p).X2E * x{p,k};
                     j0 = ppMatrix(p).X2J * x{p,k};
                     
                     if nSources > 0
-                        e0 = e0 + ppMatrix(p).F2E * source.f(t(k));
-                        j0 = j0 + ppMatrix(p).F2J * source.f(t(k));
+                        e0 = e0 + ppMatrix(p).F2E * circuits.f(t(k));
+                        j0 = j0 + ppMatrix(p).F2J * circuits.f(t(k));
                     end
                     
                     ne = numel(ppMatrix(p).X_t2E);
@@ -1528,10 +1552,10 @@ classdef MatrixFactory
                     ppMatrix = this.PostProcessing;
 
                     for p = 1:numel(ppMatrix);
-                        source   = [assembly(p).Sources];
-                        f        = source.f(t);
+                        circuit   = [assembly(p).Circuits];
+                        f        = circuit.f(t);
                         f        = fft(f(:,1:(Nt-1)),[],2) / (Nt - 1);
-                        nSources = numel(source);
+                        nSources = numel(circuit);
                         ela      = mesh(p).ElementAreas.';
                         for k = 1:(Nt-1);
                             e0 = ppMatrix(p).X2E * x{p,k};
