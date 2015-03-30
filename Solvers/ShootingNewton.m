@@ -110,6 +110,23 @@ properties:
             end
             
             %% Post Processing
+            Ns = 2;
+            a = [0 0;1/2 1/2];
+            
+%             Ns = 4;
+%             c2 = roots([3 -18 18 -4]);
+%             c2 = c2(3);
+%             a = [0,0,0,0;c2/2,c2/2,0,0; (c2*(9*c2^4 - 30*c2^3 + 38*c2^2 - 20*c2 + 4))/(2*(3*c2^2 - 4*c2 + 2)^2), -(c2*(3*c2^3 - 9*c2^2 + 10*c2 - 4))/(3*c2^2 - 4*c2 + 2)^2,c2/2,0; -(9*c2^4 - 27*c2^3 + 31*c2^2 - 14*c2 + 2)/(3*c2*(3*c2^4 - 18*c2^3 + 34*c2^2 - 28*c2 + 8)), (9*c2^3 - 30*c2^2 + 34*c2 - 12)/(12*(c2^3 - 5*c2^2 + 6*c2 - 2)), -(3*c2^2 - 4*c2 + 2)^3/(12*c2*(3*c2^5 - 21*c2^4 + 52*c2^3 - 62*c2^2 + 36*c2 - 8)), (3*c2^2 - 6*c2 + 2)/(3*c2^2 - 12*c2 + 6)];
+
+           	c = sum(a,2);
+            c = c(2:end);
+            A = a(2:end,2:end);
+            a = a(2:end,1);
+            d = inv(A);
+            p = sum(d,2);
+            q = d*a;
+            Ns = Ns-1;
+            
             x   = cell(1, Nt+1);
             x_t = cell(1, Nt+1);
             for k = 1:Nt
@@ -117,10 +134,10 @@ properties:
                 
                 x{k} = y{end,k};
                 
-                x_t{k+1} = (-gamma(end) / hk) * y{end,k};
-                for i = 1:Ns
-                    x_t{k+1} = x_t{k+1} + (alpha(end,i) / hk) * y{i,k+1};
-                end
+                x_t{k+1} = (y{end,k+1}-y{end,k}) / hk;
+%                 for i = 1:Ns
+%                     x_t{k+1} = x_t{k+1} + (alpha(end,i) / hk) * y{i,k+1};
+%                 end
             end
             x{end} = x{1};
             x_t{1} = x_t{end};
@@ -335,11 +352,35 @@ properties:
             
             verbose     = this.Verbose;
             
+            y = y(end,:);
+            
+%             Ns = 2;
+%             a = [0 0;1/2 1/2];
+            
+            Ns = 4;
+            y = [y;y;y];
+            c2 = roots([3 -18 18 -4]);
+            c2 = c2(3);
+            a = [0,0,0,0;c2/2,c2/2,0,0; (c2*(9*c2^4 - 30*c2^3 + 38*c2^2 - 20*c2 + 4))/(2*(3*c2^2 - 4*c2 + 2)^2), -(c2*(3*c2^3 - 9*c2^2 + 10*c2 - 4))/(3*c2^2 - 4*c2 + 2)^2,c2/2,0; -(9*c2^4 - 27*c2^3 + 31*c2^2 - 14*c2 + 2)/(3*c2*(3*c2^4 - 18*c2^3 + 34*c2^2 - 28*c2 + 8)), (9*c2^3 - 30*c2^2 + 34*c2 - 12)/(12*(c2^3 - 5*c2^2 + 6*c2 - 2)), -(3*c2^2 - 4*c2 + 2)^3/(12*c2*(3*c2^5 - 21*c2^4 + 52*c2^3 - 62*c2^2 + 36*c2 - 8)), (3*c2^2 - 6*c2 + 2)/(3*c2^2 - 12*c2 + 6)];
+            
+%             Ns = 3;
+%             y = [y;y];
+%             a = [0,0,0;1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;2^(1/2)/4,2^(1/2)/4, 1 - 2^(1/2)/2];
+%             
+           	c = sum(a,2);
+            c = c(2:end);
+            A = a(2:end,2:end);
+            a = a(2:end,1);
+            d = inv(A);
+            p = sum(d,2);
+            q = d*a;
+            Ns = Ns-1;
+            
             %% Allocation Level 3, Store Everything
             K  = cell(Ns, Nt);
             f  = cell(Ns, Nt);
             Ca = cell(Ns, Ns, Nt);
-            Cg = cell(Ns, Nt);
+            Cp = cell(Ns, Nt);
             if this.SymmetricJacobian
                 L = cell(Ns, Nt);
                 D = cell(Ns, Nt);
@@ -357,16 +398,34 @@ properties:
                 hk  = t(k+1) - t(k);
                 for i = 1:Ns
                     t_ik = t(k) + c(i) * hk;
-                    h_ik = hk / alpha(i,i);
+                    h_ik = hk / d(i,i);
                     for j = 1:i
-                        Ca{i,j,k} = getMatrix.C(t_ik, hk / alpha(i,j), h_ik);
+                        Ca{i,j,k} = getMatrix.C(t_ik, hk / d(i,j), h_ik);
                     end
-                    Cg{i,k} = getMatrix.C(t_ik, hk / gamma(i), h_ik);
+                    Cp{i,k} = getMatrix.C(t_ik, hk / p(i), h_ik);
                     K{i,k}  = getMatrix.K(t_ik, h_ik);
                     f{i,k}  = getMatrix.f(t_ik, h_ik);
                 end
             end
-            d_ik = f{1,1} * 0;
+            
+            %% Consistent Initial Condition
+            newtonRes = inf;
+            nNewton   = 0;
+            K_sk = getMatrix.K(0,1);
+            f_sk = getMatrix.f(0,1);
+            while newtonRes > newtonTol && nNewton < maxNewton
+                nNewton = nNewton + 1;
+                
+                [G_sk, g_sk] = getMatrix.G(0, y{Ns,1}, 1);
+                
+                r_sk = K_sk * y{Ns,1} + g_sk - f_sk;
+                
+                newtonRes = norm(r_sk) / norm(g_sk - f_sk);
+                
+                J_sk = G_sk + K_sk;
+                r_sk = J_sk \ r_sk;
+                y{Ns,1} = y{Ns,1} - r_sk;
+            end
             
             %% Start
             nShooting   = 0;
@@ -377,14 +436,15 @@ properties:
                     hk  = t(k+1) - t(k);
                     for i = 1:Ns
                         t_ik = t(k) + c(i) * hk;
-                        h_ik = hk / alpha(i, i);
+                        h_ik = hk / d(i,i);
                         
-                        if i == 1
-                            y{1, k+1} = y{Ns, k} + hk * c(i) * d_ik;
-                        else
-                            y{i, k+1} = y{i-1, k+1} + hk * (c(i) - c(i-1)) * d_ik;
-                        end
+                    	y{i, k+1} = y{Ns, k};
                         
+                        [~,    g_sk] = getMatrix.G(t(k), y{Ns,k}, h_ik);
+                        K_sk         = getMatrix.K(t(k), h_ik);
+                        g_sk         = g_sk + K_sk * y{Ns,k};
+                        f_sk         = getMatrix.f(t(k), h_ik);
+                            
                         nNewton   = 0;
                         newtonRes = 1;
                         while newtonRes > newtonTol && nNewton < maxNewton
@@ -392,11 +452,11 @@ properties:
                             
                             [G_ik, g_ik] = getMatrix.G(t_ik, y{i,k+1}, h_ik);
                             
-                            r_ik = K{i,k} * y{i,k+1} + g_ik - f{i,k};
+                            r_ik = K{i,k} * y{i,k+1} + g_ik - f{i,k} - q(i)*(f_sk-g_sk);
                             for j = 1:i
                                 r_ik = r_ik + Ca{i,j,k} * y{j,k+1};
                             end
-                            r_ik = r_ik - Cg{i,k} * y{Ns, k};
+                            r_ik = r_ik - Cp{i,k} * y{Ns, k};
                             
                             newtonRes = norm(r_ik) / norm(g_ik - f{i,k});
                             
@@ -421,11 +481,6 @@ properties:
                             y{i,k+1} = y{i,k+1} - r_ik;
                         end
                         
-                        d_ik = (-gamma(i) / hk) * y{end,k};
-                        for j = 1:i
-                            d_ik = d_ik + (alpha(i,j) / hk) * y{j,k+1};
-                        end
-                        
                         if isSymmetric
                             L{i,k} = L_ik;
                             D{i,k} = D_ik;
@@ -448,25 +503,27 @@ properties:
                     display(sprintf('Iteration %d, Residual = %0.3g', nShooting, shootingRes));
                 end
 
-                if shootingRes > shootingTol
+                if (shootingRes > shootingTol) && (maxGMRES > 0)
                     if isSymmetric
                         A = @ShootingNewton.MVPStoredLDL;
                         if verbose
-                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cg, L, D, P, S, Ns, Nt);
+                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cp, L, D, P, S, Ns, Nt);
                             display(sprintf(' '));
                         else
-                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Cg, L, D, P, S, Ns, Nt);
+                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Cp, L, D, P, S, Ns, Nt);
                         end
                     else
                         A = @ShootingNewton.MVPStoredLU;
                         if verbose
-                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cg, L, U, P, Q, R, Ns, Nt);
+                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cp, L, U, P, Q, R, Ns, Nt);
                             display(sprintf(' '));
                         else
-                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cg, L, U, P, Q, R, Ns, Nt);
+                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cp, L, U, P, Q, R, Ns, Nt);
                         end
                     end
                     y{end,1} = y{end,1} - dy;
+                elseif maxGMRES == 0
+                    y{end,1} = y{end,end};
                 end
             end
         end
