@@ -39,8 +39,7 @@ properties:
         MaxShootingIterations = 100;
         MaxNewtonIterations   = 100;
         MaxGMRESIterations    = 100;
-        RungeKuttaStages      = 2;
-        StorageLevel          = 0;
+        RungeKuttaStages      = 3;
         SymmetricJacobian     = false;
     end
     
@@ -63,17 +62,17 @@ properties:
             Nx = length(getMatrix.f(0));
             
             %% Get RK-Method
-            Ns        = this.RungeKuttaStages;
-            [A, ~, c] = this.getButcherTable(Ns);
-            alpha     = inv(A);
-            gamma     = sum(alpha,2);
+            Ns = this.RungeKuttaStages;
+            [~,~,c,d,p,q,bh,bth] = this.getButcherTable(Ns);
             
             %% Initial Condition
             t          = model.getTimePoints(this.TimePoints);
             this.Times = t;
             Nt         = numel(t) - 1;
          	y          = cell(Ns, Nt+1);
+            y_t        = cell(Ns, Nt+1);
             [y{:}]     = deal(zeros(Nx, 1));
+            [y_t{:}]   = deal(zeros(Nx, 1));
             
             if nargin < 3 || isempty(y0)
                 y{end,1}  = zeros(Nx, 1);
@@ -87,70 +86,40 @@ properties:
             
             %% Begin Simulation            
             if this.Verbose
-                display(sprintf('Shooting-Newton %d/%d\n',Ns,Nt));
+                display(sprintf('\nShooting-Newton %d/%d',Ns,Nt));
             end
             
             tic;
-            switch this.StorageLevel
-                case 0
-                    y = this.solve_level_0(y, t, alpha, gamma, c, Nt, Ns, getMatrix);
-                case 1
-                    error('#TODO');
-                case 2
-                    y = this.solve_level_2(y, t, alpha, gamma, c, Nt, Ns, getMatrix);
-                case 3
-                    y = this.solve_level_3(y, t, alpha, gamma, c, Nt, Ns, getMatrix);
-                otherwise
-                    error('Storage level must be between 0 and 3');
+            if this.StoreDecompositions
+                [y,y_t] = this.solve_stored(y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix);
+            else
+            	[y,y_t] = this.solve_unstored(y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix);
             end
             this.SimulationTime = toc;
             
            	if this.Verbose
-                display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));
+                display(sprintf('\nSimulation Time = %0.3g seconds', this.SimulationTime));
             end
             
             %% Post Processing
-            Ns = 2;
-            a = [0 0;1/2 1/2];
-            
-%             Ns = 4;
-%             c2 = roots([3 -18 18 -4]);
-%             c2 = c2(3);
-%             a = [0,0,0,0;c2/2,c2/2,0,0; (c2*(9*c2^4 - 30*c2^3 + 38*c2^2 - 20*c2 + 4))/(2*(3*c2^2 - 4*c2 + 2)^2), -(c2*(3*c2^3 - 9*c2^2 + 10*c2 - 4))/(3*c2^2 - 4*c2 + 2)^2,c2/2,0; -(9*c2^4 - 27*c2^3 + 31*c2^2 - 14*c2 + 2)/(3*c2*(3*c2^4 - 18*c2^3 + 34*c2^2 - 28*c2 + 8)), (9*c2^3 - 30*c2^2 + 34*c2 - 12)/(12*(c2^3 - 5*c2^2 + 6*c2 - 2)), -(3*c2^2 - 4*c2 + 2)^3/(12*c2*(3*c2^5 - 21*c2^4 + 52*c2^3 - 62*c2^2 + 36*c2 - 8)), (3*c2^2 - 6*c2 + 2)/(3*c2^2 - 12*c2 + 6)];
-
-           	c = sum(a,2);
-            c = c(2:end);
-            A = a(2:end,2:end);
-            a = a(2:end,1);
-            d = inv(A);
-            p = sum(d,2);
-            q = d*a;
-            Ns = Ns-1;
-            
             x   = cell(1, Nt+1);
             x_t = cell(1, Nt+1);
             for k = 1:Nt
-                hk = t(k+1) - t(k);
-                
-                x{k} = y{end,k};
-                
-                x_t{k+1} = (y{end,k+1}-y{end,k}) / hk;
-%                 for i = 1:Ns
-%                     x_t{k+1} = x_t{k+1} + (alpha(end,i) / hk) * y{i,k+1};
-%                 end
+                x{k+1}   = y{end,k+1};
+                x_t{k+1} = y_t{end,k+1};
             end
-            x{end} = x{1};
+            x{1}   = x{end};
             x_t{1} = x_t{end};
-            y(:,1) = y(:,end);
             
             [x, x_t] = getMatrix.doPostProcessing(x, x_t);
             this.Y   = y;
+            this.Y_t = y_t;
             this.X   = x;
             this.X_t = x_t;
             solution = Solution(this);
         end
         
-        function y = solve_level_0(this, y, t, alpha, gamma, c, Nt, Ns, getMatrix)
+        function [y,y_t] = solve_unstored(this, y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix)
             %% Algorithm Parameters
           	maxShooting = this.MaxShootingIterations;
             maxNewton   = this.MaxNewtonIterations;
@@ -162,34 +131,36 @@ properties:
             
             verbose     = this.Verbose;
             
-            %% Allocate Matrix Storage
+            %% Minimal Matrix Storage
             Ca = cell(1, Ns);
-            d_ik = y{end, 1} * 0;
-
+            
             nShooting   = 0;
             shootingRes = 1;
             while shootingRes > shootingTol && nShooting <= maxShooting
                 nShooting = nShooting + 1;
                 for k = 1:Nt
-                    hk  = t(k+1) - t(k);
+                    h_k = t(k+1) - t(k);
                     for i = 1:Ns
-                        t_ik = t(k) + c(i) * hk;
-                        h_ik = hk / alpha(i,i);
+                        t_ik = t(k) + c(i) * h_k;
+                        h_ik = h_k / d(i,i);
                         
-                        if i == 1
-                            y{1, k+1} = y{Ns, k} + hk * c(i) * d_ik;
-                        else
-                            y{i, k+1} = y{i-1, k+1} + hk * (c(i) - c(i-1)) * d_ik;
-                        end
+                        y{i,k+1} = y{Ns,k};
+                        
+                        [~, rpq] = getMatrix.G(t(k), y{Ns,k}, h_ik);
+                        Kpq = getMatrix.K(t(k), h_ik);
+                        Cpq = getMatrix.C(t(k), h_k / p(i), h_ik);
+                        rpq = rpq + Kpq * y{Ns,k};
+                        rpq = rpq - getMatrix.f(t(k), h_ik);
+                        rpq = q(i) * rpq - Cpq * y{Ns,k};
                         
                         for j = 1:i
-                            Ca{j} = getMatrix.C(t_ik, hk / alpha(i,j), h_ik);
+                            Ca{j} = getMatrix.C(t_ik, h_k / d(i,j), h_ik);
                         end
-                        Cg   = getMatrix.C(t_ik, hk / gamma(i), h_ik);
+                        
                         f_ik = getMatrix.f(t_ik, h_ik);
                         K_ik = getMatrix.K(t_ik, h_ik);
                         
-                        %% Perform newton - raphson itteration
+                        %% Newton Iteration
                         nNewton   = 0;
                         newtonRes = 1;
                         while newtonRes > newtonTol && nNewton < maxNewton
@@ -197,148 +168,52 @@ properties:
                             [G_ik, g_ik] = getMatrix.G(t_ik, y{i,k+1}, h_ik);
                             
                             J_ik = K_ik + Ca{i} + G_ik;
-                            
-                            r_ik = K_ik * y{i,k+1} + g_ik - f_ik;
+                            r_ik = K_ik * y{i,k+1} + g_ik - f_ik + rpq;
                             for j = 1:i
                                 r_ik = r_ik + Ca{j} * y{j,k+1};
                             end
-                            r_ik = r_ik - Cg * y{Ns, k};
                             
                             newtonRes = norm(r_ik) / norm(g_ik - f_ik);
                             
-                            r_ik = J_ik \ r_ik;
+                            r_ik     = J_ik \ r_ik;
                             y{i,k+1} = y{i,k+1} - r_ik;
                         end
                         
-                        d_ik = (-gamma(i) / hk) * y{end,k};
+                        %% Calculate Stage Derivative
+                        y_t{i, k+1} = (-p(i)/h_k) * y{Ns,k} - q(i)*y_t{Ns,k};
                         for j = 1:i
-                            d_ik = d_ik + (alpha(i,j) / hk) * y{j,k+1};
+                            y_t{i,k+1} = y_t{i,k+1} + (d(i,j)/h_k)*y{j,k+1};
                         end
                     end
                 end
+                
+                ei = this.rkError(t,y,y_t,bh,bth,2:Nt,getMatrix);
+                figure;
+                plot(ei);
                 
                 r = y{end,end} - y{end,1};
                 shootingRes = norm(r) / norm(y{end,end});
                 
                 if verbose
-                    display(sprintf('Iteration %d, Residual = %0.3g', nShooting, shootingRes));
+                    display(sprintf('\nIteration %d, Residual = %0.3g', nShooting, shootingRes));
                 end
                 
-                if shootingRes > shootingTol && maxGMRES > 0
-                    A = @ShootingNewton.MVP0;
+                if (shootingRes > shootingTol) && (maxGMRES > 0)
+                    A = @ShootingNewton.MVPUnstored;
                     if verbose
-                        dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, y, t, alpha, gamma, c, Ns, Nt, getMatrix);
+                        dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, y, t, c, d, p, q, Ns, Nt, getMatrix);
                     else
-                        [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, y, t, alpha, gamma, c, Ns, Nt, getMatrix);
+                        [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, y, t, c, d, p, q, Ns, Nt, getMatrix);
                     end
                     y{end,1} = y{end,1} - dy;
-                else
+                elseif maxGMRES == 0
                     y{end,1} = y{end,end};
                     display(sprintf(' '));
                 end
             end
         end
-        
-        function y = solve_level_2(this, y, t, alpha, gamma, c, Nt, Ns, getMatrix)
-            %% Algorithm Parameters
-          	maxShooting = this.MaxShootingIterations;
-            maxNewton   = this.MaxNewtonIterations;
-            maxGMRES    = this.MaxGMRESIterations;
-            
-            shootingTol = this.ShootingTolerance;
-            newtonTol   = this.NewtonTolerance;
-            gmresTol    = this.GMRESTolerance;
-            
-            verbose     = this.Verbose;
-            
-            %% Allocation Level 3, Store Everything
-            K  = cell(Ns, Nt);
-            f  = cell(Ns, Nt);
-            Ca = cell(Ns, Ns, Nt);
-            Cg = cell(Ns, Nt);
-            J  = cell(Ns, Nt);
-            
-            for k = 1:Nt
-                hk  = t(k+1) - t(k);
-                for i = 1:Ns
-                    t_ik = t(k) + c(i) * hk;
-                    h_ik = hk / alpha(i,i);
-                    for j = 1:i
-                        Ca{i,j,k} = getMatrix.C(t_ik, hk / alpha(i,j), h_ik);
-                    end
-                    Cg{i,k} = getMatrix.C(t_ik, hk / gamma(i), h_ik);
-                    K{i,k}  = getMatrix.K(t_ik, h_ik);
-                    f{i,k}  = getMatrix.f(t_ik, h_ik);
-                end
-            end
-            d_ik = f{1,1} * 0;
-            
-            %% Start
-            nShooting   = 0;
-            shootingRes = 1;
-            while shootingRes > shootingTol && nShooting <= maxShooting
-                nShooting = nShooting + 1;
-                for k = 1:Nt
-                    hk  = t(k+1) - t(k);
-                    for i = 1:Ns
-                        t_ik = t(k) + c(i) * hk;
-                        h_ik = hk / alpha(i, i);
-                        
-                        if i == 1
-                            y{1, k+1} = y{Ns, k} + hk * c(i) * d_ik;
-                        else
-                            y{i, k+1} = y{i-1, k+1} + hk * (c(i) - c(i-1)) * d_ik;
-                        end
-                        
-                        nNewton   = 0;
-                        newtonRes = 1;
-                        while newtonRes > newtonTol && nNewton < maxNewton
-                            nNewton = nNewton + 1;
-                            
-                            [G_ik, g_ik] = getMatrix.G(t_ik, y{i,k+1}, h_ik);
-                            
-                            r_ik = K{i,k} * y{i,k+1} + g_ik - f{i,k};
-                            for j = 1:i
-                                r_ik = r_ik + Ca{i,j,k} * y{j,k+1};
-                            end
-                            r_ik = r_ik - Cg{i,k} * y{Ns, k};
-                            
-                            newtonRes = norm(r_ik) / norm(g_ik - f{i,k});
-                            
-                            J{i,k}   = K{i,k} + Ca{i,i,k} + G_ik;
-                            r_ik     = J{i,k} \ r_ik;
-                            
-                            y{i,k+1} = y{i,k+1} - r_ik;
-                        end
-                        
-                        d_ik = (-gamma(i) / hk) * y{end,k};
-                        for j = 1:i
-                            d_ik = d_ik + (alpha(i,j) / hk) * y{j,k+1};
-                        end
-                    end
-                end
-                
-                r = y{end,end} - y{end,1};
-                shootingRes = norm(r) / norm(y{end, end});
-                
-                if verbose
-                    display(sprintf('Iteration %d, Residual = %0.3g', nShooting, shootingRes));
-                end
 
-                if shootingRes > shootingTol
-                    A = @ShootingNewton.MVP2;
-                    if verbose
-                        dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cg, J, Ns, Nt);
-                        display(sprintf(' '));
-                    else
-                        [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cg, J, Ns, Nt);
-                    end
-                    y{end,1} = y{end,1} - dy;
-                end
-            end
-        end
-        
-        function y = solve_level_3(this, y, t, alpha, gamma, c, Nt, Ns, getMatrix)
+        function [y,y_t] = solve_stored(this, y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix)
             %% Algorithm Parameters
           	maxShooting = this.MaxShootingIterations;
             maxNewton   = this.MaxNewtonIterations;
@@ -352,35 +227,11 @@ properties:
             
             verbose     = this.Verbose;
             
-            y = y(end,:);
-            
-%             Ns = 2;
-%             a = [0 0;1/2 1/2];
-            
-            Ns = 4;
-            y = [y;y;y];
-            c2 = roots([3 -18 18 -4]);
-            c2 = c2(3);
-            a = [0,0,0,0;c2/2,c2/2,0,0; (c2*(9*c2^4 - 30*c2^3 + 38*c2^2 - 20*c2 + 4))/(2*(3*c2^2 - 4*c2 + 2)^2), -(c2*(3*c2^3 - 9*c2^2 + 10*c2 - 4))/(3*c2^2 - 4*c2 + 2)^2,c2/2,0; -(9*c2^4 - 27*c2^3 + 31*c2^2 - 14*c2 + 2)/(3*c2*(3*c2^4 - 18*c2^3 + 34*c2^2 - 28*c2 + 8)), (9*c2^3 - 30*c2^2 + 34*c2 - 12)/(12*(c2^3 - 5*c2^2 + 6*c2 - 2)), -(3*c2^2 - 4*c2 + 2)^3/(12*c2*(3*c2^5 - 21*c2^4 + 52*c2^3 - 62*c2^2 + 36*c2 - 8)), (3*c2^2 - 6*c2 + 2)/(3*c2^2 - 12*c2 + 6)];
-            
-%             Ns = 3;
-%             y = [y;y];
-%             a = [0,0,0;1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;2^(1/2)/4,2^(1/2)/4, 1 - 2^(1/2)/2];
-%             
-           	c = sum(a,2);
-            c = c(2:end);
-            A = a(2:end,2:end);
-            a = a(2:end,1);
-            d = inv(A);
-            p = sum(d,2);
-            q = d*a;
-            Ns = Ns-1;
-            
-            %% Allocation Level 3, Store Everything
-            K  = cell(Ns, Nt);
-            f  = cell(Ns, Nt);
-            Ca = cell(Ns, Ns, Nt);
-            Cp = cell(Ns, Nt);
+            %% Store Everything
+            K    = cell(Ns, Nt);
+            f    = cell(Ns, Nt);
+            Ca   = cell(Ns, Ns, Nt);
+            Jpq = cell(Ns, Nt);
             if this.SymmetricJacobian
                 L = cell(Ns, Nt);
                 D = cell(Ns, Nt);
@@ -395,36 +246,16 @@ properties:
             end
             
             for k = 1:Nt
-                hk  = t(k+1) - t(k);
+                h_k  = t(k+1) - t(k);
                 for i = 1:Ns
-                    t_ik = t(k) + c(i) * hk;
-                    h_ik = hk / d(i,i);
+                    t_ik = t(k) + c(i) * h_k;
+                    h_ik = h_k / d(i,i);
                     for j = 1:i
-                        Ca{i,j,k} = getMatrix.C(t_ik, hk / d(i,j), h_ik);
+                        Ca{i,j,k} = getMatrix.C(t_ik, h_k / d(i,j), h_ik);
                     end
-                    Cp{i,k} = getMatrix.C(t_ik, hk / p(i), h_ik);
                     K{i,k}  = getMatrix.K(t_ik, h_ik);
                     f{i,k}  = getMatrix.f(t_ik, h_ik);
                 end
-            end
-            
-            %% Consistent Initial Condition
-            newtonRes = inf;
-            nNewton   = 0;
-            K_sk = getMatrix.K(0,1);
-            f_sk = getMatrix.f(0,1);
-            while newtonRes > newtonTol && nNewton < maxNewton
-                nNewton = nNewton + 1;
-                
-                [G_sk, g_sk] = getMatrix.G(0, y{Ns,1}, 1);
-                
-                r_sk = K_sk * y{Ns,1} + g_sk - f_sk;
-                
-                newtonRes = norm(r_sk) / norm(g_sk - f_sk);
-                
-                J_sk = G_sk + K_sk;
-                r_sk = J_sk \ r_sk;
-                y{Ns,1} = y{Ns,1} - r_sk;
             end
             
             %% Start
@@ -433,18 +264,22 @@ properties:
             while shootingRes > shootingTol && nShooting <= maxShooting
                 nShooting = nShooting + 1;
                 for k = 1:Nt
-                    hk  = t(k+1) - t(k);
+                    h_k  = t(k+1) - t(k);
                     for i = 1:Ns
-                        t_ik = t(k) + c(i) * hk;
-                        h_ik = hk / d(i,i);
+                        t_ik = t(k) + c(i) * h_k;
+                        h_ik = h_k / d(i,i);
                         
                     	y{i, k+1} = y{Ns, k};
                         
-                        [~,    g_sk] = getMatrix.G(t(k), y{Ns,k}, h_ik);
-                        K_sk         = getMatrix.K(t(k), h_ik);
-                        g_sk         = g_sk + K_sk * y{Ns,k};
-                        f_sk         = getMatrix.f(t(k), h_ik);
-                            
+                        [Gpq, rpq] = getMatrix.G(t(k), y{Ns,k}, h_ik);
+                        Kpq         = getMatrix.K(t(k), h_ik);
+                        Cpq         = getMatrix.C(t(k), h_k / p(i), h_ik);
+                        Jpq{i,k}    = Cpq - q(i) * (Gpq + Kpq);
+                        rpq         = rpq + Kpq * y{Ns,k};
+                        rpq         = rpq - getMatrix.f(t(k), h_ik);
+                        rpq         = q(i) * rpq - Cpq * y{Ns,k};
+                        
+                        %% Newton Iteration
                         nNewton   = 0;
                         newtonRes = 1;
                         while newtonRes > newtonTol && nNewton < maxNewton
@@ -452,11 +287,10 @@ properties:
                             
                             [G_ik, g_ik] = getMatrix.G(t_ik, y{i,k+1}, h_ik);
                             
-                            r_ik = K{i,k} * y{i,k+1} + g_ik - f{i,k} - q(i)*(f_sk-g_sk);
+                            r_ik = K{i,k} * y{i,k+1} + g_ik - f{i,k} + rpq;
                             for j = 1:i
                                 r_ik = r_ik + Ca{i,j,k} * y{j,k+1};
                             end
-                            r_ik = r_ik - Cp{i,k} * y{Ns, k};
                             
                             newtonRes = norm(r_ik) / norm(g_ik - f{i,k});
                             
@@ -481,6 +315,12 @@ properties:
                             y{i,k+1} = y{i,k+1} - r_ik;
                         end
                         
+                        %% Calcualte Stage Derivative
+                        y_t{i, k+1} = (-p(i)/h_k) * y{Ns,k} - q(i)*y_t{Ns,k};
+                        for j = 1:i
+                            y_t{i,k+1} = y_t{i,k+1} + (d(i,j)/h_k)*y{j,k+1};
+                        end
+                        
                         if isSymmetric
                             L{i,k} = L_ik;
                             D{i,k} = D_ik;
@@ -496,46 +336,50 @@ properties:
                     end
                 end
                 
+            	ei = this.rkError(t,y,y_t,bh,bth,getMatrix);
+                figure;
+                plot(ei);
+                
                 r = y{end,end} - y{end,1};
                 shootingRes = norm(r) / norm(y{end, end});
                 
                 if verbose
-                    display(sprintf('Iteration %d, Residual = %0.3g', nShooting, shootingRes));
+                    display(sprintf('\nIteration %d, Residual = %0.3g', nShooting, shootingRes));
                 end
 
                 if (shootingRes > shootingTol) && (maxGMRES > 0)
                     if isSymmetric
                         A = @ShootingNewton.MVPStoredLDL;
                         if verbose
-                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cp, L, D, P, S, Ns, Nt);
-                            display(sprintf(' '));
+                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, D, P, S, Ns, Nt);
                         else
-                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Cp, L, D, P, S, Ns, Nt);
+                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Jpq, L, D, P, S, Ns, Nt);
                         end
                     else
                         A = @ShootingNewton.MVPStoredLU;
                         if verbose
-                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cp, L, U, P, Q, R, Ns, Nt);
-                            display(sprintf(' '));
+                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt);
                         else
-                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Cp, L, U, P, Q, R, Ns, Nt);
+                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt);
                         end
                     end
                     y{end,1} = y{end,1} - dy;
                 elseif maxGMRES == 0
                     y{end,1} = y{end,end};
+                    display(sprintf(' '));
                 end
             end
         end
     end
     
     methods (Static)
-        function mvp = MVPStoredLDL(z_s0, Ca, Cg, L, D, P, S, Ns, Nt)
+        %% Stored Matrices
+        function mvp = MVPStoredLDL(z_s0, Ca, Jpq, L, D, P, S, Ns, Nt)
             z_sk = z_s0;
             z    = cell(1, Ns);
             for k = 1:Nt
                 for i = 1:Ns         
-                    rhs = Cg{i,k} * z_sk;
+                    rhs = Jpq{i,k} * z_sk;
                     for j = 1:(i - 1);
                         rhs = rhs - Ca{i,j,k} * z{j};
                     end
@@ -546,12 +390,12 @@ properties:
             mvp = z_sk - z_s0;
         end
         
-        function mvp = MVPStoredLU(z_s0, Ca, Cg, L, U, P, Q, R, Ns, Nt)
+        function mvp = MVPStoredLU(z_s0, Ca, Jpq, L, U, P, Q, R, Ns, Nt)
             z_sk = z_s0;
             z    = cell(1, Ns);
             for k = 1:Nt
                 for i = 1:Ns         
-                    r_ik = Cg{i,k} * z_sk;
+                    r_ik = Jpq{i,k} * z_sk;
                     for j = 1:(i - 1);
                         r_ik = r_ik - Ca{i,j,k} * z{j};
                     end
@@ -562,35 +406,22 @@ properties:
             mvp = z_sk - z_s0;
         end
         
-        function mvp = MVP2(z_s0, Ca, Cg, J, Ns, Nt)
+        %% Unstored Matrices
+        function mvp = MVPUnstored(z_s0, y, t, c, d, p, q, Ns, Nt, getMatrix)
             z_sk = z_s0;
             z    = cell(1, Ns);
             for k = 1:Nt
-                for i = 1:Ns         
-                    r_ik = Cg{i,k} * z_sk;
-                    for j = 1:(i - 1);
-                        r_ik = r_ik - Ca{i,j,k} * z{j};
-                    end
-                    z{i} = J{i,k} \ r_ik;
-                end
-                z_sk = z{Ns};
-            end
-            mvp = z_sk - z_s0;
-        end
-        
-        function mvp = MVP0(z_s0, y, t, alpha, gamma, c, Ns, Nt, getMatrix)
-            z_sk = z_s0;
-            z    = cell(1, Ns);
-            for k = 1:Nt
-                hk = t(k+1) - t(k);
+                h_k = t(k+1) - t(k);
                 for i = 1:Ns
-                    t_ik = t(k) + c(i) * hk;
-                    h_ik = hk / alpha(i,i);
+                    t_ik = t(k) + c(i) * h_k;
+                    h_ik = h_k / d(i,i);
                     
-                    C    = getMatrix.C(t_ik, hk / gamma(i), h_ik);
-                    r_ik = C * z_sk;
+                    Jpq = getMatrix.G(t(k), y{Ns,k}, h_ik);
+                    Jpq = Jpq + getMatrix.K(t(k), h_ik);
+                    Jpq = getMatrix.C(t(k), h_k / p(i), h_ik) - q(i)*Jpq;
+                    r_ik = Jpq * z_sk;
                     for j = 1:(i-1)
-                        C    = getMatrix.C(t_ik, hk / alpha(i,j), h_ik);
+                        C    = getMatrix.C(t_ik, h_k / d(i,j), h_ik);
                         r_ik = r_ik - C * z{j};
                     end
 
@@ -604,24 +435,8 @@ properties:
             end
             mvp = z_sk - z_s0;
         end
-        
-        function [A,b,c] = getButcherTable(nStages)
-            switch nStages
-                case 1
-                    A = 1;
-                case 2
-                    A = [1/3 0;
-                         3/4 1/4];
-                case 4
-                  	A = [2  0 0 0;
-                         3  3 0 0;
-                         2 -2 4 0;
-                         0  0 9 3]/12;
-            end
-            b = A(end, :);
-            c = sum(A, 2);
-        end
       
+        %% Configure
         function solverOut = configureSolver(varargin)
             if nargin > 0
                 solverOut = ShootingNewton(varargin{:});

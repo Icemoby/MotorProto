@@ -1,12 +1,14 @@
-classdef Arnon7 < NonlinearMaterial
+classdef FakeIron < NonlinearMaterial
     properties (SetAccess = protected)
         %% Basic material information
         Description  = 'Arnon7';
         Color = 'b';
 
         %% BH Curve Data
-        HData = [0.00, 0.60, 0.70, 0.90, 1.50, 2.0, 3.5, 6.0, 15] * 1000 / 4 / pi;
-        BData = [0.00, 0.21, 0.32, 0.55, 0.93, 1.1, 1.3, 1.4, 1.5];
+        HData = [0, 10, 100, 1000];
+        BData = [0, 10, 100, 1000] / (1000*mu_o);
+      	
+        BasisDegree = 2;
               
         %% Empirical Loss Data
         CoreLossData = [[0.015 0.035 0.600 0.950 3.000 0.080 0.400 1.500 3.000 5.000 7.000 0.30 0.90 4.00 8.00 1.50 3.50] * 1.7e4;

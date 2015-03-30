@@ -50,8 +50,6 @@ properties
         HData
         BData
         
-        BasisDegree
-        
         %% Empirical Loss Data
         CoreLossData
     end
@@ -63,11 +61,9 @@ properties
         MData
         
         %% Spline Data
-        KnotVector
-        Bbins
-        Hbins
-        Mbins
-        SplinePFC %Coefficients of BSpline in power form
+        Bs
+        Chi0
+        a
         
         %% Core Losses
         CoreLossCoefficients
@@ -95,79 +91,67 @@ properties
             end
             
             M = B / mu_o - H;
-            for i = 1:(length(M)-1)
-                j = i + 1;
-                while (j < length(M)) && (M(j) <= M(i))
-                    j = j + 1;
-                end
+            
+            M(1) = [];
+            B(1) = [];
+            H(1) = [];
+            
+            K     = length(M);
+            Bsv   = min(1.5,max(B));
+            Chi0v = (M(2)-M(1)) / (B(2) - B(1));
+            av    = 10;
+            tol   = inf;
+            
+            while tol > sqrt(eps / 3)
+                f    = 0;
+                df   = zeros(3,1);
+                dff  = zeros(3,3);
 
-                dMdB = (M(j) - M(i)) / (B(j) - B(i));
+                g = zeros(3,1);
+                h = zeros(3,3);
 
-                if dMdB <= 0
-                    for k = (i+1):j
-                        M(k) = M(i)*(1+(k-i)*eps^2);
+                for k = 1:K
+                    x = B(k);
+                    ek = (Chi0v*(x/2 - (atan(av*(Bsv - x))*(Bsv - x))/pi) + (Bsv*Chi0v*atan(Bsv*av))/pi - M(k));
+                    f = f + 0.5*ek^2 / H(k)^2;
+
+                    df(1) = (Chi0v*atan(Bsv*av))/pi - Chi0v*(atan(av*(Bsv - x))/pi + (av*(Bsv - x))/(pi*(av^2*(Bsv - x)^2 + 1))) + (Bsv*Chi0v*av)/(pi*(Bsv^2*av^2 + 1));
+                    df(2) = x/2 - (atan(av*(Bsv - x))*(Bsv - x))/pi + (Bsv*atan(Bsv*av))/pi;
+                    df(3) = (Bsv^2*Chi0v)/(pi*(Bsv^2*av^2 + 1)) - (Chi0v*(Bsv - x)^2)/(pi*(av^2*(Bsv - x)^2 + 1));
+
+                    dff(1,1) = -(2*Chi0v*av^3*x*(2*Bsv - x)*(2*Bsv^2*av^2 - 2*Bsv*av^2*x + av^2*x^2 + 2))/(pi*(Bsv^2*av^2 + 1)^2*(Bsv^2*av^2 - 2*Bsv*av^2*x + av^2*x^2 + 1)^2);
+                    dff(1,2) = atan(Bsv*av)/pi - atan(av*(Bsv - x))/pi + (Bsv*av)/(pi*(Bsv^2*av^2 + 1)) - (av*(Bsv - x))/(pi*(av^2*(Bsv - x)^2 + 1));
+                    dff(1,3) = (2*Chi0v*x*(- 3*Bsv^4 + 6*Bsv^3*x - 4*Bsv^2*x^2 + Bsv*x^3)*av^4 + 2*Chi0v*x*(2*Bsv*x - 2*Bsv^2)*av^2 + 2*Chi0v*x)/(pi*(Bsv^2*av^2 + 1)^2*(Bsv^2*av^2 - 2*Bsv*av^2*x + av^2*x^2 + 1)^2);
+                    dff(2,2) = 0;
+                    dff(2,3) = Bsv^2/(pi*(Bsv^2*av^2 + 1)) - (Bsv - x)^2/(pi*(av^2*(Bsv - x)^2 + 1));
+                    dff(3,3) = (2*Chi0v*av*(Bsv - x)^4)/(pi*(av^2*(Bsv - x)^2 + 1)^2) - (2*Bsv^4*Chi0v*av)/(pi*(Bsv^2*av^2 + 1)^2);
+
+                    for i = 2:3
+                        for j = (i+1):3
+                            dff(i,j) = dff(j,i);
+                        end
                     end
-                else
-                    for k = (i+1):(j-1)
-                        M(k) = M(i) + dMdB * (B(k) - B(i));
+                    for i = 1:3
+                        g(i) = g(i) + ek*df(i)/H(k)^2;
+                        for j = 1:3
+                            h(i,j) = h(i,j) + (df(i)*df(j)+ek*dff(i,j))/H(k)^2;
+                        end
                     end
                 end
+
+                delta = h\g;
+                Bsv    = Bsv - delta(1);
+                Chi0v  = Chi0v - delta(2);
+                av     = av - delta(3);
+                
+                tol = sqrt((delta(1)/Bsv)^2 + (delta(2)/Chi0v)^2 + (delta(3)/av)^2);
             end
-
-            if M(end) < M(end-1)
-                M(end) = M(end-1) * (1+eps^2);
-            elseif abs(M(end)-M(end-1)) > sqrt(eps) * M(end)
-                M(end+1) = M(end) * (1+eps^2);
-                B(end+1) = B(end) + H(end)*mu_o;
-            end
-
-            H = B/mu_o - M;
             
-            this.HData = H;
-            this.BData = B;
-            this.MData = M;
+            assert(Chi0v*mu_o < 1);
             
-            %% Create Knot-Vector
-            p = this.BasisDegree;
-            k = numel(B) - 1 - p;
-            U = [0*ones(1,1+p), 1:k, (k+1)*ones(1,1+p)];
-            
-            this.KnotVector = U;
-            
-            %% Calculate Knot Vector Bins
-            u = unique(U)';
-            w = this.evaluate_basis_funs(u,U,p);
-
-            bins       = w*H;
-            bins(end)  = H(end);
-            this.Hbins = bins;
-
-            bins       = w*M;
-            bins(end)  = M(end);
-            this.Mbins = bins;
-            
-            bins       = w*B;
-            bins(end)  = B(end);
-            this.Bbins = bins;
-            
-            %% Calculate Basis Coefficients in Power Form    
-            u      = linspace(0,k+1,2*k+3)';
-            w      = this.evaluate_basis_funs(u,U,p);
-            w      = w*B;
-            w(end) = B(end);
-         	pfc    = zeros(p+1,k);
-            for j = 1:(k+1)
-                i = 2*j-1;
-                I = i:(i+2);
-                pfc(:,j) = polyfit(u(I),w(I),p);
-                if p == 2 && (abs(pfc(1,j)) < sqrt(eps) * abs(pfc(2,j))) %points are colinear
-                    pfc(1,j)   = 0;
-                    pfc(2:3,j) = polyfit(u(I),w(I),1);
-                end
-            end
-            pfc(p+1,1) = 0;
-            
-            this.SplinePFC = pfc;
+            this.Bs   = Bsv;
+            this.Chi0 = Chi0v;
+            this.a    = av;
             
             this.CoreLossCoefficients = this.calculateCoreLossCoefficients(this.CoreLossData);
         end
@@ -189,111 +173,16 @@ properties
         end
         
         function [M, dMdB] = magnitudeM(this, B)
-            if this.BasisDegree == 1
-                M = zeros(size(B));
-                dMdB = zeros(size(B));
-                bdata = this.BData;
-                mdata = this.MData;
-                n = numel(bdata);
-                for i = 1:(n-1)
-                    m = (mdata(i+1)-mdata(i)) / (bdata(i+1) - bdata(i));
-                    I = (bdata(i) <= B) & (B < bdata(i+1));
-                    M(I) = m * B(I) + (mdata(i) - m * bdata(i));
-                    dMdB(I) = m;
-                end
-                I = (bdata(n) <= B);
-                M(I) = mdata(n);
-            else
-                u       = this.calculate_parameter(B, this.Bbins, this.SplinePFC, this.BasisDegree);
-                [w, dw] = this.evaluate_basis_funs(u, this.KnotVector, this.BasisDegree);
-                M       = w * this.MData;
-                dMdB    = (dw * this.MData) ./ (dw * this.BData);
-            end
+            Bsv   = this.Bs;
+            Chi0v = this.Chi0;
+            av    = this.a;
+            
+            M    = Chi0v.*(B./2 - (atan(av.*(B - Bsv)).*(B - Bsv))./pi) + (Bsv.*Chi0v.*atan(Bsv.*av))./pi;
+            dMdB = -Chi0v.*(atan(av.*(B - Bsv))./pi + (av.*(B - Bsv))./(pi.*(av.^2.*(B - Bsv).^2 + 1)) - 1./2);
         end
     end
     
     methods (Static)
-        function [w, dw] = evaluate_basis_funs(u, U, P)
-            n = numel(U) - 1 - P;
-            m = numel(u);
-            
-            w  = zeros(m, n);
-            dw = zeros(m, n);
-            for i = (1+P):n
-                I = (U(i) <= u) & (u < U(i+1));
-                w(I,i) = 1.0;
-            end
-            
-            for p = 1:(P-1)
-                N = w;
-
-                i = P+1-p;
-                w(:,i) = (U(i+p+1) - u) .* N(:,i+1) / (U(i+p+1) - U(i+1));
-
-                for i = (P+2-p):(n-1)
-                    w(:,i) = (u - U(i)) .* N(:,i) / (U(i+p) - U(i)) + (U(i+p+1) - u) .* N(:,i+1) / (U(i+p+1) - U(i+1));
-                end
-
-                i = n;
-                w(:,i) = (u - U(i)) .* N(:,i) / (U(i+p) - U(i));
-            end
-            
-            p = P;
-            N = w;
-            
-            i = 1;
-            w(:,i) = (U(i+p+1) - u) .* N(:,i+1) / (U(i+p+1) - U(i+1));
-            for i = 2:(n-1)
-                w(:,i) = (u - U(i)) .* N(:,i) / (U(i+p) - U(i)) + (U(i+p+1) - u) .* N(:,i+1) / (U(i+p+1) - U(i+1));
-                dw(:,i) = p * N(:,i) / (U(i+p) - U(i)) - p * N(:,i+1) / (U(i+p+1) - U(i+1));
-            end
-            i = n;
-            w(:,i) = (u - U(i)) .* N(:,i) / (U(i+p) - U(i));
-            dw(:,i) = p * N(:,i) / (U(i+p) - U(i));
-
-
-            I = (u >= U(end));
-            w(I,n) = 1;
-            dw(I,n) = P;
-            dw(I,n-1) = -P;
-        end
-        
-        function u = calculate_parameter(v, bins, pfc, P)
-            switch P
-                case 1
-                    u = zeros(size(v));
-                    n = numel(bins);
-                    for i = 1:(n-1)
-                        m = pfc(1,i);
-                        b = pfc(2,i);
-                        
-                        I = (bins(i) <= v) & (v < bins(i+1));
-                        u(I) = (v(I) - b) / m;
-                    end
-                    I = (bins(n) <= v);
-                    u(I) = n;
-                case 2
-                    u = zeros(size(v));
-                    n = numel(bins);
-                    for i = 1:(n-1)
-                        a = pfc(1,i);
-                        b = pfc(2,i);
-                        c = pfc(3,i);
-
-                        I = (bins(i) <= v) & (v < bins(i+1));
-                        if a == 0
-                            u(I) = (v(I) - c) / b;
-                        else
-                            u(I) = (-b + sqrt(b^2 - 4*a*(c-v(I)))) / (2*a);
-                        end
-                    end
-                    I = (bins(n) <= v);
-                    u(I) = n;
-                otherwise
-                    error('#TODO - Add Newton method for evaluating parameters for p > 2 (expensive)');
-            end
-        end
-        
         function coefficients = calculateCoreLossCoefficients(coreLossData)
             p = coreLossData(1, :).';
             f = coreLossData(2, :).';

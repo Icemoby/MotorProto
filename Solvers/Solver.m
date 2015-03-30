@@ -36,10 +36,11 @@ properties:
     end
     
     properties
-        TimePoints = 0;
-        Times      = 0;
+        TimePoints
+        Times
         
-        Verbose    = false;
+        StoreDecompositions = false;
+        Verbose = false;
     end
     
     properties (Dependent, SetAccess = private)
@@ -48,6 +49,7 @@ properties:
     
     properties (SetAccess = protected)
         Y
+        Y_t
         
         X
         X_t
@@ -64,6 +66,74 @@ properties:
                 end
             else
                 error('MotorProto:Solver:invalidObjectType', '%s is not a recognized Solver subclass',solverType);
+            end
+        end
+        
+     	function [a,b,c,d,p,q,bh,bth] = getButcherTable(Ns)
+            switch Ns
+                case 1
+                    a = [0 0;
+                         0 1];
+                         
+                    bh  = [1,0];
+                    bth = [1,0];
+                case 2
+                    a = [0,0,0;
+                         1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;
+                         2^(1/2)/4,2^(1/2)/4, 1 - 2^(1/2)/2];
+                    
+                    bh  = [1,0,0];
+                    bth = [1,0,0];
+                case 3            
+                    c2 = roots([3 -18 18 -4]);
+                    c2 = c2(2);
+                    c2 = c2-((((c2-6)*c2+6)*c2)/(3*((c2-4)*c2+2))-4/(9*((c2-4)*c2+2)));
+                    
+                    a = zeros(4,4);
+                    a(2,1) = c2 / 2;
+                    a(2,2) = c2 / 2;
+                    a(3,1) = (c2*(c2*(c2*(c2*(9*c2 - 30) + 38) - 20) + 4)) / (c2*(c2*(c2*(18*c2 - 48) + 56) - 32) + 8);
+                    a(3,2) = (-c2*(c2*(c2*(3*c2 - 9) + 10) - 4)) / (c2*(c2*(c2*(9*c2 - 24) + 28) - 16) + 4);
+                    a(3,3) = c2 / 2;
+                    a(4,1) = (-c2*(c2*(c2*(9*c2 - 27) + 31) - 14) - 2) / (c2*(c2*(c2*(c2*(9*c2 - 54) + 102) - 84) + 24));
+                    a(4,2) = (c2*(c2*(9*c2 - 30) + 34) - 12) / (c2*(c2*(12*c2 - 60) + 72) - 24);
+                    a(4,3) = (-c2*(c2*(c2*(c2*(c2*(27*c2 - 108) + 198) - 208) + 132) - 48) - 8) / (c2*(c2*(c2*(c2*(c2*(36*c2 - 252) + 624) - 744) + 432) - 96));
+                    a(4,4) = c2 / 2;
+                    
+                    bh  = [ -((c2 - 1)^2*(3*c2^2 - 4*c2 + 2))/(c2*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2)), ((3*c2^2)/4 - 1/2)/((c2 - 1)*(c2^2 - 4*c2 + 2)) + 3/4, ((3*c2^2 - 4*c2 + 2)^2*(c2^2 - 2*c2 + 2))/(4*(c2^2 - 4*c2 + 2)*(- 3*c2^4 + 9*c2^3 - 10*c2^2 + 4*c2)), (c2*(c2 - 2))/(c2^2 - 4*c2 + 2)];
+                    bth = [ ((3*c2 - 2)*(c2^2 - 2*c2 + 2))/(c2*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2)), - 1/(2*(c2 - 1)) - (c2 - 2)/(c2^2 - 4*c2 + 2), ((c2 - 2)*(3*c2^2 - 4*c2 + 2)^2)/(2*c2*(c2 - 1)*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2)), 1 - 2/(c2^2 - 4*c2 + 2)];
+            end
+            b = a(end,:);
+            c = sum(a,2);
+            c = c(2:end);
+            q = a(2:end,2:end) \ a(2:end,1);
+            
+            assert(abs(q(end)) < sqrt(eps));
+            q(end) = 0;
+            
+            a = a(2:end,2:end);
+            d = inv(a);
+            p = sum(d,2);
+        end
+        
+        function ei = rkError(t, y, y_t, bh, bth, matrixFactory)
+            Nt = length(t) - 1;
+            Ns = length(bh) - 1;
+           	ei = zeros(1, Nt);
+            for k = 1:Nt
+                km1 = mod(k-2, Nt) + 1;
+                h_k = t(k+1) - t(k);
+                yh  = y{end,km1} + h_k*bh(1)*y_t{end,km1};
+                yth = bth(1)*y_t{end,km1};
+                for i = 1:Ns
+                    yh  = yh  + h_k*bh(i+1)*y_t{i,k};
+                    yth = yth + bth(i+1)*y_t{i,k};
+                end
+                
+                ei(k) = matrixFactory.sobolev(yh,yth);
+                yh  = yh  - y{end,k};
+                yth = yth - y_t{end,k};
+                ei(k) = matrixFactory.sobolev(yh,yth) / ei(k);
             end
         end
     end

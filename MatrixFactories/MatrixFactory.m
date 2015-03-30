@@ -355,6 +355,28 @@ classdef MatrixFactory
                         end
                     end
                 end
+                
+                %% Sobolev Norm Weighting Matrices
+                el	      = mesh(i).Elements;
+                elArea    = mesh(i).ElementAreas;
+                nElements = numel(elArea);
+                
+                ii = [el(1,:), el(2,:), el(3,:),...
+                      el(1,:), el(2,:), el(1,:),...
+                      el(2,:), el(3,:), el(3,:)];
+                
+                jj = [el(1,:), el(2,:), el(3,:),...
+                      el(2,:), el(3,:), el(3,:),...
+                      el(1,:), el(2,:), el(1,:)];
+                
+                ss = elArea / 12;
+                ss = [repmat(2*ss,1,3), repmat(ss,1,6)];
+                postProcessing(i).SobolevA = sparse(ii,jj,ss,nUnknowns,nUnknowns);
+                
+                ii = 1:nElements;
+                jj = 1:nElements;
+                ss = elArea;
+                postProcessing(i).SobolevB = sparse(ii,jj,ss,nElements,nElements);
             end
             this.PostProcessing = postProcessing;
         end
@@ -885,11 +907,6 @@ classdef MatrixFactory
             end
         end
         
-      	function harmonics = radialBoundaryHarmonics(this,iMesh)
-            warning('Use getRadialBoundaryHarmonics');
-            harmonics = getRadialBoundaryHarmonics(this,iMesh);
-        end
-        
         %% Master Loop Function
       	function structure = buildMatrices(this, structure, methodName)
             for iMesh = numel(this.Mesh):-1:1;
@@ -917,6 +934,40 @@ classdef MatrixFactory
                     y_t{i,j} = ppMatrices(i).Reduced2Full * x_t{j}(I);
                 end
             end
+        end
+        
+        function v = sobolev(this, x, x_t)
+            if nargin < 2
+                x_t = zeros(size(x));
+            end
+                
+            index    = this.Index;
+            curlN2E  = this.Jacobian.FluxDensity;
+            post     = this.PostProcessing;
+            
+            v = 0;
+            for i = 1:2
+                I = index.Global(i).X;
+                z  = x(I);
+                zt = x_t(I);
+                
+                Bx = curlN2E(i).dBxdXz * z;
+                By = curlN2E(i).dBydXz * z;
+                v = v + Bx.' * post(i).SobolevB * Bx;
+                v = v + By.' * post(i).SobolevB * By;
+
+                Bx = curlN2E(i).dBxdXz * zt;
+                By = curlN2E(i).dBydXz * zt;
+                v = v + Bx.' * post(i).SobolevB * Bx;
+                v = v + By.' * post(i).SobolevB * By;
+                
+                z   = post(i).Reduced2Full * z;
+                zt  = post(i).Reduced2Full * zt;
+                
+                v = v + z.'  * post(i).SobolevA * z;
+                v = v + zt.' * post(i).SobolevA * zt;
+            end
+            v = sqrt(v);
         end
         
         function [t, h] = getTimePoints(this, Nt)

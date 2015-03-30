@@ -32,7 +32,7 @@ stator.Poles               = nPoles;
 stator.Teeth               = nTeeth;
 stator.InnerRadius         = statorInnerRadius;
 stator.OuterRadius         = statorOuterRadius;
-stator.DefaultMaterial     = Arnon7;
+stator.DefaultMaterial     = Iron;
 stator.SourceType          = SourceTypes.CurrentSource;
 stator.CouplingType        = CouplingTypes.Dynamic;
 stator.WindingType         = WindingTypes.Distributed;
@@ -74,7 +74,7 @@ rotor.Length              = len;
 rotor.ElectricalFrequency = f_r * nPoles / 2;
 rotor.InnerRadius         = rotorInnerRadius;
 rotor.OuterRadius         = rotorOuterRadius;
-rotor.DefaultMaterial     = Arnon7;
+rotor.DefaultMaterial     = Iron;
 rotor.OperatingMode       = OperatingModes.Synchronous;
 rotor.InitialAngle        = pi/nPoles*0;
 rotor.BackironType        = BackironTypes.Laminated;
@@ -117,7 +117,7 @@ rotor.addRegion('trimUHP', trimUHP, Air, DynamicsTypes.Static);
 rotor.addRegion('trimLHP', trimLHP, Air, DynamicsTypes.Static);
 
 retainingRing = Geometry2D.draw('Sector', 'Radius', [rotorOuterRadius-pmRing, rotorOuterRadius], 'Angle', 2 * pi / nPoles, 'Rotation', - pi / nPoles,'PlotStyle',{'b'});
-rotor.addRegion('ring', retainingRing, Arnon7, DynamicsTypes.Static);
+rotor.addRegion('ring', retainingRing, Iron, DynamicsTypes.Static);
 
 %% Set mesh parameters
 mesh                       = simulation.Mesh;
@@ -126,30 +126,41 @@ mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
 
 %% Set Excitation
 %% Voltage Source
+% h = 1;
+% V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
+
+% h = 1:2:1001;
+% V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000)));
+% 
 % stator.SourceType = SourceTypes.VoltageSource;
 % stator.ParallelPaths = nParallelPaths;
 % stator.Circuits.ElectricalFrequency = f_e;
-% stator.Circuits.HarmonicNumbers     = 1;
-% stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
-% stator.Circuits.HarmonicPhases      = -pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256);
+% stator.Circuits.HarmonicNumbers     = h;
+% stator.Circuits.HarmonicAmplitudes  = abs(V);
+% stator.Circuits.HarmonicPhases      = angle(V);
 
 %% Current Source
-Iq = 150;
-Id = 500;
+h = 1;
+Iq = 500;
+Id = 0;
 I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
+
+% h = 1:2:1001;
+% h(mod(h,3)==0) = [];
+% I = 500*1i*(cos(pi*h/6)-cos(5*pi*h/6)) ./ (pi*h) .* (1./(1+(1i*h*f_e/6000)));
 
 stator.SourceType = SourceTypes.CurrentSource;
 stator.ParallelPaths = nParallelPaths;
 stator.Circuits.ElectricalFrequency = f_e;
-stator.Circuits.HarmonicNumbers    = 1;
-stator.Circuits.HarmonicAmplitudes = abs(I);
-stator.Circuits.HarmonicPhases     = angle(I);
+stator.Circuits.HarmonicNumbers     = h;
+stator.Circuits.HarmonicAmplitudes  = abs(I);
+stator.Circuits.HarmonicPhases      = angle(I);
 
 nTimePoints = 18;
 % simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
-simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 0, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',100);
-% simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-8, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true);
-% simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 2*3^4-1, 'Verbose', true, 'AdaptiveTol', 1e-2, 'NewtonTol', 1e-2, 'GMRESTol', 1e-4, 'ColocationTol', 1e-5, 'Strategy','plan','Plan',[3,2,3,3,3]);
+simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 10, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',5);
+% simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', false, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true);
+% simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 2*3^4-1, 'Verbose', true, 'AdaptiveTol', 1e-6, 'NewtonTol', 1e-6, 'GMRESTol', 1e-4, 'ColocationTol', 1e-12, 'Strategy','plan','Plan',[3,2,3,3,3]);
 
 model.build;
 mesh.build;
@@ -165,20 +176,20 @@ solution = simulation.run;
 % solution.plot('H','Harmonic',[0, 1]);
 % solution.plot('M','Harmonic',[0, 1]);
 % solution.plot('LossDensity', 'UseSinglePlot', true);
-% solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
+solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
 % solution.plot('J','Time',1);
 % solution.plot('J','Harmonic',1);
 % solution.plot('E','Time',1);
 % solution.plot('E','Harmonic',1);
 % 
 solution.plot('Flux Linkage','Time');
-solution.plot('Flux Linkage','Harmonic');
+% solution.plot('Flux Linkage','Harmonic');
 solution.plot('Torque','Time');
-solution.plot('Torque','Harmonic');
+% solution.plot('Torque','Harmonic');
 solution.plot('Voltage','Time');
-solution.plot('Voltage','Harmonic');
+% solution.plot('Voltage','Harmonic');
 solution.plot('Current','Time');
-solution.plot('Current','Harmonic');
+% solution.plot('Current','Harmonic');
 % 
 % v = solution.getBulkVariableData('Voltage','Time');
 % figure;plot(v{1}{1}-v{1}{2})
