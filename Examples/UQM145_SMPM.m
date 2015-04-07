@@ -128,35 +128,35 @@ mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
 %% Voltage Source
 % h = 1;
 % V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
-
-h = 1:2:1001;
-V = 1i*340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .*abs(1./(1+(1i*h*f_e/12000)));
-
-stator.SourceType = SourceTypes.VoltageSource;
-stator.ParallelPaths = nParallelPaths;
-stator.Circuits.ElectricalFrequency = f_e;
-stator.Circuits.HarmonicNumbers     = h;
-stator.Circuits.HarmonicAmplitudes  = abs(V);
-stator.Circuits.HarmonicPhases      = angle(V);
+% 
+% % h = 1:2:1001;
+% % V = 1i*340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .*abs(1./(1+(1i*h*f_e/12000)));
+% % 
+% stator.SourceType = SourceTypes.VoltageSource;
+% stator.ParallelPaths = nParallelPaths;
+% stator.Circuits.ElectricalFrequency = f_e;
+% stator.Circuits.HarmonicNumbers     = h;
+% stator.Circuits.HarmonicAmplitudes  = abs(V);
+% stator.Circuits.HarmonicPhases      = angle(V);
 
 %% Current Source
-% h = 1;
-% Iq = 500;
-% Id = 0;
-% I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
+h = 1;
+Iq = 0;
+Id = 0;
+I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
 
 % h = 1:2:1001;
 % h(mod(h,3)==0) = [];
 % I = 500*1i*(cos(pi*h/6)-cos(5*pi*h/6)) ./ (pi*h) .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
-% 
-% stator.SourceType = SourceTypes.CurrentSource;
-% stator.ParallelPaths = nParallelPaths;
-% stator.Circuits.ElectricalFrequency = f_e;
-% stator.Circuits.HarmonicNumbers     = h;
-% stator.Circuits.HarmonicAmplitudes  = abs(I);
-% stator.Circuits.HarmonicPhases      = angle(I);
 
-nTimePoints = 18;
+stator.SourceType = SourceTypes.CurrentSource;
+stator.ParallelPaths = nParallelPaths;
+stator.Circuits.ElectricalFrequency = f_e;
+stator.Circuits.HarmonicNumbers     = h;
+stator.Circuits.HarmonicAmplitudes  = abs(I);
+stator.Circuits.HarmonicPhases      = angle(I);
+
+nTimePoints = 6;
 % simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
 simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 10, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',5);
 % simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', false, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true);

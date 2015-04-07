@@ -131,16 +131,12 @@ properties:
                         L = zeros(size(D));
                         while sum(L) < Nt
                             Dm = max(D);
-                            Lm = max(L);
-                            l  = 0;
-                            while sum(L) < Nt && l <= Lm
-                                for i = 1:length(D)
-                                    if (D(i) == Dm) && (L(i) == l)
-                                        L(i) = L(i) + 1;
-                                        D(i) = D(i) - 1;
-                                    end
+                            
+                            for i = 1:length(D)
+                                if D(i) == Dm
+                                    L(i) = L(i) + 1;
+                                    D(i) = D(i) - 1;
                                 end
-                                l = l + 1;
                             end
                         end
                         D = L;
@@ -179,11 +175,11 @@ properties:
                             pk(end) = -sum(polys(k,:)) * (i/(D(k)+1));
                             U = roots(pk);
                             I = (U > 0) & (U < 1) & (imag(U) == 0);
-                            if any(I)
-                                u = min(U(I))
-                            else
+%                             if any(I)
+%                                 u = min(U(I));
+%                             else
                                 u = i/(D(k)+1);
-                            end
+%                             end
                             tnew(j) = t(k)*(1-u) + t(k+1) * u;
                             j = j + 1;
                         end
