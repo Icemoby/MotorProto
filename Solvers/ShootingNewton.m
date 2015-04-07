@@ -63,10 +63,11 @@ properties:
             
             %% Get RK-Method
             Ns = this.RungeKuttaStages;
-            [~,~,c,d,p,q,bh,bth] = this.getButcherTable(Ns);
+            [~,~,c,d,p,q,bu,bh,bth] = this.getButcherTable(Ns);
             
             %% Initial Condition
             t          = model.getTimePoints(this.TimePoints);
+            %t          = linspace(0,t(end),37);
             this.Times = t;
             Nt         = numel(t) - 1;
          	y          = cell(Ns, Nt+1);
@@ -91,9 +92,130 @@ properties:
             
             tic;
             if this.StoreDecompositions
-                [y,y_t] = this.solve_stored(y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix);
+                [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
+                
+                %% Error Indicator
+                Wa = blkdiag(getMatrix.PostProcessing.SobolevA);
+                Wv = blkdiag(getMatrix.PostProcessing.X2V);
+                Wi = blkdiag(getMatrix.PostProcessing.X2I);
+                Wv = Wv * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+                Wa = Wa * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+                Wi = Wi * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+                ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
+                ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
+                ei = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wi); 
+                
+                pv  = 2;
+                pev = 1;
+                
+                pa  = 3;
+                pea = 1;
+                
+                figure;
+                plot(t(2:end),ev.^(pv/pev)); 
+                
+                figure;
+                plot(t(2:end),ei.^(pv/pev));
+                
+                figure;
+                plot(t(2:end),ea.^(pa/pea));
+                pause(1);
+                
+                D = (ev * (1e-2).^(-pev/pv)).^(1/pev);
+                last = false;
+                while ~last
+                    D = floor(D);
+                    if sum(D) >= 2*Nt
+                        L = zeros(size(D));
+                        while sum(L) < Nt
+                            Dm = max(D);
+                            for i = 1:length(D)
+                                if D(i) == Dm
+                                    L(i) = L(i) + 1;
+                                    D(i) = D(i) - 1;
+                                end
+                            end
+                        end
+                        D = L;
+                    else
+                        last = true
+                    end
+                    D
+                    
+                    
+                    %% Refine
+                    polys = zeros(Nt,2*Ns);
+                    for k = 1:Nt
+                        Y = [y_t{end,k},cell2mat(y_t(:,k+1).')];
+                        Y = Wv * Y;
+                        M = Y * bu * diag(1:Ns);
+                        M = M.'*M;
+                        for i = 1:Ns
+                            for j = 1:Ns
+                                l = i+j-1;
+                                polys(k,l) = polys(k,l) + M(i,j);
+                            end
+                        end
+                    end
+                    
+                    polys = fliplr(polys);
+
+                    polys = polys * diag(1./((2*Ns):-1:1));
+                    polys(:,1:(2*Ns-1)) = polys(:,2:(2*Ns));
+                    polys(:,2*Ns) = 0;
+                    
+                    tnew = sum(D);
+                    j = 1;
+                    for k = 1:Nt
+                        pk = polys(k,:);
+                        for i = 1:D(k)
+                            pk(end) = -sum(polys(k,:)) * (i/(D(k)+1));
+                            U = roots(pk);
+                            I = (U > 0) & (U < 1) & (imag(U) == 0);
+                            if any(I)
+                                u = min(U(I));
+                            else
+                                u = i/(D(k)+1);
+                            end
+                            tnew(j) = t(k)*(1-u) + t(k+1) * u;
+                            j = j + 1;
+                        end
+                    end
+                    
+                    t  = sort([t,tnew]);
+                    Nt = length(t) - 1;
+                    y  = repmat(y(:,1),1,Nt+1);
+                    y_t = repmat(y_t(:,1),1,Nt+1);
+                    this.Times = t;
+                    this.TimePoints = Nt;
+                    
+                    %% Solve
+                    if ~last
+                        this.MaxShootingIterations = 0;
+                    else
+                        this.MaxShootingIterations = 100;
+                    end
+                    [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
+                    
+                    %% Error Indicator
+                    ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
+                    ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
+                    ei = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wi); 
+                    
+                    figure;
+                    plot(t(2:end),ev.^(pv/pev));
+                
+                    figure;
+                    plot(t(2:end),ei.^(pv/pev));
+                
+                    figure;
+                    plot(t(2:end),ea.^(pa/pea));
+                    pause(1);
+                    
+                    D = (ev * (1e-2).^(-pev/pv)).^(1/pev);
+                end
             else
-            	[y,y_t] = this.solve_unstored(y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix);
+            	[y,y_t,t] = this.solve_unstored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
             end
             this.SimulationTime = toc;
             
@@ -102,6 +224,7 @@ properties:
             end
             
             %% Post Processing
+            Nt  = length(t) - 1;
             x   = cell(1, Nt+1);
             x_t = cell(1, Nt+1);
             for k = 1:Nt
@@ -119,7 +242,7 @@ properties:
             solution = Solution(this);
         end
         
-        function [y,y_t] = solve_unstored(this, y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix)
+        function [y,y_t,t] = solve_unstored(this, y, y_t, t, c, d, p, q, Nt, Ns, getMatrix)
             %% Algorithm Parameters
           	maxShooting = this.MaxShootingIterations;
             maxNewton   = this.MaxNewtonIterations;
@@ -213,7 +336,7 @@ properties:
             end
         end
 
-        function [y,y_t] = solve_stored(this, y, y_t, t, c, d, p, q, bh, bth, Nt, Ns, getMatrix)
+        function [y,y_t,t] = solve_stored(this, y, y_t, t, c, d, p, q, Nt, Ns, getMatrix)
             %% Algorithm Parameters
           	maxShooting = this.MaxShootingIterations;
             maxNewton   = this.MaxNewtonIterations;
@@ -226,11 +349,11 @@ properties:
             isSymmetric = this.SymmetricJacobian;
             
             verbose     = this.Verbose;
-            
+
             %% Store Everything
-            K    = cell(Ns, Nt);
-            f    = cell(Ns, Nt);
-            Ca   = cell(Ns, Ns, Nt);
+            K   = cell(Ns, Nt);
+            f   = cell(Ns, Nt);
+            Ca  = cell(Ns, Ns, Nt);
             Jpq = cell(Ns, Nt);
             if this.SymmetricJacobian
                 L = cell(Ns, Nt);
@@ -335,10 +458,6 @@ properties:
                         end
                     end
                 end
-                
-            	ei = this.rkError(t,y,y_t,bh,bth,getMatrix);
-                figure;
-                plot(ei);
                 
                 r = y{end,end} - y{end,1};
                 shootingRes = norm(r) / norm(y{end, end});

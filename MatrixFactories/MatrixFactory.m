@@ -319,13 +319,27 @@ classdef MatrixFactory
                     postProcessing(i).X2J   = circuits.X2J(coupling(i));
                     postProcessing(i).X_t2J = circuits.X_t2J(coupling(i));
                 else
+                	%% Bundle currents
+                    postProcessing(i).X2I   = sparse(0,nUnknowns);
+                    postProcessing(i).X_t2I = sparse(0,nUnknowns);
+                    
+                    %% Bundle voltages
+                    postProcessing(i).X2V   = sparse(0,nUnknowns);
+                    postProcessing(i).X_t2V = sparse(0,nUnknowns);
+                    
+                    %% Bundle flux linkages
+                    postProcessing(i).X2Lambda   = sparse(0,nUnknowns);
+                    postProcessing(i).X_t2Lambda = sparse(0,nUnknowns);
+                    
+                    %% Electric Field
                     n = numel(mesh(i).ElementRegions);
-                    postProcessing(i).F2E= sparse(n, 0);
+                    postProcessing(i).F2E = sparse(n, 0);
                     postProcessing(i).F2J = sparse(n, 0);
                     
                     postProcessing(i).X2E = sparse(n, nUnknowns);
                     postProcessing(i).X2J = sparse(n, nUnknowns);
                     
+                    %% Current Density
                     postProcessing(i).X_t2E = cell(1,3);
                     postProcessing(i).X_t2J = cell(1,3);
                     
@@ -936,11 +950,7 @@ classdef MatrixFactory
             end
         end
         
-        function v = sobolev(this, x, x_t)
-            if nargin < 2
-                x_t = zeros(size(x));
-            end
-                
+        function v = sobolev(this, x)
             index    = this.Index;
             curlN2E  = this.Jacobian.FluxDensity;
             post     = this.PostProcessing;
@@ -948,24 +958,15 @@ classdef MatrixFactory
             v = 0;
             for i = 1:2
                 I = index.Global(i).X;
-                z  = x(I);
-                zt = x_t(I);
+                z = x(I);
                 
                 Bx = curlN2E(i).dBxdXz * z;
                 By = curlN2E(i).dBydXz * z;
                 v = v + Bx.' * post(i).SobolevB * Bx;
                 v = v + By.' * post(i).SobolevB * By;
-
-                Bx = curlN2E(i).dBxdXz * zt;
-                By = curlN2E(i).dBydXz * zt;
-                v = v + Bx.' * post(i).SobolevB * Bx;
-                v = v + By.' * post(i).SobolevB * By;
                 
-                z   = post(i).Reduced2Full * z;
-                zt  = post(i).Reduced2Full * zt;
-                
-                v = v + z.'  * post(i).SobolevA * z;
-                v = v + zt.' * post(i).SobolevA * zt;
+                z = post(i).Reduced2Full * z;
+                v = v + z.' * post(i).SobolevA * z;
             end
             v = sqrt(v);
         end

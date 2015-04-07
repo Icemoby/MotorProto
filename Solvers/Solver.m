@@ -69,7 +69,7 @@ properties:
             end
         end
         
-     	function [a,b,c,d,p,q,bh,bth] = getButcherTable(Ns)
+     	function [a,b,c,d,p,q,bu,bh,bth] = getButcherTable(Ns)
             switch Ns
                 case 1
                     a = [0 0;
@@ -82,6 +82,10 @@ properties:
                          1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;
                          2^(1/2)/4,2^(1/2)/4, 1 - 2^(1/2)/2];
                     
+                    bu  = [sqrt(2)/2,-sqrt(2)/4;
+                           sqrt(2)/2,-sqrt(2)/4;
+                           1-sqrt(2),sqrt(2)/2];
+                           
                     bh  = [1,0,0];
                     bth = [1,0,0];
                 case 3            
@@ -116,7 +120,7 @@ properties:
             p = sum(d,2);
         end
         
-        function ei = rkError(t, y, y_t, bh, bth, matrixFactory)
+        function ei = rkError(t, y, y_t, bh, W)
             Nt = length(t) - 1;
             Ns = length(bh) - 1;
            	ei = zeros(1, Nt);
@@ -124,16 +128,13 @@ properties:
                 km1 = mod(k-2, Nt) + 1;
                 h_k = t(k+1) - t(k);
                 yh  = y{end,km1} + h_k*bh(1)*y_t{end,km1};
-                yth = bth(1)*y_t{end,km1};
                 for i = 1:Ns
                     yh  = yh  + h_k*bh(i+1)*y_t{i,k};
-                    yth = yth + bth(i+1)*y_t{i,k};
                 end
                 
-                ei(k) = matrixFactory.sobolev(yh,yth);
-                yh  = yh  - y{end,k};
-                yth = yth - y_t{end,k};
-                ei(k) = matrixFactory.sobolev(yh,yth) / ei(k);
+                ei(k) = sqrt((W*yh).'*(W*yh));
+                yh    = yh - y{end,k};
+                ei(k) = sqrt((W*yh).'*(W*yh)) / ei(k);
             end
         end
     end
