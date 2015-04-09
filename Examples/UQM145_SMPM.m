@@ -158,7 +158,7 @@ stator.Circuits.HarmonicPhases      = angle(V);
 % stator.Circuits.HarmonicAmplitudes  = abs(I);
 % stator.Circuits.HarmonicPhases      = angle(I);
 
-nTimePoints = 18;
+nTimePoints = 6;
 % simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
 simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 10, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',5);
 % simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', false, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true);
@@ -194,6 +194,9 @@ solution = simulation.run;
 % solution.plot('Current','Harmonic');
 %
 t = solution.Algorithm.Times;
+figure;plot(t(2:end),diff(t));
+hold on;scatter(t(2:end),diff(t));
+figure;hist(diff(t))
 i = solution.getBulkVariableData('Current','Time');
 i = i{1};
 figure;hold on;
