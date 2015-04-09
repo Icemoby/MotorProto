@@ -95,101 +95,179 @@ properties:
                 [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
                 
                 %% Error Indicator
-                Wa = blkdiag(getMatrix.PostProcessing.SobolevA);
+%                 Wa = blkdiag(getMatrix.PostProcessing.SobolevA);
                 Wv = blkdiag(getMatrix.PostProcessing.X2V);
-                Wi = blkdiag(getMatrix.PostProcessing.X2I);
                 Wv = Wv * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-                Wa = Wa * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-                Wi = Wi * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-                ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
-                ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
-                ei = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wi); 
+%                 Wa = Wa * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+%                 ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
+%                 ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
                 
-                pv  = 2;
-                pev = 1;
+%                 pv  = 2;
+%                 rv  = 2;
+                pev = 2;
+%                 
+%                 pa  = 3;
+%                 ra  = 2;
+%                 pea = 1;
+%                 
+%                 figure;
+%                 semilogy(t(2:end),ev.^(pv/pev)); 
+%                 
+%                 figure;
+%                 semilogy(t(2:end),ea.^(pa/pea));
+%                 pause(1);
+%                 
+%                 tolv = 1e-2;
+%                 tola = 1e-6;
+%                 
+%                 Dv = (ev * (tolv).^(-pev/pv)).^(1/rv);
+%                 Da = (ea * (tola).^(-pea/pa)).^(1/ra);
+%                 D  = max(Dv,Da);
                 
-                pa  = 3;
-                pea = 1;
-                
-                figure;
-                plot(t(2:end),ev.^(pv/pev)); 
-                
-                figure;
-                plot(t(2:end),ei.^(pv/pev));
-                
-                figure;
-                plot(t(2:end),ea.^(pa/pea));
-                pause(1);
-                
-                tol = 1e-2;
-                
-                D = (ev * (tol).^(-pev/pv)).^(1/pev);
-                last = false;
-                while ~last
-                    D = floor(D);
-                    if sum(D) >= 2*Nt
-                        L = zeros(size(D));
-                        while sum(L) < Nt
-                            Dm = max(D);
-                            Lm = max(L);
-                            l  = 0;
-                            while sum(L) < Nt && l <= Lm
-                                for i = 1:length(D)
-                                    if (D(i) == Dm) && (L(i) == l)
-                                        L(i) = L(i) + 1;
-                                        D(i) = D(i) - 1;
-                                    end
-                                end
-                                l = l + 1;
-                            end
-                        end
-                        D = L;
-                    else
-                        last = true
-                    end
-                    D
-                    
-                    
-                    %% Refine
-                    polys = zeros(Nt,2*Ns);
+                tol = inf;
+                tol_max = 1e-3;
+                %last = true;
+                while tol > tol_max    
+                    ec = zeros(1,Nt);
+                    z  = zeros(size(Wv,1),Nt);
+                    zp = zeros(size(Wv,1),Nt);
                     for k = 1:Nt
-                        Y = [y_t{end,k},cell2mat(y_t(:,k+1).')];
-                        Y = Wv * Y;
-                        M = Y * bu * diag(1:Ns);
-                        M = M.'*M;
+                        h_k = t(k+1) - t(k);
+                        z(:,k) = Wv * y{end,k+1};
+                        zp(:,k) = bth(1) * Wv * y_t{end,k};
                         for i = 1:Ns
-                            for j = 1:Ns
-                                l = i+j-1;
-                                polys(k,l) = polys(k,l) + M(i,j);
-                            end
+                            zp(:,k) = zp(:,k) + bth(i+1) * Wv * y_t{i,k+1};
                         end
+                        zp(:,k) = zp(:,k) / h_k^(pev-1);
+                        ec(k) = norm(zp(:,k)) / norm(z(:,k)) / factorial(pev);
                     end
-                    
-                    polys = fliplr(polys);
 
-                    polys = polys * diag(1./((2*Ns):-1:1));
-                    polys(:,1:(2*Ns-1)) = polys(:,2:(2*Ns));
-                    polys(:,2*Ns) = 0;
+                    N  = Nt / 2 - 1;
+                    N  = 10*N;
+                    T  = t(end);
+                    t1 = t(1:(end-1));
+                    t2 = t(2:end);
+%                     ta = (t1+t2).' / 2;
                     
-                    tnew = sum(D);
-                    j = 1;
-                    for k = 1:Nt
-                        pk = polys(k,:);
-                        for i = 1:D(k)
-                            pk(end) = -sum(polys(k,:)) * (i/(D(k)+1));
-                            U = roots(pk);
-                            I = (U > 0) & (U < 1) & (imag(U) == 0);
-                            if any(I)
-                                u = min(U(I))
-                            else
-                                u = i/(D(k)+1);
-                            end
-                            tnew(j) = t(k)*(1-u) + t(k+1) * u;
-                            j = j + 1;
-                        end
+                    w = 2*pi*[1:N fliplr(-(1:1:N))] / T;
+                    
+%                     M = exp(1i*w.'*t(2:(end))) - exp(1i*w.'*t(1:(end-1)));
+%                     M = diag(1./(1i*w)) * M / T;
+%                   t
+
+                    M1 = [ (t2-t1)/2;
+                            -(exp(1i*w.'*t1)-exp(1i*w.'*t2)-1i*(w.'*t1).*exp(1i*w.'*t1)+1i*(w.'*t2).*exp(1i*w.'*t1))./((w.').^2*(t1-t2))];
+                    M2 = [ (t2-t1)/2;
+                            (exp(1i*w.'*t1)-exp(1i*w.'*t2)-1i*(w.'*t1).*exp(1i*w.'*t2)+1i*(w.'*t2).*exp(1i*w.'*t2))./((w.').^2*(t1-t2))];
+                    M  = M1 + circshift(M2,[0,1]);
+                    M  = M / T;
+                    w = 2*pi*[0:N fliplr(-(1:1:N))] / T;
+                    
+                    EC = (M * ec.').';
+                    Z  = (M * z.' ).';
+                    ZP = (M * zp.').';
+                    
+                    
+                    %M = exp(1i*t(2:end).'*w) - exp(1i*t(1:(end-1)).'*w);
+                    %M = M * diag(1./(1i*w));
+                    %M(:,1) = (t(2:end) - t(1:(end-1))).';
+                    %M = M / T;
+                    
+%                     w = 2*pi*(0:N) / T;
+%                     wc = w(1:(end-1));
+%                     ws = w(2:end);
+%                     ta = (t(1:(end-1)) + t(2:end)).'/2;
+%                     M = [cos(ta*wc) sin(ta*ws)];
+
+                    %EC = M \ ec.';
+                    
+                    s = linspace(0,t(end),1000);
+                    test = zeros(size(s));
+%                     ztest = zeros(3,length(s));
+%                     zptest = zeros(3,length(s));
+                    for i = 1:length(test)
+                        M = exp(-1i*w.'*s(i));
+%                        test(i) = real(EC * M);
+                         test(i) = norm(ZP * M) / norm(Z * M) / factorial(pev);
+%                         ztest(:,i) = real(Z*M);
+%                         zptest(:,i) = real(ZP*M);
+                    end
+                    figure;plot(s,test);
+                    hold on;scatter(t(1:(end-1)),ec);
+                    figure;plot(t(2:end),ec.*(diff(t)).^(pev))
+                    pause(1);
+                    
+                    h = diff(t);
+                    hmin = min(h);
+                    tol = min(h.^(pev).*ec) / factorial(pev);
+                    %tol = max(h.^(pev).*ec) / factorial(pev);
+                    %tol = sum((h.^(pev+1).*ec) / factorial(pev) / T);
+                    tol = tol / (2^(pev))
+                    %tol = (T * (sum(h.^2) / T) / (2 * sum(h./(ec.^(1/pev)))))^(pev)
+                    %tol = (T * hmin / (2 * sum(h./(ec.^(1/pev)))))^(pev)
+                    if tol < tol_max
+                        hmin = hmin * (tol_max / tol)^(1/pev);
+                        tol  = tol_max;
                     end
                     
-                    t  = sort([t,tnew]);
+                    temp = toc;
+%                     Nnew = inf;
+%                     while 6*Nnew > 2*Nt
+                    s = t(end);
+                    while s(end) > T*5/6
+                        mend = exp(-1i*w.'*s(end));
+                        hend = (factorial(pev) * tol * norm(Z*mend) / norm(ZP*mend))^(1/pev);
+                        snew = s(end) - hend / 2;
+                        mnew = exp(-1i*w.'*snew);
+                        hnew = (factorial(pev) * tol * norm(Z*mnew) / norm(ZP*mnew))^(1/pev);
+                        while hnew > (2*(s(end)-snew) - hend)*1.01
+                            snew = snew  - (hnew+hend - 2*(s(end)-snew));
+                            mnew = exp(-1i*w.'*snew);
+                            hnew = (factorial(pev) * tol * norm(Z*mnew) / norm(ZP*mnew))^(1/pev);
+                        end
+                        s(end+1) = snew;
+                    end
+%                         
+%                         Nnew = length(s);
+%                         if 6*Nnew > 2*Nt
+%                             tol = (6*Nnew/(2*Nt)) * tol
+%                         end
+%                     end
+                    
+                    toc - temp
+                    s = fliplr(s);
+                    s = s - T * 5 /6;
+                    s = s - s(1) * (6*s - T) / (6*s(1) - T);
+                    s(1) = 0;
+                    s(end) = [];
+                    t = [s,s+T/6,s+T/3,s+T/2,s+T*2/3,s+T*5/6,T];
+                    length(t)
+%                     D = floor(D);
+%                     if sum(D) >= 2*Nt
+%                         L = zeros(size(D));
+%                         while sum(L) < Nt
+%                             I    = (D>0);
+%                             L(I) = L(I) + 1;
+%                             D(I) = D(I) - 1;
+%                         end
+%                         D = L;
+%                     else
+%                         last = true;
+%                     end
+%                     D
+%                     
+%                     %% Refine
+%                     tnew = zeros(1,sum(D));
+%                     j = 1;
+%                     for k = 1:Nt
+%                         for i = 1:D(k)
+%                          	u = i/(D(k)+1);
+%                             tnew(j) = t(k)*(1-u) + t(k+1) * u;
+%                             j = j + 1;
+%                         end
+%                     end
+                    
+%                     t  = sort([t,tnew]);
                     Nt = length(t) - 1;
                     y  = repmat(y(:,1),1,Nt+1);
                     y_t = repmat(y_t(:,1),1,Nt+1);
@@ -197,7 +275,7 @@ properties:
                     this.TimePoints = Nt;
                     
                     %% Solve
-                    if ~last
+                    if tol > tol_max
                         this.MaxShootingIterations = 0;
                     else
                         this.MaxShootingIterations = 100;
@@ -205,21 +283,19 @@ properties:
                     [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
                     
                     %% Error Indicator
-                    ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
-                    ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
-                    ei = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wi); 
-                    
-                    figure;
-                    plot(t(2:end),ev.^(pv/pev));
-                
-                    figure;
-                    plot(t(2:end),ei.^(pv/pev));
-                
-                    figure;
-                    plot(t(2:end),ea.^(pa/pea));
-                    pause(1);
-                    
-                    D = (ev * (tol).^(-pev/pv)).^(1/pev);
+%                     ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
+%                     ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
+%                     
+%                     figure;
+%                     semilogy(t(2:end),ev.^(pv/pev));
+%                 
+%                     figure;
+%                     semilogy(t(2:end),ea.^(pa/pea));
+%                     pause(1);
+%                     
+%                     Dv = (ev * (tolv).^(-pev/pv)).^(1/rv);
+%                     Da = (ea * (tola).^(-pea/pa)).^(1/ra);
+%                     D  = max(Dv,Da);
                 end
             else
             	[y,y_t,t] = this.solve_unstored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
@@ -489,9 +565,11 @@ properties:
                             [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt);
                         end
                     end
-                    y{end,1} = y{end,1} - dy;
+                    y{end,1}   = y{end,1} - dy;
+                    y_t{end,1} = y_t{end,end};
                 elseif maxGMRES == 0
-                    y{end,1} = y{end,end};
+                    y{end,1}   = y{end,end};
+                    y_t{end,1} = y_t{end,end};
                     display(sprintf(' '));
                 end
             end
