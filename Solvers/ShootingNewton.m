@@ -98,21 +98,21 @@ properties:
                 %% Error Indicator
                 Wa = blkdiag(getMatrix.PostProcessing.SobolevA);
              	Wa = Wa * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-%                 Wv = blkdiag(getMatrix.PostProcessing.X2V);
-%                 Wv = Wv * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+                Wv = blkdiag(getMatrix.PostProcessing.X2V);
+                Wv = Wv * blkdiag(getMatrix.PostProcessing.Reduced2Full);
 %                 ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
 %                 ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
-                W = Wa;
+                W = Wv;
 %                 pv  = 2;
 %                 rv  = 2;
-                pev = 2;
+                pev = 1;
 %                 
 %                 pa  = 3;
 %                 ra  = 2;
 %                 pea = 1;
                 
                 tol = inf;
-                tol_max = 1e-3;
+                tol_max = (1e-4)^(1/3);
                 while tol > tol_max
                     %% Calculate p^th derivative estimates
                     ec = zeros(1,Nt);
@@ -120,11 +120,13 @@ properties:
                     Cn = 0;
                     for k = 1:Nt
                         h_k = t(k+1) - t(k);
-                        ep(:,k) = h_k * bth(1) * W * y_t{end,k};
-                        for i = 1:Ns
-                            ep(:,k) = ep(:,k) + h_k * bth(i+1) * W * y_t{i,k+1};
-                        end
-                        ep(:,k) = ep(:,k) * h_k^(-pev);
+%                         ep(:,k) = h_k * bth(1) * W * y_t{end,k};
+%                         for i = 1:Ns
+%                             ep(:,k) = ep(:,k) + h_k * bth(i+1) * W * y_t{i,k+1};
+%                         end
+%                         ep(:,k) = ep(:,k) * h_k^(-pev);
+                        %ep(:,k) = (W * y_t{end,k+1} - W * y_t{end,k}) / (2 * h_k);
+                        ep(:,k) = W * y_t{end,k+1};
                         ec(k)   = norm(ep(:,k));
                         Cn      = max(Cn, norm(W * y{end,k+1}));
                     end
@@ -137,104 +139,115 @@ properties:
                     if tol < tol_max
                         tol = tol_max;
                     end
-                 	hc  = (tol./ec).^(1/pev);
-                    hmin = min(hc);
-                    hmax = max(hc);
+                 	hc = (tol./ec).^(1/pev);
                     
-                    %% Do Harmonic Linear Interpolation
-                    N  = 12 * Nt / 2;
-                    T  = t(end);
-                    t1 = t(1:(end-1));
-                    t2 = t(2:end);
-                    
-                    w = 2*pi*[6:6:N fliplr(-(6:6:N))] / T;
-
-                    M1 = [ (t2-t1)/2;
-                            -(exp(1i*w.'*t1)-exp(1i*w.'*t2)-1i*(w.'*t1).*exp(1i*w.'*t1)+1i*(w.'*t2).*exp(1i*w.'*t1))./((w.').^2*(t1-t2))];
-                    M2 = [ (t2-t1)/2;
-                            (exp(1i*w.'*t1)-exp(1i*w.'*t2)-1i*(w.'*t1).*exp(1i*w.'*t2)+1i*(w.'*t2).*exp(1i*w.'*t2))./((w.').^2*(t1-t2))];
-                    M  = M1 + circshift(M2,[0,1]);
-                    M  = M / T;
-                    w = 2*pi*[0:6:N fliplr(-(6:6:N))] / T;
-
-                    HC = (M * hc.').';
-                    
-                    s = linspace(0,t(end),1000);
-                    test = zeros(size(s));
-                    for i = 1:length(test)
-                        M = exp(-1i*w.'*s(i));
-                        test(i) = real(HC * M);
-                    end
-                    figure;plot(s,test);
-                    hold on;scatter(t(1:(end-1)),hc);
-                    figure;plot(t(2:end),ec.*diff(t).^(pev))
+                    figure;
+                    plot(t(2:end),ec.*diff(t).^(pev))
                     pause(1);
                     
-                    %% Calculate New Time Points
-                    temp = toc;
-                    s = t(end);
-                    while s(end) > T*5/6
-                        Mend = exp(-1i*w.'*s(end)) ./ (-1i*w.');
-                        Mend(1) = s(end);
-                        Hend = real(HC * Mend);
-                        
-                        sk = s(end) - hmax;
-                        Mk = exp(-1i*w.'*sk) ./ (-1i*w.');
-                        Mk(1) = sk;
-                        Hk = real(HC * Mk);
-                        
-                        r = Hend-Hk-(s(end)-sk)^2;
-                        while abs(r) > sqrt(eps) * hmin
-                            mk = exp(-1i*w.'*sk);
-                            hk = real(HC * mk);
-                            
-                            J  = 2*(s(end)-sk)-hk;
-                            sk = sk - J\r;
-                            
-                            Mk = exp(-1i*w.'*sk) ./ (-1i*w.');
-                            Mk(1) = sk;
-                            Hk = real(HC * Mk);
-                            
-                            r = Hend-Hk-(s(end)-sk)^2;
-                        end
-                        s(end+1) = sk;
-%                         mk  = exp(-1i*w.'*(s(end)-eps));
-%                         hk  = real(HC * mk);
-%                         dmk = -1i*w.'.*exp(-1i*w.'*(s(end)-eps));
-%                         dhk = real(HC * dmk);
-%                         
-%                         if dhk < 0
-%                             snew = s(end) - hk;
-%                         else
-%                             snew = s(end) - hmin;
-%                             
-%                             mk  = exp(-1i*w.'*snew);
-%                             hk  = real(HC * mk);
-%                             dmk = -1i*w.'.*exp(-1i*w.'*snew);
-%                             dhk = real(HC * dmk);
-%                             r = snew + hk - s(end);
-%                             J = dhk + 1;
-%                             
-%                             while r > sqrt(eps) * hmin
-%                                 snew = snew - 0.5*(J \ r);
-%                                 mk  = exp(-1i*w.'*snew);
-%                                 hk  = real(HC * mk);
-%                                 dmk = -1i*w.'.*exp(-1i*w.'*snew);
-%                                 dhk = real(HC * dmk);
-%                                 r = snew + hk - s(end);
-%                                 J = dhk + 1;
-%                             end
-%                         end
-%                         s(end+1) = snew;
-                    end
-                    toc - temp
+                    hc = [hc(end),hc];
+                    hc = [hc,hc];
+                    t  = [t-T,t];
                     
-                    s = fliplr(s);
-                    s = s - T * 5 /6;
-                    s = s - s(1) * (6*s - T) / (6*s(1) - T);
-                    s(1) = 0;
-                    s(end) = [];
-                    t = [s,s+T/6,s+T/3,s+T/2,s+T*2/3,s+T*5/6,T];
+                    figure;
+                    plot(t,hc);
+                    
+                    %% Calculate New Time Points
+                    I6 = find((t>=0) & (t<=T/6));
+                    [hmin,imin] = min(hc(I6));
+                    tmin = t(I6(imin));
+                    
+                    t1 = t(1:(end-1));
+                    t2 = t(2:end);
+                    h1 = hc(1:(end-1));
+                    h2 = hc(2:end);
+                    
+                    sb = tmin;
+                    hk = hmin;
+                    while sb(end) > 0
+                        stest = sb(end) + (t1.*h2-t2.*h1) ./ (t2-t1);
+                        stest = stest ./ (1+(h2-h1)./(t2-t1));
+                        valid = (stest >= t1) & (stest <= t2);
+                        stest = stest(valid);
+                        stest = stest(stest < sb(end));
+                        [~,i] = min(abs(stest-sb(end)));
+                        stest = stest(i);
+                        htest = sb(end)-stest;
+                        
+                        i = find(t>=stest,   1, 'first');
+                        j = find(t<=sb(end), 1, 'last');
+                        
+                        if i > j
+                            hmin = inf;
+                        else
+                        	hmin = min(hc(i:j));
+                        end
+                        hmin = min(hmin,htest);
+                        hmin = min(hmin,hk);
+                        
+                        sk = sb(end) - hmin;
+                        sb = cat(2,sb,sk);
+                        
+                        i = find(t<=sk, 1, 'last');
+                        j = find(t>=sk, 1, 'first');
+                        hk = (hc(j)*(sk-t(i))+hc(i)*(t(j)-sk))/(t(j)-t(i));
+                    end
+                    sb = fliplr(sb);
+                    if length(sb) > 1
+                        sb = (sb-sb(1)) / (sb(end)-sb(1)) * tmin;
+                    end
+                    sb(1) = 0;
+                    
+                    
+                    I6 = find((t>=0) & (t<=T/6));
+                    [hmin,imin] = min(hc(I6));
+                    tmin = t(I6(imin));
+                    
+                    sf = tmin;
+                    hk = hmin;
+                    while sf(end) < T/6
+                        stest = sf(end) + (t2.*h1-t1.*h2) ./ (t2-t1);
+                        stest = stest ./ (1-(h2-h1)./(t2-t1));
+                        valid = (stest >= t1) & (stest <= t2);
+                        stest = stest(valid);
+                        stest = stest(stest > sf(end));
+                        [~,i] = min(abs(stest-sf(end)));
+                        stest = stest(i);
+                        htest = stest-sf(end);
+                        
+                        i = find(t>=sf(end), 1, 'first');
+                        j = find(t<=stest,   1, 'last');
+                        
+                        if i > j
+                            hmin = inf;
+                        else
+                            hmin = min(hc(i:j));
+                        end
+                        hmin = min(hmin,htest);
+                        hmin = min(hmin,hk);
+                        
+                        sk = sf(end) + hmin;
+                        sf = cat(2,sf,sk);
+                        
+                        i = find(t<=sk, 1, 'last');
+                        j = find(t>=sk, 1, 'first');
+                        hk = (hc(j)*(sk-t(i))+hc(i)*(t(j)-sk))/(t(j)-t(i));
+                    end
+                    if length(sf) > 1
+                        sf = (sf-tmin) / (sf(end)-tmin) * (T/6-tmin) + tmin;
+                    end
+                    sf(1) = [];
+                    
+                    s = sort([sb,sf]);
+                    if abs(s(end)-T/6) < sqrt(eps)*T/6
+                        s(end) = [];
+                    end
+                    
+                    t = [s,s+T/6,s+T/3,s+T/2,s+T*2/3,s+5*T/6];
+                    t = mod(t,T);
+                    t = sort(t);
+                    t = [t,t(1)+T];
+                    
                     length(t)
                     
                     %% Initialize
@@ -246,9 +259,11 @@ properties:
                     
                     %% Solve
                     if tol > tol_max
-                        this.MaxShootingIterations = 0;
+                        this.MaxShootingIterations = 10;
+                        this.ShootingTolerance = 1e-2;
                     else
                         this.MaxShootingIterations = 100;
+                        this.ShootingTolerance = 1e-6;
                     end
                     [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
                 end
