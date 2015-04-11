@@ -128,11 +128,11 @@ mesh(2).MaximumAirgapEdgeLength = [2*pi*statorInnerRadius / nTeeth / 10, inf];
 
 %% Set Excitation
 %% Voltage Source
-h = 1;
-V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
+% h = 1;
+% V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
 
-% h = 1:2:1001;
-% V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
+h = 1:2:1001;
+V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
 
 stator.SourceType = SourceTypes.VoltageSource;
 stator.ParallelPaths = nParallelPaths;
@@ -150,7 +150,7 @@ stator.Circuits.HarmonicPhases      = angle(V);
 % h = 1:2:1001;
 % h(mod(h,3)==0) = [];
 % I = 500*1i*(cos(pi*h/6)-cos(5*pi*h/6)) ./ (pi*h) .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
-% 
+
 % stator.SourceType = SourceTypes.CurrentSource;
 % stator.ParallelPaths = nParallelPaths;
 % stator.Circuits.ElectricalFrequency = f_e;
@@ -194,7 +194,7 @@ solution = simulation.run;
 % solution.plot('Current','Harmonic');
 %
 t = solution.Algorithm.Times;
-figure;plot(t(2:end),diff(t));
+figure;plot(reshape([t(1:end-1);t(2:end)],1,[]),reshape([diff(t);diff(t)],1,[]));
 hold on;scatter(t(2:end),diff(t));
 figure;hist(diff(t))
 i = solution.getBulkVariableData('Current','Time');
