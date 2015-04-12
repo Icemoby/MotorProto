@@ -121,10 +121,10 @@ rotor.addRegion('ring', retainingRing, Arnon7, DynamicsTypes.Static);
 
 %% Set mesh parameters
 mesh                       = simulation.Mesh;
-mesh(1).MaximumElementSize = pmWidth / 4;
-mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
-mesh(1).MaximumAirgapEdgeLength = [inf, 2*pi*rotorOuterRadius / nTeeth / 10];
-mesh(2).MaximumAirgapEdgeLength = [2*pi*statorInnerRadius / nTeeth / 10, inf];
+% mesh(1).MaximumElementSize = pmWidth / 4;
+% mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
+% mesh(1).MaximumAirgapEdgeLength = [inf, 2*pi*rotorOuterRadius / nTeeth / 10];
+% mesh(2).MaximumAirgapEdgeLength = [2*pi*statorInnerRadius / nTeeth / 10, inf];
 
 %% Set Excitation
 %% Voltage Source

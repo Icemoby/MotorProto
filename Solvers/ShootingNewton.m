@@ -63,11 +63,10 @@ properties:
             
             %% Get RK-Method
             Ns = this.RungeKuttaStages;
-            [~,~,c,d,p,q,bu,bh,bth] = this.getButcherTable(Ns);
+            [~,~,c,d,p,q,bu,be,pe] = this.getButcherTable(Ns);
             
             %% Initial Condition
             t          = model.getTimePoints(this.TimePoints);
-            %t          = linspace(0,t(end),13);
             this.Times = t;
             Nt         = numel(t) - 1;
          	y          = cell(Ns, Nt+1);
@@ -93,316 +92,38 @@ properties:
             tic;
             if this.StoreDecompositions
                 [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
-                T = t(end) - t(1);
-                
-                %% Error Indicator
-                Wa = blkdiag(getMatrix.PostProcessing.SobolevA);
-             	Wa = Wa * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-                Wv = blkdiag(getMatrix.PostProcessing.X2V);
-                Wv = Wv * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-%                 ev = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wv);
-%                 ea = this.rkError(t,y(:,2:end),y_t(:,2:end),bh,Wa);
-                W = Wa;
-%                 pv  = 2;
-%                 rv  = 2;
-                pev = 2;
-%                 
-%                 pa  = 3;
-%                 ra  = 2;
-%                 pea = 1;
-                
-                
-                %% Calculate p^th derivative estimates
-                ec = zeros(1,Nt);
-                ep = zeros(size(W,1),Nt);
-                Cn = 0;
-                for k = 1:Nt
-                    h_k = t(k+1) - t(k);
-                    %                         ep(:,k) = h_k * bth(1) * W * y_t{end,k};
-                    %                         for i = 1:Ns
-                    %                             ep(:,k) = ep(:,k) + h_k * bth(i+1) * W * y_t{i,k+1};
-                    %                         end
-                    %                         ep(:,k) = ep(:,k) * h_k^(-pev);
-                    %ep(:,k) = (W * y_t{end,k+1} - W * y_t{end,k}) / (2 * h_k);
-                    %ep(:,k) = W * y_t{end,k+1};
-                    ep(:,k) = W * (y_t{end,k+1} - y_t{end,k}) / (factorial(2) * h_k);
-                    ec(k)   = norm(ep(:,k));
-                    Cn      = max(Cn, norm(W * y{end,k+1}));
-                end
-                ec = (ec ./ Cn);
-                h  = diff(t);
-                
-                figure;
-                plot(t(2:end),ec.*(h.^(pev)))
-                pause(1);
-                
-                tol_max = (1e-3)^(pev/3);
-                while max(ec.*(h.^pev)) > tol_max
-                    %% Calculate New Tolerance and Time-Step Function
-                    tol = mean(ec.*h.^(pev));
-                    tol = max(tol, tol_max) * 2^(-pev);
-                    
-                 	hc = (tol./ec).^(1/pev);
-                    I  = 1:(Nt/6);
-                    for i = 1:5
-                        hc(I) = min(hc(I), hc(I+i*Nt/6));
-                    end
+                [ec,h] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
 
-                    for i = 1:5
-                        hc(I+i*Nt/6) = hc(I);
+                tol_max = 1e-3;
+                tol = mean(ec.*h.^pe);
+                nGrids = floor((-1/pe) * log(tol_max / (tol)) / log(2));
+                tol = tol_max * (2^(pe*nGrids));
+                last = false;
+                while ~last
+                    tol = max(tol*2^(-pe), tol_max / 2);
+                    if max(ec.*h.^pe) < tol_max * 2
+                        tol = tol_max;
+                        last = true;
                     end
-                    hc = [hc(end),hc];
                     
-                    figure;
-                    plot(reshape([t(1:(end-1));t(2:end)],1,[]), reshape([hc(2:end);hc(2:end)],1,[]));
+                    s = this.rkRefine(t,tol,ec,pe);
                     
-                    pause(1);
-                    
-                    %% Calculate New Time Points
-                    hc = [hc,hc,hc];
-                    t  = [t-T,t,t+T];
-                	t1 = t(1:(end-1));
-                    t2 = t(2:end);
-                    h1 = hc(1:(end-1));
-                    h2 = hc(2:end);
-                    
-                    s = [];
-                    minax = [];
-                    imin = [];
-                    for i = Nt:(2*Nt)
-                        j = i-1;
-                        k = i+1;
-                        if ((hc(i) < hc(j)*(1-sqrt(eps))) && (hc(i) < hc(k)*(1-sqrt(eps))))
-                            s = cat(2,s,(t(i)+t(j))/2);
-                            minax = cat(2,minax,-1);
-                            imin = cat(2,imin,i);
-                        end
-                    end
-                    I = (s > 0);
-                    s = s(I);
-                    I = (s <= s(1) + T/6*(1+sqrt(eps)));
-                    s = s(I);
-                    m = length(s)-1;
-                    
-                    for k = 1:m
-                        if hc(imin(k)) < hc(imin(k+1)) %minax(k) == -1 %Forward from k
-                            sf = [];
-                            sk = s(k);
-                            while sk < s(k+1)                          	
-                                j = find((t1 <= sk) & (sk < t2)) + 1;
-                                i = j;
-                                while t(i)-sk  < hc(i)
-                                    i = i + 1;
-                                end
-                                if t(i-1)-sk > hc(i)
-                                    i = i - 1;
-                                end
-                                hf = min(hc(j:i));
-                                sk = sk + hf;
-                                sf = cat(2,sf,sk);
-                            end
-                            sf = (sf-s(k)) * (s(k+1)-s(k)) / (sf(end)-s(k)) + s(k);
-                            sf(end) = [];
-                            s = cat(2,s,sf);
-                        else %backward from k+1
-                            sb = [];
-                            sk = s(k+1);
-                            while sk > s(k)                            
-                                j = find((t1 < sk) & (sk <= t2)) + 1;
-                                i = j;
-                                while sk-t(i-1) < hc(i)
-                                    i = i - 1;
-                                end
-                                if sk-t(i) > hc(i)
-                                    i = i + 1;
-                                end
-                                hb = min(hc(i:j));
-                                sk = sk - hb;
-                                sb = cat(2,sb,sk);
-                            end
-                            sb = (sb - s(k+1)) * (s(k+1) - s(k)) / (s(k+1)-sb(end)) + s(k+1);
-                            sb(end) = [];
-                            s = cat(2,s,sb);
-                        end
-                    end
-                    s = sort(s);
-                    s(end) = [];
-                    t = [s,s+T/6,s+T/3,s+T/2,s+2*T/3,s+5*T/6];
-                    t = mod(t,T);
-                    t = sort(t);
-                    t = [t,t(1)+T];
-                    %%
-%                     I6 = find((t>0) & (t<=T/6));
-%                     [hmin,imin] = min(hc(I6));
-%                     tmin        = t(I6(imin));
-%                     
-%                     t1 = t(1:(end-1));
-%                     t2 = t(2:end);
-%                     h1 = hc(1:(end-1));
-%                     h2 = hc(2:end);
-%                     
-%                     sb = tmin;
-%                     sk = tmin;
-% %                     hk = hmin;
-%                     while sb(end) > 0
-%                         j = find((t1 < sk) & (sk <= t2)) + 1;
-%                         i = j;
-%                         while sk-t(i-1) < hc(i)
-%                             i = i - 1;
-%                         end
-%                         
-%                         if sk-t(i) > hc(i)
-%                             i = i + 1;
-%                         end
-%                         
-%                         hmin = min(hc(i:j));
-%                         
-%                         sk   = sb(end) - hmin;
-%                         sb   = cat(2,sb,sk);
-%                         
-%                         stest = sb(end) + (t1.*h2-t2.*h1) ./ (t2-t1);
-%                         stest = stest ./ (1+(h2-h1)./(t2-t1));
-%                         valid = (stest >= t1) & (stest <= t2);
-%                         stest = stest(valid);
-%                         stest = stest(stest < sb(end));
-%                         [~,i] = min(abs(stest-sb(end)));
-%                         stest = stest(i);
-%                         htest = sb(end)-stest;
-%                         
-%                         i = find(t>=stest,   1, 'first');
-%                         j = find(t<=sb(end), 1, 'last');
-%                         
-%                         if i > j
-%                             hmin = inf;
-%                         else
-%                         	hmin = min(hc(i:j));
-%                         end
-%                         hmin = min(hmin,htest);
-%                         hmin = min(hmin,hk);
-%                         
-%                         sk = sb(end) - hmin;
-%                         sb = cat(2,sb,sk);
-%                         
-%                         i = find(t<=sk, 1, 'last');
-%                         j = find(t>=sk, 1, 'first');
-%                         hk = (hc(j)*(sk-t(i))+hc(i)*(t(j)-sk))/(t(j)-t(i));
-%                     end
-%                     sb = fliplr(sb);
-%                     
-%                     if length(sb) > 1
-%                         sb = (sb-sb(1)) / (sb(end)-sb(1)) * tmin;
-%                     end
-%                     sb(1) = 0;
-% 
-%                     I6 = find((t>0) & (t<=T/6));
-%                     [hmin,imin] = min(hc(I6));
-%                     tmin        = t(I6(imin));
-%                     
-%                     sf = tmin;
-%                     sk = tmin;
-% %                     hk = hmin;
-%                     while sf(end) < T/6
-%                         j = find((t1 < sk) & (sk <= t2)) + 1;
-%                         i = j;
-%                         while t(i)-sk  < hc(i)
-%                             i = i + 1;
-%                         end
-%                         
-%                         if t(i-1)-sk > hc(i)
-%                             i = i - 1;
-%                         end
-%                         
-%                         hmin = min(hc(j:i));
-%                         sk   = sf(end) + hmin;
-%                         sf   = cat(2,sf,sk);
-%                         stest = sf(end) + (t2.*h1-t1.*h2) ./ (t2-t1);
-%                         stest = stest ./ (1-(h2-h1)./(t2-t1));
-%                         valid = (stest >= t1) & (stest <= t2);
-%                         stest = stest(valid);
-%                         stest = stest(stest > sf(end));
-%                         [~,i] = min(abs(stest-sf(end)));
-%                         stest = stest(i);
-%                         htest = stest-sf(end);
-%                         
-%                         i = find(t>=sf(end), 1, 'first');
-%                         j = find(t<=stest,   1, 'last');
-%                         
-%                         if i > j
-%                             hmin = inf;
-%                         else
-%                             hmin = min(hc(i:j));
-%                         end
-%                         hmin = min(hmin,htest);
-%                         hmin = min(hmin,hk);
-%                         
-%                         sk = sf(end) + hmin;
-%                         sf = cat(2,sf,sk);
-%                         
-%                         i = find(t<=sk, 1, 'last');
-%                         j = find(t>=sk, 1, 'first');
-%                         hk = (hc(j)*(sk-t(i))+hc(i)*(t(j)-sk))/(t(j)-t(i));
-%                     end
-%                     if length(sf) > 1
-%                         sf = (sf-tmin) / (sf(end)-tmin) * (T/6-tmin) + tmin;
-%                     end
-%                     sf(1) = [];
-%                     
-%                     s = sort([sb,sf]);
-%                     if abs(s(end)-T/6) < sqrt(eps)*T/6
-%                         s(end) = [];
-%                     end
-%                     
-%                     t = [s,s+T/6,s+T/3,s+T/2,s+T*2/3,s+T*5/6];
-%                     t = mod(t,T);
-%                     t = sort(t);
-%                     t = [t,t(1)+T];
-                    %%
-                    hold on;
-                    plot(reshape([t(1:end-1);t(2:end)],1,[]), reshape([diff(t);diff(t)],1,[]),':x');
-                    pause(1);
-                    
-                    length(t)
-                    
-                    %% Initialize
-                    Nt = length(t) - 1;
-                    y  = repmat(y(:,1),1,Nt+1);
-                    y_t = repmat(y_t(:,1),1,Nt+1);
-                    this.Times = t;
-                    this.TimePoints = Nt;
-                    
-                    %% Solve
-                    if tol > tol_max
-                        this.MaxShootingIterations = 10;
-                        this.ShootingTolerance = 1e-2;
+                    if ~last
+                        this.MaxShootingIterations = 0;
+                        this.ShootingTolerance = 1e-1;
                     else
                         this.MaxShootingIterations = 100;
                         this.ShootingTolerance = 1e-6;
                     end
-                    [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
-                
                     
-                    %% Calculate p^th derivative estimates
-                    ec = zeros(1,Nt);
-                    ep = zeros(size(W,1),Nt);
-                    Cn = 0;
-                    for k = 1:Nt
-                        h_k = t(k+1) - t(k);
-%                         ep(:,k) = h_k * bth(1) * W * y_t{end,k};
-%                         for i = 1:Ns
-%                             ep(:,k) = ep(:,k) + h_k * bth(i+1) * W * y_t{i,k+1};
-%                         end
-%                         ep(:,k) = ep(:,k) * h_k^(-pev);
-                        %ep(:,k) = (W * y_t{end,k+1} - W * y_t{end,k}) / (2 * h_k);
-                        %ep(:,k) = W * y_t{end,k+1};
-                        ep(:,k) = W * (y_t{end,k+1} - y_t{end,k}) / (factorial(2) * h_k);
-                        ec(k)   = norm(ep(:,k));
-                        Cn      = max(Cn, norm(W * y{end,k+1}));
-                    end
-                    ec = (ec ./ Cn);
-                    h  = diff(t);
-                    figure;
-                    plot(t(2:end),ec.*(h.^(pev)))
-                    pause(1);
+                    [y, y_t, t] = this.rkInterpolate(t,y,y_t,c,bu,s);
+                    Nt = length(t) - 1
+                    this.Times = t;
+                    this.TimePoints = Nt;
+                    
+                    [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);
+                    
+                    [ec, h] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                 end
             else
             	[y,y_t,t] = this.solve_unstored(y, y_t, t, c, d, p, q, Nt, Ns, getMatrix);

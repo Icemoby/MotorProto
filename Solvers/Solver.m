@@ -69,33 +69,25 @@ properties:
             end
         end
         
-     	function [a,b,c,d,p,q,bu,bh,bth] = getButcherTable(Ns)
+     	function [a,b,c,d,p,q,bu,be,pe] = getButcherTable(Ns)
             switch Ns
                 case 1
                     a = [0 0;
                          0 1];
                          
-                    bh  = [1,0];
-                    bth = [1,0];
+                    be = [1,-1];
+                    pe = 2;
                 case 2
-                    a = [0,0,0;
+                    a = [0,             0,             0;
                          1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;
-                         2^(1/2)/4,2^(1/2)/4, 1 - 2^(1/2)/2];
+                         2^(1/2)/4,     2^(1/2)/4,     1 - 2^(1/2)/2];
                     
-                    bu  = [sqrt(2)/2,-sqrt(2)/4;
-                           sqrt(2)/2,-sqrt(2)/4;
-                           1-sqrt(2),sqrt(2)/2];
-                    bu  = bu - [1 0;1 0;1 0];
-                    
-                    bh  = [1,0,0];
-                    %bth = [-2^(1/2)/2,-2^(1/2)/2,2^(1/2)];%3
-                    %bth = [ 2^(1/2)/4, 2^(1/2)/4, 1 - 2^(1/2)/2];%2
-                    %bth = [-2^(1/2)/2, -2^(1/2)/2, 2^(1/2)];
-                    %bth = [-1,0,1];
-                    %bth = a(end,:);
-                    %bth = [0,0,1];
-                    %bth = [0,0,1];
-                    bth = a(end,:) - bh;
+                    bu = [sqrt(2)/2,-sqrt(2)/4;
+                          sqrt(2)/2,-sqrt(2)/4;
+                          1-sqrt(2),sqrt(2)/2];
+
+                    be = [ 2^(1/2) + 2, - 3*2^(1/2) - 4, 2*2^(1/2) + 2] / factorial(3);
+                    pe = 3;
                 case 3            
                     c2 = roots([3 -18 18 -4]);
                     c2 = c2(2);
@@ -128,22 +120,157 @@ properties:
             p = sum(d,2);
         end
         
-        function ei = rkError(t, y, y_t, bh, W)
-            Nt = length(t) - 1;
-            Ns = length(bh) - 1;
-           	ei = zeros(1, Nt);
-            for k = 1:Nt
-                km1 = mod(k-2, Nt) + 1;
-                h_k = t(k+1) - t(k);
-                yh  = y{end,km1} + h_k*bh(1)*y_t{end,km1};
-                for i = 1:Ns
-                    yh  = yh  + h_k*bh(i+1)*y_t{i,k};
+        function [z, z_t, s] = rkInterpolate(t, y, y_t, c, bu, s)
+            [Rs, ~] = size(y);
+            [m,n]    = size(bu);
+            T        = t(end) - t(1);
+            
+            Ns  = length(s);
+            z   = cell(Rs, Ns);
+            z_t = cell(Rs, Ns);
+            for i = 2:Ns
+                ds = s(i) - s(i-1);
+                for j = 1:Rs
+                    s_ij = s(i-1) + ds * c(j);
+                    s_ij = mod(s_ij-T,T) + T;
+                    s_ij = mod(s_ij-t(1),t(end)-t(1)) + t(1);
+                    
+                    k = find(t > s_ij, 1, 'first');
+                    h_k = t(k)-t(k-1);
+                    
+                    u = (s_ij - t(k-1)) / h_k;
+
+                    z{j,i} = y{Rs,k-1};
+                    z_t{j,i} = 0 * z{j,i};
+                    for jj = 1:n
+                        z{j,i} = z{j,i} + h_k * bu(1,jj) * y_t{Rs,k-1} * u^jj;
+                        z_t{j,i} = z_t{j,i} + bu(1,jj) * y_t{Rs,k-1} * (jj*u^(jj-1)); 
+                    end
+                    
+                    for ii = 2:m
+                        for jj = 1:n
+                            z{j,i} = z{j,i} + h_k * bu(ii,jj) * y_t{ii-1,k} * u^jj;
+                            z_t{j,i} = z_t{j,i} + bu(ii,jj) * y_t{ii-1,k} * (jj*u^(jj-1)); 
+                        end
+                    end
                 end
-                
-                ei(k) = sqrt((W*yh).'*(W*yh));
-                yh    = yh - y{end,k};
-                ei(k) = sqrt((W*yh).'*(W*yh)) / ei(k);
             end
+            z(:,1) = z(:,end);
+            z_t(:,1) = z_t(:,end);
+        end
+        
+        function [ec, h] = rkErrorCoefficients(t, y, y_t, be, pe, getMatrix)
+            Nt = numel(t)-1;
+            Ns = length(be) - 1;
+            
+            W = blkdiag(getMatrix.PostProcessing.SobolevA);
+            W = W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+            
+            ec = zeros(1,Nt);
+            Cn = 0;
+            for k = 1:Nt
+                h_k = t(k+1) - t(k);
+                ep = be(1) * W * y_t{end,k};
+                for i = 1:Ns
+                    ep = ep + be(i+1) * W * y_t{i,k+1};
+                end
+                ep    = ep * h_k^(1-pe);
+                ec(k) = norm(ep);
+                Cn    = max(Cn, norm(W * y{end,k+1}));
+            end
+            ec = (ec ./ Cn);
+            ec = [ec(end),ec];
+            h  = [t(end)-t(end-1), diff(t)];
+            
+            figure;
+            plot(t, ec.*(h.^(pe)))
+            pause(1);
+        end
+        
+        function s = rkRefine(t,tol,ec,pe)
+            Nt = length(t) - 1;
+            T  = t(end) - t(1);
+            
+            %% Calculate new time-point function
+            hc = (tol./ec).^(1/pe);
+            I  = 2:(Nt/6+1);
+            for i = 1:5
+                hc(I) = min(hc(I), hc(I+i*Nt/6));
+            end
+            
+            for i = 1:5
+                hc(I+i*Nt/6) = hc(I);
+            end
+            hc(end) = hc(1);
+            
+            %% Calculate New Time Points
+            t1 = t(1:(end-1));
+            t2 = t(2:end);
+            
+            s = [];
+            imin = [];
+            for i = 2:(Nt-1)
+                j = i-1;
+                k = i+1;
+                if ((hc(i) < hc(j)*(1-sqrt(eps))) && (hc(i) < hc(k)*(1-sqrt(eps))))
+                    s = cat(2,s,t(i));
+                    imin = cat(2,imin,i);
+                end
+            end
+            I = (s > 0);
+            s = s(I);
+            I = (s <= s(1) + T/6*(1+sqrt(eps)));
+            s = s(I);
+            m = length(s)-1;
+            
+            for k = 1:m
+                if hc(imin(k)) < hc(imin(k+1)) %forward from k
+                    sf = [];
+                    sk = s(k);
+                    while sk < s(k+1)
+                        j = find((t1 <= sk) & (sk < t2)) + 1;
+                        i = j;
+                        while t(i)-sk  < hc(i)
+                            i = i + 1;
+                        end
+                        if t(i-1)-sk > hc(i)
+                            i = i - 1;
+                        end
+                        hf = min(hc(j:i));
+                        sk = sk + hf;
+                        sf = cat(2,sf,sk);
+                    end
+                    sf = (sf-s(k)) * (s(k+1)-s(k)) / (sf(end)-s(k)) + s(k);
+                    sf(end) = [];
+                    s = cat(2,s,sf);
+                else %backward from k+1
+                    sb = [];
+                    sk = s(k+1);
+                    while sk > s(k)
+                        j = find((t1 < sk) & (sk <= t2)) + 1;
+                        i = j;
+                        while sk-t(i-1) < hc(i)
+                            i = i - 1;
+                        end
+                        if sk-t(i) > hc(i)
+                            i = i + 1;
+                        end
+                        hb = min(hc(i:j));
+                        sk = sk - hb;
+                        sb = cat(2,sb,sk);
+                    end
+                    sb = (sb - s(k+1)) * (s(k+1) - s(k)) / (s(k+1)-sb(end)) + s(k+1);
+                    sb(end) = [];
+                    s = cat(2,s,sb);
+                end
+            end
+            
+            s = sort(s);
+            s(end) = [];
+            s = [s,s+T/6,s+T/3,s+T/2,s+2*T/3,s+5*T/6];
+            s = mod(s,T);
+            s = [sort(s)];
+            s = [s,s(1)+T];
         end
     end
     
