@@ -37,6 +37,11 @@ properties:
         MaxGMRESIterations  = 100;
         RungeKuttaStages    = 3;
         SymmetricJacobian   = true;
+        
+        Adaptive               = false;
+        SmoothingTolerance     = 1e-1;
+        MaxSmoothingIterations = 4;
+        AdaptiveTolerance      = 1e-2;
     end
     
     methods
@@ -59,12 +64,11 @@ properties:
             
             %% Get Algorithm Parameters
             Ns = this.RungeKuttaStages;
-            [~,~,c,d,p,q,bh,bth] = this.getButcherTable(Ns);
+            [~,~,c,d,p,q,bu,be,pe] = this.getButcherTable(Ns);
             
             %% Initialize
-            t          = model.getTimePoints(this.TimePoints);
-            this.Times = t;
-            Nt         = numel(t) - 1;
+            t  = model.getTimePoints(this.TimePoints);
+            Nt = numel(t) - 1;
 
             r = cell(Ns, Nt);
             y_t = cell(Ns, Nt);
@@ -79,22 +83,23 @@ properties:
             
             %% Begin Simulation Timing
             if this.Verbose
-                display(sprintf('\nTPFEM %d/%d',Ns,Nt));
+                display(sprintf('TPFEM %d/%d\n',Ns,Nt));
             end
             
             tic;
             if this.StoreDecompositions
-                [y, y_t, r] = solve_stored(this, y, y_t, r, t, c, d, p, q, bh, bth, Nt, Ns, Nx, getMatrix);
+                [y,y_t,t] = this.solve_stored(y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
             else
-                [y, y_t, r] = solve_unstored(this, y, y_t, r, t, c, d, p, q, bh, bth, Nt, Ns, Nx, getMatrix);
+            	[y,y_t,t] = this.solve_unstored(y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
             end
             this.SimulationTime = toc;
             
            	if this.Verbose
-                display(sprintf('\nSimulation Time = %0.3g seconds', this.SimulationTime));
+                display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));
             end
             
             %% Post Processing
+            Nt  = numel(t) - 1;
             x   = cell(1, Nt+1);
             x_t = cell(1, Nt+1);
             for k = 1:Nt
@@ -104,6 +109,7 @@ properties:
             x{1}   = x{end};
             x_t{1} = x_t{end};
             
+            this.Times = t;
             [x, x_t] = getMatrix.doPostProcessing(x, x_t);
             this.Y   = y;
             this.Y_t = y_t;
@@ -112,98 +118,143 @@ properties:
             solution = Solution(this);
         end
         
-        function [y, y_t, r] = solve_unstored(this, y, y_t, r, t, c, d, p, q, bh, bth, Nt, Ns, Nx, getMatrix)
-            maxNewton = this.MaxNewtonIterations;
+        function [y, y_t, t] = solve_unstored(this, y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
             maxGMRES  = this.MaxGMRESIterations;
-            newtonTol = this.NewtonTolerance;
             gmresTol  = this.GMRESTolerance;
             verbose   = this.Verbose;
             
-            %% Newton Iteration
-            nNewton = 0;
-            newtonRes = 1;
-            while newtonRes > newtonTol && nNewton < maxNewton
-                nNewton = nNewton + 1;
-                
-                %% Calculate Residual
-                normf = 0;
-                normr = 0;
-                for k = 1:Nt
-                    km1 = mod(k-2, Nt) + 1;
-                    h_k = t(k+1) - t(k);
-                    for i = 1:Ns
-                        t_ik = t(k) + c(i) * h_k;
-                        h_ik = h_k / d(i,i);
-                        
-                    	[~, rpq] = getMatrix.G(t(k), y{Ns,km1}, h_ik);
-                        Kpq = getMatrix.K(t(k), h_ik);
-                        Cpq = getMatrix.C(t(k), h_k / p(i), h_ik);
-                        
-                        r{i,k} = rpq + Kpq * y{Ns,km1};
-                        r{i,k} = r{i,k} - getMatrix.f(t(k), h_ik);
-                        r{i,k} = q(i) * r{i,k} - Cpq * y{Ns,km1};
-                        
-                        K_ik = getMatrix.K(t_ik, h_ik);
-                        r{i,k} = r{i,k} + K_ik * y{i,k};
-                        
-                        f_ik = getMatrix.f(t_ik, h_ik);
-                        r{i,k} = r{i,k} - f_ik;
-                        
-                        [~, g_ik] = getMatrix.G(t_ik, y{i,k}, h_ik);
-                        r{i,k} = r{i,k} + g_ik;
-                        
-                        for j = 1:i
-                            C      = getMatrix.C(t_ik, h_k / d(i,j), h_ik);
-                            r{i,k} = r{i,k} + C * y{j,k};
-                        end
-
-                        normf = normf + norm(f_ik)^2;
-                        normr = normr + norm(r{i,k})^2;
-                    end
-                end
-                newtonRes = sqrt(normr / normf);
-
-                if verbose
-                    display(sprintf('\nIteration %d, Residual = %0.3g', nNewton, newtonRes));
+            %% Starts
+           	first = true;
+            if this.Adaptive
+                last = false;
+            else
+                last = true;
+            end
+            
+            while first || ~last
+                %% Fixed Step Size Iteration
+                if first || last
+                    maxNewton = this.MaxNewtonIterations;
+                    newtonTol = this.NewtonTolerance;
+                else
+                    maxNewton = this.MaxSmoothingIterations;
+                    newtonTol = this.SmoothingTolerance;
                 end
                 
-                %% Solve Linear Equation
-                if newtonRes > newtonTol
-                    dy = reshape(r, [], 1);
-                    dy = cell2mat(dy);
-                    A = @TPFEM.MVPUnstored;
-                    
-                    if verbose
-                        dy = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
-                    else
-                        [dy,~,~,~] = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
-                    end
-                    dy = TPFEM.PCUnstored(dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
-                    dy = mat2cell(dy, Nx * ones(1, Nt*Ns));
-                    dy = reshape(dy, Ns, Nt);
-                    
-                    for i = 1:Nt
-                        for j = 1:Ns
-                            y{j,i} = y{j,i} - dy{j,i};
-                        end
-                    end
-                end
-                
-                %% Calculate Stage Derivatives
-                for i = Ns:-1:1
+                %% Newton Iteration
+                nNewton = 1;
+                newtonRes = 1;
+                while newtonRes > newtonTol && nNewton <= maxNewton
+                    %% Calculate Residual
+                    normf = 0;
+                    normr = 0;
                     for k = 1:Nt
                         km1 = mod(k-2, Nt) + 1;
                         h_k = t(k+1) - t(k);
-                        y_t{i,k} = (-p(i)/h_k) * y{Ns,km1} - q(i)*y_t{Ns,km1};
-                        for j = 1:i
-                            y_t{i,k} = y_t{i,k} + (d(i,j)/h_k)*y{j,k};
+                        for i = 1:Ns
+                            t_ik = t(k) + c(i) * h_k;
+                            h_ik = h_k / d(i,i);
+                            
+                            [~, rpq] = getMatrix.G(t(k), y{Ns,km1}, h_ik);
+                            Kpq = getMatrix.K(t(k), h_ik);
+                            Cpq = getMatrix.C(t(k), h_k / p(i), h_ik);
+                            
+                            r{i,k} = rpq + Kpq * y{Ns,km1};
+                            r{i,k} = r{i,k} - getMatrix.f(t(k), h_ik);
+                            r{i,k} = q(i) * r{i,k} - Cpq * y{Ns,km1};
+                            
+                            K_ik = getMatrix.K(t_ik, h_ik);
+                            r{i,k} = r{i,k} + K_ik * y{i,k};
+                            
+                            f_ik = getMatrix.f(t_ik, h_ik);
+                            r{i,k} = r{i,k} - f_ik;
+                            
+                            [~, g_ik] = getMatrix.G(t_ik, y{i,k}, h_ik);
+                            r{i,k} = r{i,k} + g_ik;
+                            
+                            for j = 1:i
+                                C      = getMatrix.C(t_ik, h_k / d(i,j), h_ik);
+                                r{i,k} = r{i,k} + C * y{j,k};
+                            end
+                            
+                            normf = normf + norm(f_ik)^2;
+                            normr = normr + norm(r{i,k})^2;
                         end
                     end
+                    newtonRes = sqrt(normr / normf);
+                    
+                    %% GMRES Phase
+                    if newtonRes > newtonTol
+                        dy = reshape(r, [], 1);
+                        dy = cell2mat(dy);
+                        A = @TPFEM.MVPUnstored;
+                        
+                        if verbose
+                            dy = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                        else
+                            [dy,~,~,~] = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                        end
+                        dy = TPFEM.PCUnstored(dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                        dy = mat2cell(dy, Nx * ones(1, Nt*Ns));
+                        dy = reshape(dy, Ns, Nt);
+                        
+                        for i = 1:Nt
+                            for j = 1:Ns
+                                y{j,i} = y{j,i} - dy{j,i};
+                            end
+                        end
+                    end
+                    
+                    %% Calculate Stage Derivatives
+                    for i = Ns:-1:1
+                        for k = 1:Nt
+                            km1 = mod(k-2, Nt) + 1;
+                            h_k = t(k+1) - t(k);
+                            y_t{i,k} = (-p(i)/h_k) * y{Ns,km1} - q(i)*y_t{Ns,km1};
+                            for j = 1:i
+                                y_t{i,k} = y_t{i,k} + (d(i,j)/h_k)*y{j,k};
+                            end
+                        end
+                    end
+                    
+                  	%% Calculate Error Estimates
+                    [ec, h] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
+                    discErr = max(ec.*h.^pe);
+                    if this.Adaptive && discErr < this.AdaptiveTolerance * 2
+                        maxNewton = this.MaxNewtonIterations;
+                        newtonTol = this.NewtonTolerance;
+                        last      = true;
+                    end
+                    
+                    %% Report
+                    if verbose
+                        display(sprintf('Iteration %d, Residual = %0.3g, Discretization Error = %0.3g\n', nNewton, newtonRes, discErr));
+                    end
+                    
+                    nNewton = nNewton + 1;
                 end
                 
-                ei = this.rkError(t,y,y_t,bh,bth,getMatrix);
-                figure;
-                plot(ei);
+                %% Refine Grid
+                if this.Adaptive && ~last
+                    if first
+                        first  = false;
+                        atol   = mean(ec.*h.^pe);
+                        nGrids = floor((-1/pe) * log(this.AdaptiveTolerance / atol) / log(2));
+                        atol   = this.AdaptiveTolerance * (2^(pe*nGrids));
+                    else
+                        atol = max(atol*2^(-pe), this.AdaptiveTolerance);
+                    end
+                    
+                    s = this.rkRefine(t,atol,ec,pe);
+                  	[y, y_t, t] = this.rkInterpolate(t,y,y_t,c,bu,s);
+                    Nt = length(t) - 1;
+                    
+                    if verbose
+                        display(sprintf('\nRefining grid to %d time-steps', Nt));
+                    end
+                else
+                    first = first && ~first;
+                end
             end
         end
    

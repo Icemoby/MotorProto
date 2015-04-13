@@ -16,7 +16,7 @@ classdef HarmonicBalance < Solver
         Strategy = 'target';
         Plan = [];
     end
-    %TODO - Implement Storage Levels 0,1,2
+    
     methods
         %% Constructor
         function this = HarmonicBalance(varargin)
