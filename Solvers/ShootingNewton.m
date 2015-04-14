@@ -37,7 +37,7 @@ properties:
         NewtonTolerance       = 1e-6;
         GMRESTolerance        = 1e-6;
         MaxShootingIterations = 100;
-        MinNewtonIterations   = 2;
+        MinNewtonIterations   = 1;
         MaxNewtonIterations   = 100;
         MaxGMRESIterations    = 100;
         RungeKuttaStages      = 3;
@@ -251,7 +251,7 @@ properties:
                         for j = 1:Ns
                             y_t{Ns,1} = y_t{Ns,1} + (d(Ns,j)/h_k)*y{j,1};
                         end
-                    elseif maxGMRES == 0
+                    elseif (maxGMRES == 0) || (this.MinNewtonIterations >= nShooting)
                         y(:,1)   = y(:,Nt+1);
                         y_t(:,1) = y_t(:,Nt+1);
                     end
@@ -267,7 +267,7 @@ properties:
                         nGrids = floor((-1/pe) * log(this.AdaptiveTolerance / atol) / log(2));
                         atol   = this.AdaptiveTolerance * (2^(pe*nGrids));
                     else
-                        atol = max(atol*2^(-pe), this.AdaptiveTolerance);
+                        atol = max(atol*2^(-pe), this.AdaptiveTolerance / 2);
                     end
                     
                     s = this.rkRefine(t,atol,ec,pe);
@@ -285,7 +285,7 @@ properties:
             end
         end
 
-        function [y,y_t,t] = solve_stored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, getMatrix)
+        function [y,y_t,t] = solve_stored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
             %% Algorithm Parameters
             maxNewton   = this.MaxNewtonIterations;
             maxGMRES    = this.MaxGMRESIterations;
@@ -344,9 +344,11 @@ properties:
                     shootingTol = this.SmoothingTolerance;
                 end
                 
+                ys0 = y{Ns,Nt};%needed for updating y_t{Ns,1} after GMRES
+                
                 nShooting   = 1;
                 shootingRes = 1;
-                while shootingRes > shootingTol && nShooting <= maxShooting
+                while (shootingRes > shootingTol && nShooting <= maxShooting) || (this.MinNewtonIterations >= nShooting) 
                     %% Calculate Residual
                     for k = 2:(Nt+1)
                         h_k = t(k) - t(k-1);
@@ -420,8 +422,14 @@ properties:
                             end
                         end
                     end
-                    r = y{Ns,1} - y{Ns,Nt+1};
-                    shootingRes = norm(r) / norm(y{Ns, Nt+1});
+                    r    = cell(Ns+1,1);
+                    r{1} = ys0 - y{Ns,Nt};
+                    for i = 1:Ns
+                        r{i+1} = y{i,1} - y{i,Nt+1};
+                    end
+                    r = cell2mat(r);
+                    
+                    shootingRes = norm(r) / norm(cell2mat(y(:,Nt+1)));
 
                     %% Calculate Error Estimates
                  	[ec, h] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
@@ -442,21 +450,29 @@ properties:
                         if isSymmetric
                             A = @ShootingNewton.MVPStoredLDL;
                             if verbose
-                                dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, D, P, S, Ns, Nt);
+                                dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, D, P, S, Ns, Nt, Nx);
                             else
-                                [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Jpq, L, D, P, S, Ns, Nt);
+                                [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Jpq, L, D, P, S, Ns, Nt, Nx);
                             end
                         else
                             A = @ShootingNewton.MVPStoredLU;
                             if verbose
-                                dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt);
+                                dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
                             else
-                                [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt);
+                                [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
                             end
                         end
-                        y{Ns,1}   = y{Ns,1} - dy;
-                        y_t{Ns,1} = y_t{Ns,Nt+1};
-                    elseif maxGMRES == 0
+                        dy = mat2cell(dy,Nx*ones(Ns+1,1),1);
+                        ys0 = ys0 - dy{1};
+                        for i = 1:Ns
+                            y{i,1} = y{i,1} - dy{i+1};
+                        end
+                        h_k = t(Nt+1) - t(Nt);
+                        y_t{Ns,1} = (-p(Ns)/h_k) * ys0;
+                        for j = 1:Ns
+                            y_t{Ns,1} = y_t{Ns,1} + (d(Ns,j)/h_k)*y{j,1};
+                        end
+                    elseif (maxGMRES == 0) || (this.MinNewtonIterations >= nShooting)
                         y(:,1)   = y(:,Nt+1);
                         y_t(:,1) = y_t(:,Nt+1);
                     end
@@ -471,7 +487,7 @@ properties:
                         nGrids = floor((-1/pe) * log(this.AdaptiveTolerance / atol) / log(2));
                         atol   = this.AdaptiveTolerance * (2^(pe*nGrids));
                     else
-                        atol = max(atol*2^(-pe), this.AdaptiveTolerance);
+                        atol = max(atol*2^(-pe), this.AdaptiveTolerance / 2);
                     end
                     
                     s = this.rkRefine(t,atol,ec,pe);
@@ -492,10 +508,13 @@ properties:
     
     methods (Static)
         %% Stored Matrices
-        function mvp = MVPStoredLDL(z_s0, Ca, Jpq, L, D, P, S, Ns, Nt)
-            z_sk = z_s0;
-            z    = cell(1, Ns);
+        function mvp = MVPStoredLDL(z_s0, Ca, Jpq, L, D, P, S, Ns, Nt, Nx)
+            z_s0 = mat2cell(z_s0,Nx*ones(Ns+1,1),1);
+            z    = cell(Ns,1);
+            z{Ns} = z_s0{Ns+1};
+            
             for k = 2:(Nt+1)
+                z_sk = z{Ns};  
                 for i = 1:Ns         
                     rhs = Jpq{i,k} * z_sk;
                     for j = 1:(i - 1);
@@ -503,15 +522,23 @@ properties:
                     end
                     z{i} = S{i,k} * (P{i,k} * (L{i,k}' \ (D{i,k} \ (L{i,k} \ (P{i,k}' * (S{i,k} * rhs))))));
                 end
-                z_sk = z{Ns};
             end
-            mvp = z_s0 - z_sk;
+            
+            mvp = cell(Ns+1,1);
+            mvp{1} = z_s0{1} - z_sk;
+            for i = 1:Ns
+                mvp{i+1} = z_s0{i+1} - z{i};
+            end
+            mvp = cell2mat(mvp);
         end
         
-        function mvp = MVPStoredLU(z_s0, Ca, Jpq, L, U, P, Q, R, Ns, Nt)
-            z_sk = z_s0;
-            z    = cell(1, Ns);
+        function mvp = MVPStoredLU(z_s0, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx)
+            z_s0 = mat2cell(z_s0,Nx*ones(Ns+1,1),1);
+            z    = cell(Ns,1);
+            z{Ns} = z_s0{Ns+1};
+            
             for k = 2:(Nt+1)
+                z_sk = z{Ns};
                 for i = 1:Ns         
                     r_ik = Jpq{i,k} * z_sk;
                     for j = 1:(i - 1);
@@ -519,9 +546,14 @@ properties:
                     end
                     z{i} = Q{i,k} * (U{i,k} \ (L{i,k} \ (P{i,k} * (R{i,k} \ r_ik))));
                 end
-                z_sk = z{Ns};
             end
-           mvp = z_s0 - z_sk;
+            
+            mvp = cell(Ns+1,1);
+            mvp{1} = z_s0{1} - z_sk;
+            for i = 1:Ns
+                mvp{i+1} = z_s0{i+1} - z{i};
+            end
+            mvp = cell2mat(mvp);
         end
         
         %% Unstored Matrices
@@ -529,6 +561,7 @@ properties:
             z_s0 = mat2cell(z_s0,Nx*ones(Ns+1,1),1);
             z    = cell(Ns,1);
             z{Ns} = z_s0{Ns+1};
+            
             for k = 2:(Nt+1)
                 z_sk = z{Ns};  
                 h_k  = t(k) - t(k-1);
@@ -552,6 +585,7 @@ properties:
                     z{i} = J_ik \ r_ik;
                 end               
             end
+            
             mvp = cell(Ns+1,1);
             mvp{1} = z_s0{1} - z_sk;
             for i = 1:Ns

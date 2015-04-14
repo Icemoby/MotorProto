@@ -82,15 +82,15 @@ properties:
                          1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;
                          2^(1/2)/4,     2^(1/2)/4,     1 - 2^(1/2)/2];
                     
-                    bu = [sqrt(2)/2,-sqrt(2)/4;
-                          sqrt(2)/2,-sqrt(2)/4;
-                          1-sqrt(2),sqrt(2)/2];
+                    bu = [sqrt(2)/2, -sqrt(2)/4;
+                          sqrt(2)/2, -sqrt(2)/4;
+                          1-sqrt(2), sqrt(2)/2];
 
                     be = [ 2^(1/2) + 2, - 3*2^(1/2) - 4, 2*2^(1/2) + 2] / factorial(3);
                     pe = 3;
                 case 3            
                     c2 = roots([3 -18 18 -4]);
-                    c2 = c2(2);
+                    c2 = c2(3);
                     c2 = c2-((((c2-6)*c2+6)*c2)/(3*((c2-4)*c2+2))-4/(9*((c2-4)*c2+2)));
                     
                     a = zeros(4,4);
@@ -104,8 +104,18 @@ properties:
                     a(4,3) = (-c2*(c2*(c2*(c2*(c2*(27*c2 - 108) + 198) - 208) + 132) - 48) - 8) / (c2*(c2*(c2*(c2*(c2*(36*c2 - 252) + 624) - 744) + 432) - 96));
                     a(4,4) = c2 / 2;
                     
-                    bh  = [ -((c2 - 1)^2*(3*c2^2 - 4*c2 + 2))/(c2*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2)), ((3*c2^2)/4 - 1/2)/((c2 - 1)*(c2^2 - 4*c2 + 2)) + 3/4, ((3*c2^2 - 4*c2 + 2)^2*(c2^2 - 2*c2 + 2))/(4*(c2^2 - 4*c2 + 2)*(- 3*c2^4 + 9*c2^3 - 10*c2^2 + 4*c2)), (c2*(c2 - 2))/(c2^2 - 4*c2 + 2)];
-                    bth = [ ((3*c2 - 2)*(c2^2 - 2*c2 + 2))/(c2*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2)), - 1/(2*(c2 - 1)) - (c2 - 2)/(c2^2 - 4*c2 + 2), ((c2 - 2)*(3*c2^2 - 4*c2 + 2)^2)/(2*c2*(c2 - 1)*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2)), 1 - 2/(c2^2 - 4*c2 + 2)];
+                    bu = [0, 0, 0;
+                          0, 0, 0;
+                          0, 0, 0;
+                          0, 0, 0;];
+
+                   %be = [-(18*c2^2 - 24*c2 + 12)/(3*c2^4 - 6*c2^3 + 4*c2^2),...
+                   %       (9*c2^2 - 12*c2 + 6)/(c2^4 - 2*c2^3 + c2^2),...
+                   %       -(81*c2^6 - 324*c2^5 + 594*c2^4 - 624*c2^3 + 396*c2^2 - 144*c2 + 24)/(9*c2^8 - 54*c2^7 + 135*c2^6 - 180*c2^5 + 134*c2^4 - 52*c2^3 + 8*c2^2),...
+                   %       (18*c2^2 - 24*c2 + 12)/(3*c2^4 - 12*c2^3 + 17*c2^2 - 10*c2 + 2)] / factorial(4);
+                   %pe = 4;
+                   be = [-1,0,0,1] / factorial(2);
+                   pe = 2;
             end
             b = a(end,:);
             c = sum(a,2);
@@ -121,7 +131,6 @@ properties:
         end
         
         function [z, z_t, s] = rkInterpolate(t, y, y_t, c, bu, s)
-            error('Interpolate using values in [T/2,T] for smoother results');
             [Rs, ~] = size(y);
             [m,n]   = size(bu);
             T       = t(end) - t(1);
@@ -181,6 +190,7 @@ properties:
                 Cn    = max(Cn, norm(W * y{end,k}));
             end
             ec = (ec ./ Cn);
+            ec(1:(end/2)) = ec((end/2+1):end);
             ec = [ec(end),ec];
             h  = [t(end)-t(end-1), diff(t)];
             
@@ -189,96 +199,132 @@ properties:
             pause(1);
         end
         
+        %%
         function s = rkRefine(t,tol,ec,pe)
             Nt = length(t) - 1;
-            T  = t(end) - t(1);
-            
-            if Nt < 12
-                s = linspace(0,T,2*Nt+1);
-            else
-                %% Calculate new time-point function
-                hc = (tol./ec).^(1/pe);
-                I  = 2:(Nt/6+1);
-                hc(I) = hc(I+3*Nt/6);%values in [T/2,T] are usually more well smoothed
-                for i = 4:5
-                    hc(I) = min(hc(I), hc(I+i*Nt/6));
-                end
-
-                for i = 1:5
-                    hc(I+i*Nt/6) = hc(I);
-                end
-                hc(end) = hc(1);
-
-                %% Calculate New Time Points
-                t1 = t(1:(end-1));
-                t2 = t(2:end);
-
-                s = [];
-                imin = [];
-                for i = 2:(Nt-1)
-                    j = i-1;
-                    k = i+1;
-                    if ((hc(i) < hc(j)*(1-sqrt(eps))) && (hc(i) < hc(k)*(1-sqrt(eps))))
-                        s = cat(2,s,t(i));
-                        imin = cat(2,imin,i);
-                    end
-                end
-                I = (s > 0);
-                s = s(I);
-                I = (s <= s(1) + T/6*(1+sqrt(eps)));
-                s = s(I);
-                m = length(s)-1;
-
-                for k = 1:m
-                    if hc(imin(k)) < hc(imin(k+1)) %forward from k
-                        sf = [];
-                        sk = s(k);
-                        while sk < s(k+1)
-                            j = find((t1 <= sk) & (sk < t2)) + 1;
-                            i = j;
-                            while t(i)-sk  < hc(i)
-                                i = i + 1;
-                            end
-                            if t(i-1)-sk > hc(i)
-                                i = i - 1;
-                            end
-                            hf = min(hc(j:i));
-                            sk = sk + hf;
-                            sf = cat(2,sf,sk);
-                        end
-                        sf = (sf-s(k)) * (s(k+1)-s(k)) / (sf(end)-s(k)) + s(k);
-                        sf(end) = [];
-                        s = cat(2,s,sf);
-                    else %backward from k+1
-                        sb = [];
-                        sk = s(k+1);
-                        while sk > s(k)
-                            j = find((t1 < sk) & (sk <= t2)) + 1;
-                            i = j;
-                            while sk-t(i-1) < hc(i)
-                                i = i - 1;
-                            end
-                            if sk-t(i) > hc(i)
-                                i = i + 1;
-                            end
-                            hb = min(hc(i:j));
-                            sk = sk - hb;
-                            sb = cat(2,sb,sk);
-                        end
-                        sb = (sb - s(k+1)) * (s(k+1) - s(k)) / (s(k+1)-sb(end)) + s(k+1);
-                        sb(end) = [];
-                        s = cat(2,s,sb);
-                    end
-                end
-
-                s = sort(s);
-                s(end) = [];
-                s = [s,s+T/6,s+T/3,s+T/2,s+2*T/3,s+5*T/6];
-                s = mod(s,T);
-                s = sort(s);
-                s = [s,s(1)+T];
+            D = zeros(1,Nt);
+            for k = 1:Nt
+                h_k  = t(k+1) - t(k);
+                D(k) = floor((ec(k)/tol)^(1/pe) * h_k);
             end
+            
+            s = t;
+            for k = 1:Nt
+                h_k = t(k+1)-t(k);
+                for j = 1:D(k)
+                    s = cat(2,s,t(k)+h_k * j/(D(k)+1));
+                end
+            end
+            s = sort(s);
         end
+             
+%         function s = rkRefine(t,tol,ec,pe)
+%             Nt = length(t) - 1;
+%             T  = t(end) - t(1);
+%             
+%             if Nt < 12
+%                 s = linspace(0,T,2*Nt+1);
+%             else
+%                 %% Calculate new time-point function
+%                 hc = (tol./ec).^(1/pe);
+%                 I  = 2:(Nt/6+1);
+%                 hc(I) = hc(I+3*Nt/6); %values in [T/2,T] are usually more well smoothed
+%                 for i = 4:5
+%                     hc(I) = min(hc(I), hc(I+i*Nt/6));
+%                 end
+% 
+%                 for i = 1:5
+%                     hc(I+i*Nt/6) = hc(I);
+%                 end
+%                 hc(end) = hc(1);
+% 
+%                 %% Calculate New Time Points
+%                 t1 = t(1:(end-1));
+%                 t2 = t(2:end);
+% 
+%                 minax = [];
+%                 s = [];
+%                 imin = [];
+%                 imax = [];
+%                 for i = 2:(Nt-1)
+%                     j = i-1;
+%                     k = i+1;
+%                     if (hc(i) <= hc(j)) && (hc(i) < hc(k))
+%                         s     = cat(2,s,t(i));
+%                         minax = cat(2,minax,-1);
+%                         imin  = cat(2,imin,i);
+%                     elseif (hc(i) >= hc(j)) && (hc(i) > hc(k))
+%                         s     = cat(2,s,t(i));
+%                         minax = cat(2,minax,1);
+%                         imax  = cat(2,imax,i);
+%                     end
+%                 end
+%                 I = find(s > 0);
+%                 if minax(I(1)) == -1
+%                     I(1) = [];
+%                 end
+%                 s = s(I);
+%                 minax = minax(I);
+%                 
+%                 I = (s <= s(1) + T/6*(1+sqrt(eps)));
+%                 s = s(I);
+%                 minax = minax(I);
+%                 assert(minax(end) == 1);
+%                 
+%                 m = length(s);
+%                 
+%                 for k = 1:2:m
+%                     if k < m %forward from max s(k) to min s(k+1)
+%                         sf = [];
+%                         sk = s(k);
+%                         while sk < s(k+1)
+%                             j = find((t1 <= sk) & (sk < t2)) + 1;
+%                             i = j;
+%                             while t(i)-sk  < hc(i)
+%                                 i = i + 1;
+%                             end
+%                             if t(i-1)-sk > hc(i)
+%                                 i = i - 1;
+%                             end
+%                             hf = min(hc(j:i));
+%                             sk = sk + hf;
+%                             sf = cat(2,sf,sk);
+%                         end
+%                         sf = (sf-s(k)) * (s(k+1)-s(k)) / (sf(end)-s(k)) + s(k);
+%                         sf(end) = [];
+%                         s = cat(2,s,sf);
+%                     end
+%                     
+%                     if k > 1 %backward from max s(k) to min s(k-1)
+%                         sb = [];
+%                         sk = s(k);
+%                         while sk > s(k-1)
+%                             j = find((t1 < sk) & (sk <= t2)) + 1;
+%                             i = j;
+%                             while sk-t(i-1) < hc(i)
+%                                 i = i - 1;
+%                             end
+%                             if sk-t(i) > hc(i)
+%                                 i = i + 1;
+%                             end
+%                             hb = min(hc(i:j));
+%                             sk = sk - hb;
+%                             sb = cat(2,sb,sk);
+%                         end
+%                         sb = (sb - s(k)) * (s(k) - s(k-1)) / (s(k)-sb(end)) + s(k);
+%                         sb(end) = [];
+%                         s = cat(2,s,sb);
+%                     end
+%                 end
+% 
+%                 s = sort(s);
+%                 s(end) = [];
+%                 s = [s,s+T/6,s+T/3,s+T/2,s+2*T/3,s+5*T/6];
+%                 s = mod(s,T);
+%                 s = sort(s);
+%                 s = [s,s(1)+T];
+%             end
+%         end
     end
     
     methods
