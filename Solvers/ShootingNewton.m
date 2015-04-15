@@ -434,7 +434,7 @@ properties:
                     %% Calculate Error Estimates
                  	[ec, h] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
                     discErr = max(ec.*h.^pe);
-                   	if this.Adaptive && discErr < this.AdaptiveTolerance * 2
+                   	if this.Adaptive && discErr < this.AdaptiveTolerance * 2 && ~first
                         shootingTol = this.ShootingTolerance;
                         maxShooting = this.MaxShootingIterations;
                         last        = true;

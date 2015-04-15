@@ -221,7 +221,7 @@ properties:
                   	%% Calculate Error Estimates
                     [ec, h] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     discErr = max(ec.*h.^pe);
-                    if (this.Adaptive) && (discErr < this.AdaptiveTolerance * 2)
+                    if (this.Adaptive) && (discErr < this.AdaptiveTolerance * 2) && ~first
                         maxNewton = this.MaxNewtonIterations;
                         newtonTol = this.NewtonTolerance;
                         last      = true;
@@ -405,7 +405,7 @@ properties:
                    	%% Calculate Error Estimates
                     [ec, h] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     discErr = max(ec.*h.^pe);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
                         maxNewton = this.MaxNewtonIterations;
                         newtonTol = this.NewtonTolerance;
                         last      = true;

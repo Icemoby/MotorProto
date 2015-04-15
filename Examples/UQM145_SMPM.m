@@ -32,7 +32,7 @@ stator.Poles               = nPoles;
 stator.Teeth               = nTeeth;
 stator.InnerRadius         = statorInnerRadius;
 stator.OuterRadius         = statorOuterRadius;
-stator.DefaultMaterial     = Arnon7;
+stator.DefaultMaterial     = Iron;
 stator.SourceType          = SourceTypes.CurrentSource;
 stator.CouplingType        = CouplingTypes.Dynamic;
 stator.WindingType         = WindingTypes.Distributed;
@@ -74,7 +74,7 @@ rotor.Length              = len;
 rotor.ElectricalFrequency = f_r * nPoles / 2;
 rotor.InnerRadius         = rotorInnerRadius;
 rotor.OuterRadius         = rotorOuterRadius;
-rotor.DefaultMaterial     = Arnon7;
+rotor.DefaultMaterial     = Iron;
 rotor.OperatingMode       = OperatingModes.Synchronous;
 rotor.InitialAngle        = pi/nPoles*0;
 rotor.BackironType        = BackironTypes.Laminated;
@@ -117,7 +117,7 @@ rotor.addRegion('trimUHP', trimUHP, Air, DynamicsTypes.Static);
 rotor.addRegion('trimLHP', trimLHP, Air, DynamicsTypes.Static);
 
 retainingRing = Geometry2D.draw('Sector', 'Radius', [rotorOuterRadius-pmRing, rotorOuterRadius], 'Angle', 2 * pi / nPoles, 'Rotation', - pi / nPoles,'PlotStyle',{'b'});
-rotor.addRegion('ring', retainingRing, Arnon7, DynamicsTypes.Static);
+rotor.addRegion('ring', retainingRing, Iron, DynamicsTypes.Static);
 
 %% Set mesh parameters
 mesh = simulation.Mesh;
@@ -161,7 +161,7 @@ stator.Circuits.HarmonicPhases      = angle(V);
 nTimePoints = 18;
 %simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
 %simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',10,'Adaptive',true,'AdaptiveTolerance',1e-4);
-simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-3, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-3);
+simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-6);
 %simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', 1e-6, 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2]);
 
 model.build;
