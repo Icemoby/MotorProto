@@ -140,6 +140,7 @@ properties:
            	%% Start
             first = true;
             if this.Adaptive
+                atol = 1;
                 last = false;
             else
                 last = true;
@@ -219,14 +220,13 @@ properties:
                     shootingRes = norm(r) / norm(cell2mat(y(:,Nt+1)));
 
                     %% Calculate Error Estimates
-                    [ec, h] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
-                    discErr = max(ec.*h.^pe);
-                    if this.Adaptive && discErr < this.AdaptiveTolerance * 2
-                        shootingTol = this.ShootingTolerance;
+                    [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
                         maxShooting = this.MaxShootingIterations;
-                        last        = true;
+                        shootingTol = this.ShootingTolerance;
+                        last = true;
                     end
-
+                    
                     %% Report
                     if verbose
                         display(sprintf('\nIteration %d, Residual = %0.3g, Discretization Error = %0.3g', nShooting, shootingRes, discErr));
@@ -261,27 +261,15 @@ properties:
                 
                 %% Refine Grid
                 if this.Adaptive && ~last
-                    if first
-                        first  = false;
-                        atol   = mean(ec.*h.^pe);
-                        nGrids = floor((-1/pe) * log(this.AdaptiveTolerance / atol) / log(2));
-                        atol   = this.AdaptiveTolerance * (2^(pe*nGrids));
-                    else
-                        atol = max(atol*2^(-pe), this.AdaptiveTolerance / 2);
-                    end
-                    
-                    s = this.rkRefine(t,atol,ec,pe);
-                  	[y, y_t, t] = this.rkInterpolate(t,y(:,2:end),y_t(:,2:end),c,bu,s);
+                    [s, atol] = this.rkRefine(t, atol, this.AdaptiveTolerance, ec, pe, 2, first);
+                  	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
                     Nt = length(t) - 1;
-                    y = cat(2,y(:,Nt),y);
-                    y_t = cat(2,y_t(:,Nt),y_t);
                     
                     if verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
                     end
-                else
-                    first = first && ~first;
                 end
+                first = first && ~first;
             end
         end
 
@@ -315,6 +303,7 @@ properties:
             %% Start
             first = true;
             if this.Adaptive
+                atol = 1;
                 last = false;
             else
                 last = true;
@@ -432,12 +421,11 @@ properties:
                     shootingRes = norm(r) / norm(cell2mat(y(:,Nt+1)));
 
                     %% Calculate Error Estimates
-                 	[ec, h] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
-                    discErr = max(ec.*h.^pe);
-                   	if this.Adaptive && discErr < this.AdaptiveTolerance * 2 && ~first
-                        shootingTol = this.ShootingTolerance;
+                    [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
                         maxShooting = this.MaxShootingIterations;
-                        last        = true;
+                        shootingTol = this.ShootingTolerance;
+                        last = true;
                     end
                     
                     %% Report
@@ -481,27 +469,15 @@ properties:
                 
                 %% Refine Grid
                 if this.Adaptive && ~last
-                    if first
-                        first  = false;
-                        atol   = mean(ec.*h.^pe);
-                        nGrids = floor((-1/pe) * log(this.AdaptiveTolerance / atol) / log(2));
-                        atol   = this.AdaptiveTolerance * (2^(pe*nGrids));
-                    else
-                        atol = max(atol*2^(-pe), this.AdaptiveTolerance / 2);
-                    end
-                    
-                    s = this.rkRefine(t,atol,ec,pe);
-                  	[y, y_t, t] = this.rkInterpolate(t,y(:,2:end),y_t(:,2:end),c,bu,s);
-                    Nt  = length(t) - 1;
-                    y   = cat(2,y(:,Nt),y);
-                    y_t = cat(2,y_t(:,Nt),y_t);
+                    [s, atol] = this.rkRefine(t, atol, this.AdaptiveTolerance, ec, pe, 2, first);
+                  	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
+                    Nt = length(t) - 1;
                     
                     if verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
                     end
-                else
-                    first = first && ~first;
                 end
+                first = first && ~first;
             end
         end
     end

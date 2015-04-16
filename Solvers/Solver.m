@@ -74,9 +74,7 @@ properties:
                 case 1
                     a = [0 0;
                          0 1];
-                         
-                    be = [1,-1];
-                    pe = 2;
+                    bu = [0;1];
                 case 2
                     a = [0,             0,             0;
                          1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;
@@ -85,10 +83,6 @@ properties:
                     bu = [sqrt(2)/2, -sqrt(2)/4;
                           sqrt(2)/2, -sqrt(2)/4;
                           1-sqrt(2), sqrt(2)/2];
-
-                    be = [-sqrt(2)/2,-sqrt(2)/2,sqrt(2)];  
-                    %be = [ 2^(1/2) + 2, - 3*2^(1/2) - 4, 2*2^(1/2) + 2] / factorial(3);
-                    pe = 3;
                 case 3            
                     c2 = roots([3 -18 18 -4]);
                     c2 = c2(3);
@@ -121,17 +115,10 @@ properties:
                     bu(4,3) = (2/(3*(c2^2 - 4*c2 + 2)));
                     bu(4,2) = (-(2*c2)/(c2^2 - 4*c2 + 2));
                     bu(4,1) = (c2^2/(c2^2 - 4*c2 + 2));
-                   
-                    be = bu(:,3).'*factorial(3);
-                    
-%                     be = [-(18*c2^2 - 24*c2 + 12)/(3*c2^4 - 6*c2^3 + 4*c2^2),...
-%                           (9*c2^2 - 12*c2 + 6)/(c2^4 - 2*c2^3 + c2^2),...
-%                           -(81*c2^6 - 324*c2^5 + 594*c2^4 - 624*c2^3 + 396*c2^2 - 144*c2 + 24)/(9*c2^8 - 54*c2^7 + 135*c2^6 - 180*c2^5 + 134*c2^4 - 52*c2^3 + 8*c2^2),...
-%                           (18*c2^2 - 24*c2 + 12)/(3*c2^4 - 12*c2^3 + 17*c2^2 - 10*c2 + 2)] / factorial(4);
-                    pe = 4;
-%                    be = [-1,0,0,1] / factorial(2);
-%                    pe = 2;
             end
+            pe = size(bu,2);
+            be = bu(:,pe).'*factorial(pe);
+            
             b = a(end,:);
             c = sum(a,2);
             c = c(2:end);
@@ -184,7 +171,7 @@ properties:
             end
         end
         
-        function [ec, h] = rkErrorCoefficients(t, y, y_t, be, pe, getMatrix)
+        function [ec, emax] = rkErrorCoefficients(t, y, y_t, be, pe, getMatrix)
             Nt = numel(t)-1;
             Ns = length(be) - 1;
             
@@ -192,83 +179,47 @@ properties:
             W = W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
             
             ec = zeros(1,Nt);
-            ep = zeros(size(W,1),Nt);%
             Cn = 0;
             for k = 1:Nt
                 km1 = mod(k-2,Nt) + 1;
                 h_k = t(k+1) - t(k);
                 
-                %ep = be(1) * W * y_t{end,km1};
-                %for i = 1:Ns
-                %    ep = ep + be(i+1) * W * y_t{i,k};
-                %end
-                %ep    = ep * h_k^(1-pe);
-                %ec(k) = norm(ep);
-                
-                ep(:,k) = be(1) * W * y_t{end,km1};
+                ep = be(1) * W * y_t{end,km1};
                 for i = 1:Ns
-                    ep(:,k) = ep(:,k) + be(i+1) * W * y_t{i,k};
+                   ep = ep + be(i+1) * W * y_t{i,k};
                 end
-                ep(:,k) = ep(:,k) * h_k^(2-pe);
+                ep    = ep * h_k^(1-pe);
+                ec(k) = norm(ep);
                 
                 Cn  = max(Cn, norm(W * y{end,k}));
             end
-            
-            for k = 1:Nt
-%                 km1 = mod(k-2,Nt) + 1;
-% %                 kp1 = mod(k,Nt) + 1;
-% %                 kp2 = mod(k+1,Nt) + 1;
-%                 ec(k) = max(norm((ep(:,k)-ep(:,km1))/(t(k+1)-t(k))));%,...
-%                             %norm((ep(:,k)-ep(:,kp1))));
-                ec(k) = norm(ep(:,k));
-            end
-            
-            %ec = (ec ./ Cn) / factorial(pe);
-            ec = ((ec ./ Cn) / factorial(pe-1)).^(pe/(pe-1));
+            ec = (ec ./ Cn) / factorial(pe);
             ec(1:(end/2)) = ec((end/2+1):end);
             ec = [ec(end),ec];
             h  = [t(end)-t(end-1), diff(t)];
             
-            figure;
-            plot(t, ec.*(h.^(pe)))
-            pause(1);
+            emax = max(ec.*h.^pe)^((pe+1)/pe);
+            
+%             figure;
+%             plot(t, (ec.*(h.^(pe))).^((pe+1)/pe))
+%             pause(1);
+%             figure;
+%             plot(t, ec)
+%             pause(1);
         end
         
-        %%
-%         function s = rkRefine(t,tol,ec,pe)
-%             Nt = length(t) - 1;
-%             D = zeros(1,Nt);
-%             for k = 1:Nt
-%                 h_k  = t(k+1) - t(k);
-%                 D(k) = floor((ec(k)/tol)^(1/pe) * h_k);
-%             end
-%             
-%             s = t;
-%             for k = 1:Nt
-%                 h_k = t(k+1)-t(k);
-%                 for j = 1:D(k)
-%                     s = cat(2,s,t(k)+h_k * j/(D(k)+1));
-%                 end
-%             end
-%             s = sort(s);
-%         end
-             
-        function rkErrorEstimate(t,y,told,yold,getMatrix)
-            W = blkdiag(getMatrix.PostProcessing.SobolevA);
-            W = W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
-            erms = 0;
-            enrm = 0;
-            T = t(end)-t(1);
-            for i = 1:(length(told)-1)
-                j = find((abs(told(i+1)-t)  < sqrt(eps) * T))-1;
-                h = told(i+1) - told(i);
-                erms = erms + h*norm(W*(yold{end,i}-y{end,j}))^2;
-                enrm = enrm + h*norm(W*yold{end,i})^2;
+        function [s, tol] = rkRefine(t, tol, tol_max, ec, pe, rfact, init)
+            tol_max = tol_max^(pe/(pe+1));
+            
+            if init
+                h   = [t(end)-t(end-1),diff(t)];
+                tol = mean(ec.*h.^pe);
+                ngr = floor((-1/pe) * log(tol_max / tol) / log(rfact));
+                tol = tol_max * (2^(pe*ngr));
+            else
+                tol = max(tol*2^(-pe), tol_max / 2);
             end
-            display(sprintf('Discretization Error %0.3g',sqrt(erms/enrm)));
-        end
-        
-        function s = rkRefine(t,tol,ec,pe)
+            
             Nt = length(t) - 1;
             T  = t(end) - t(1);
             

@@ -160,8 +160,8 @@ stator.Circuits.HarmonicPhases      = angle(V);
 
 nTimePoints = 18;
 %simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
-%simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',10,'Adaptive',true,'AdaptiveTolerance',1e-4);
-simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-3);
+%simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',10,'Adaptive',false,'AdaptiveTolerance',1e-5);
+simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-6);
 %simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', 1e-6, 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2]);
 
 model.build;
