@@ -244,7 +244,10 @@ properties:
                         atol   = this.AdaptiveTolerance * (2^(pe*nGrids));
                     else
                         atol = max(atol*2^(-pe), this.AdaptiveTolerance / 2);
+                        this.rkErrorEstimate(t,y,told,yold,getMatrix);
                     end
+                    yold = y;
+                    told = t;
                     
                     s = this.rkRefine(t,atol,ec,pe);
                   	[y, y_t, t] = this.rkInterpolate(t,y,y_t,c,bu,s);
