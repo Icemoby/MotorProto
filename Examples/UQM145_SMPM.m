@@ -128,11 +128,11 @@ mesh = simulation.Mesh;
 
 %% Set Excitation
 %% Voltage Source
-% h = 1;
-% V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
+h = 1;
+V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
 
-h = 1:2:1001;
-V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
+% h = 1:2:1001;
+% V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
 
 stator.SourceType = SourceTypes.VoltageSource;
 stator.ParallelPaths = nParallelPaths;
@@ -161,8 +161,8 @@ stator.Circuits.HarmonicPhases      = angle(V);
 nTimePoints = 18;
 %simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
 %simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true,'MaxNewtonIterations',20,'MaxShootingIterations',10,'Adaptive',false,'AdaptiveTolerance',1e-5);
-simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-6);
-%simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', 1e-6, 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2]);
+%simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-3);
+simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', 1e-4, 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2]);
 
 model.build;
 mesh.build;
@@ -174,7 +174,7 @@ solution = simulation.run;
 % solution.plot('H','Time',1);
 % solution.plot('M','Time',1);
 % solution.plot('A','Harmonic',[0, 1]);
-% solution.plot('B','Harmonic',[0, 1]);
+%solution.plot('B','Harmonic',[6]);
 % solution.plot('H','Harmonic',[0, 1]);
 % solution.plot('M','Harmonic',[0, 1]);
 % solution.plot('LossDensity', 'UseSinglePlot', true);
@@ -183,7 +183,7 @@ solution = simulation.run;
 % solution.plot('J','Harmonic',1);
 % solution.plot('E','Time',1);
 % solution.plot('E','Harmonic',1);
-% 
+
 % solution.plot('Flux Linkage','Time');
 % solution.plot('Flux Linkage','Harmonic');
 % solution.plot('Torque','Time');
@@ -192,48 +192,48 @@ solution = simulation.run;
 % solution.plot('Voltage','Harmonic');
 % solution.plot('Current','Time');
 % solution.plot('Current','Harmonic');
-%
-t = solution.Algorithm.Times;
-figure;plot(reshape([t(1:end-1);t(2:end)],1,[]),reshape([diff(t);diff(t)],1,[]));
-hold on;scatter(t(2:end),diff(t));
-figure;hist(diff(t))
-i = solution.getBulkVariableData('Current','Time');
-i = i{1};
-figure;hold on;
-plot(t,i{1});
-scatter(t,i{1},'ob');
-plot(t,i{2},'g--');
-scatter(t,i{2},'og');
-plot(t,i{3},'r-.');
-scatter(t,i{3},'or');
 
-legend('A','B','C');
-xlabel('Time [s]');
-ylabel('Voltage [V]');
-title('Phase Currents');
-
-v = solution.getBulkVariableData('Voltage','Time');
-
-figure;hold on;
-plot(t,v{1}{1})
-plot(t,v{1}{2},'g--');
-plot(t,v{1}{3},'r-.');
-scatter(t,v{1}{1},'ob')
-scatter(t,v{1}{2},'og');
-scatter(t,v{1}{3},'or');
-legend('A','B','C');
-xlabel('Time [s]');
-ylabel('Voltage [V]');
-title('Phase Voltage');
-
-figure;hold on;
-plot(t,v{1}{1}-v{1}{2})
-plot(t,v{1}{2}-v{1}{3},'g--');
-plot(t,v{1}{3}-v{1}{1},'r-.');
-scatter(t,v{1}{1}-v{1}{2},'ob')
-scatter(t,v{1}{2}-v{1}{3},'og');
-scatter(t,v{1}{3}-v{1}{1},'or');
-legend('AB','BC','CA');
-xlabel('Time [s]');
-ylabel('Voltage [V]');
-title('Line to Line Voltage');
+% t = solution.Algorithm.Times;
+% figure;plot(reshape([t(1:end-1);t(2:end)],1,[]),reshape([diff(t);diff(t)],1,[]));
+% hold on;scatter(t(2:end),diff(t));
+% figure;hist(diff(t))
+% i = solution.getBulkVariableData('Current','Time');
+% i = i{1};
+% figure;hold on;
+% plot(t,i{1});
+% scatter(t,i{1},'ob');
+% plot(t,i{2},'g--');
+% scatter(t,i{2},'og');
+% plot(t,i{3},'r-.');
+% scatter(t,i{3},'or');
+% 
+% legend('A','B','C');
+% xlabel('Time [s]');
+% ylabel('Voltage [V]');
+% title('Phase Currents');
+% 
+% v = solution.getBulkVariableData('Voltage','Time');
+% 
+% figure;hold on;
+% plot(t,v{1}{1})
+% plot(t,v{1}{2},'g--');
+% plot(t,v{1}{3},'r-.');
+% scatter(t,v{1}{1},'ob')
+% scatter(t,v{1}{2},'og');
+% scatter(t,v{1}{3},'or');
+% legend('A','B','C');
+% xlabel('Time [s]');
+% ylabel('Voltage [V]');
+% title('Phase Voltage');
+% 
+% figure;hold on;
+% plot(t,v{1}{1}-v{1}{2})
+% plot(t,v{1}{2}-v{1}{3},'g--');
+% plot(t,v{1}{3}-v{1}{1},'r-.');
+% scatter(t,v{1}{1}-v{1}{2},'ob')
+% scatter(t,v{1}{2}-v{1}{3},'og');
+% scatter(t,v{1}{3}-v{1}{1},'or');
+% legend('AB','BC','CA');
+% xlabel('Time [s]');
+% ylabel('Voltage [V]');
+% title('Line to Line Voltage');

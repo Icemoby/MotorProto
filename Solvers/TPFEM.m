@@ -41,7 +41,7 @@ properties:
         
         Adaptive               = false;
         SmoothingTolerance     = 1e-2;
-        MaxSmoothingIterations = 4;
+        MaxSmoothingIterations = 2;
         AdaptiveTolerance      = 1e-2;
     end
     
@@ -247,6 +247,7 @@ properties:
                 end
                 first = first && ~first;
             end
+            this.DiscretizationError = discErr;
         end
    
         function [y, y_t, t] = solve_stored(this, y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
@@ -421,6 +422,7 @@ properties:
                 end
                 first = first && ~first;
             end
+            this.DiscretizationError = discErr;
         end
     end
     

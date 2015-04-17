@@ -55,6 +55,7 @@ properties:
         X_t
         
      	SimulationTime
+        DiscretizationError
     end
     
     methods (Static)        
@@ -341,6 +342,26 @@ properties:
                 end
             end
         end
+        
+        function X = fft(this, x)
+            t = this.Times;
+            dt = diff(t);
+            if all(dt-mean(dt)) < sqrt(eps) * mean(dt)
+                X = fft(x,[],2) / (numel(t) - 1);
+            else
+                a = 2*pi*t / t(end);
+                N = numel(a)-1;
+                if mod(N,2) == 0
+                    K = [0:(N/2) (1-N/2):-1];
+                    D = exp(1i*K.'*a(1:end-1));
+                    D(N/2+1,:) = cos(N/2*a(1:end-1));
+                else
+                    K = [0:((N-1)/2), ((1-N)/2):-1];
+                    D = exp(1i*K.'*a(1:end-1));
+                end
+                X = x/D;
+            end
+    	end
     end
     
     methods (Sealed)

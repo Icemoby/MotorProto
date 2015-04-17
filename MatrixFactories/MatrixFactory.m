@@ -1285,12 +1285,14 @@ classdef MatrixFactory
             
          	if strcmpi(dataType,'harmonic')
                 bx = cell2mat(bx(:, 1:(end-1)));
-                bx = fft(bx, [], 2) / (nTimes - 1);
+                %bx = fft(bx, [], 2) / (nTimes - 1);
+                bx = solver.fft(bx);
                 bx = mat2cell(bx, nRows, ones(1,nTimes-1));
                 bx = bx(:,mod(dataPoints, nTimes - 1) + 1);
                 
                 by = cell2mat(by(:, 1:(end-1)));
-                by = fft(by, [], 2) / (nTimes - 1);
+                %by = fft(by, [], 2) / (nTimes - 1);
+                by = solver.fft(by);
                 by = mat2cell(by, nRows, ones(1,nTimes-1));
                 by = by(:, mod(dataPoints, nTimes - 1) + 1);
             end
@@ -1339,12 +1341,14 @@ classdef MatrixFactory
             
          	if strcmpi(dataType,'harmonic')
                 mx = cell2mat(mx(:,1:(end-1)));
-                mx = fft(mx,[],2) / (nTimes - 1);
+                %mx = fft(mx,[],2) / (nTimes - 1);
+                mx = solver.fft(mx);
                 mx = mat2cell(mx,nRows,ones(1,nTimes-1));
                 mx = mx(:,mod(dataPoints,nTimes - 1) + 1);
                 
                 my = cell2mat(my(:,1:(end-1)));
-                my = fft(my,[],2) / (nTimes - 1);
+                %my = fft(my,[],2) / (nTimes - 1);
+                my = solver.fft(my);
                 my = mat2cell(my,nRows,ones(1,nTimes-1));
                 my = my(:,mod(dataPoints,nTimes - 1) + 1);
             end
@@ -1421,7 +1425,8 @@ classdef MatrixFactory
             if strcmpi(dataType,'harmonic')
                 l = cellfun(@(x)(reshape(x,[],1)),l,'UniformOutput',false);
                 l = cell2mat(l(:,1:(end-1)));
-                l = fft(l,[],2) / (nTimes - 1);
+                %l = fft(l,[],2) / (nTimes - 1);
+                l = solver.fft(l);
                 l = mat2cell(l,nRows*nVertPerEl,ones(1,nTimes-1));
                 l = l(:,mod(dataPoints,nTimes - 1) + 1);
                 l = cellfun(@(x)(reshape(x,[],nVertPerEl)),l,'UniformOutput',false);
@@ -1568,7 +1573,8 @@ classdef MatrixFactory
             end
             
             if strcmpi(dataType,'harmonic')
-                l = fft(l(:,1:(Nt-1)),[],2) / (Nt - 1);
+                %l = fft(l(:,1:(Nt-1)),[],2) / (Nt - 1);
+                l = solver.fft(l(:,1:(Nt-1)));
             end
             
             l         = num2cell(l,2);
@@ -1591,11 +1597,13 @@ classdef MatrixFactory
                     nRows    = nRows(:,1);
                     
                     x        = cell2mat(x);
-                    x        = fft(full(x(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    %x        = fft(full(x(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    x        = solver.fft(full(x(:,1:(Nt-1))));
                     x        = mat2cell(x,nRows,ones(1,Nt-1));
                     
                     x_t      = cell2mat(x_t);
-                    x_t      = fft(full(x_t(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    %x_t      = fft(full(x_t(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    x_t      = solver.fft(full(x_t(:,1:(Nt-1))));
                     x_t      = mat2cell(x_t,nRows,ones(1,Nt-1));
                     
                     mesh     = this.Mesh;
@@ -1710,7 +1718,8 @@ classdef MatrixFactory
             
             if strcmpi(dataType,'harmonic')
                 for j = 1:nAssemblies
-                    tau{j} = fft(tau{j}(1:(Nt-1)),[],2) / (Nt - 1);
+                    %tau{j} = fft(tau{j}(1:(Nt-1)),[],2) / (Nt - 1);
+                    tau{j} = solver.fft(tau{j}(1:(Nt-1)));
                 end
             end
             
@@ -1789,7 +1798,8 @@ classdef MatrixFactory
                     end
                 
                     if strcmpi(dataType,'harmonic')
-                        v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        %v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        v{i} = solver.fft(v{i}(:,1:(end-1)));
                     end
                     v{i} = num2cell(v{i},2);
                 else
@@ -1827,7 +1837,8 @@ classdef MatrixFactory
                     end
                 
                     if strcmpi(dataType,'harmonic')
-                        lambda{i} = fft(lambda{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        %lambda{i} = fft(lambda{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        lambda{i} = solver.fft(lambda{i}(:,1:(end-1)));
                     end
                     lambda{i} = num2cell(lambda{i},2);
                 else
@@ -1871,7 +1882,8 @@ classdef MatrixFactory
                     end
                     
                     if strcmpi(dataType, 'harmonic')
-                        i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        %i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        i{j} = solver.fft(i{j}(:,1:(end-1)));
                     end
                     i{j} = num2cell(i{j},2);
                 else

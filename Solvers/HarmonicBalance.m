@@ -33,7 +33,10 @@ classdef HarmonicBalance < Solver
             getMatrix = DynamicMatrixFactory(model);
             this.Matrices = getMatrix;
             Nx = length(getMatrix.f(0));
-
+            W = blkdiag(getMatrix.PostProcessing.SobolevA);
+            W = W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+            
+            
             t = model.getTimePoints(this.TimePoints);
             
             %% Initialize
@@ -108,12 +111,12 @@ classdef HarmonicBalance < Solver
             end
             
             %% Start Solve
-            aIter  = 1;
-            vareps = 1;
-            final  = false;
-            while ~final || ((vareps > adaptTol) && ~final)
+            aIter = 1;
+            discErr = 1;
+            final = false;
+            while ~final || ((discErr > adaptTol) && ~final)
                 %% Subdivide Time Interval
-                if ((aIter < maxAIter) && (vareps > adaptTol)) || (aIter < minAIter)
+                if ((aIter < maxAIter) && (discErr > adaptTol)) || (aIter < minAIter)
                     aIter = aIter + 1;
                     final = final || (aIter == length(plan));
                    	d = plan(aIter);
@@ -131,11 +134,6 @@ classdef HarmonicBalance < Solver
                     else
                         h = [0:Nh, -Nh:-1] * 2 * pi / T;
                     end
-                    
-                    if verbose
-                        display(sprintf('Time Points = %d\n',Nt));
-                    end
-                    
                     t = linspace(0,T,Nt+1);
                     
                     if this.StoreDecompositions
@@ -170,8 +168,12 @@ classdef HarmonicBalance < Solver
                     final = true;
                 end
                 
-                if verbose && final
-                    display(sprintf('Colocating to a tolerance of %f with %d time points.\n', min(this.AdaptiveTol, this.ColocationTol), Nt));
+                if verbose
+                    if final
+                        display(sprintf('Colocating to a tolerance of %f with %d time points.\n', min(this.AdaptiveTol, this.ColocationTol), Nt));
+                    else
+                        display(sprintf('Time Points = %d\n',Nt));
+                    end
                 end
                     
                 %% Calculate Residual Vector
@@ -209,14 +211,11 @@ classdef HarmonicBalance < Solver
                 J0    = J0 / Nt;
                 alpha = sqrt(alpha);
                 beta  = sqrt(beta);
-                vareps = alpha / beta;
                 
-                if (vareps < this.AdaptiveTol) || final
+                if (discErr < this.AdaptiveTol) || final
                 	tol = min(this.AdaptiveTol, this.ColocationTol);
                 else
-                    eta = max(0,(log10(this.AdaptiveTol)-log10(vareps)) / log10(this.AdaptiveTol));
-                    tol = 10^(log10(vareps) * eta + log10(this.ColocationTol) * (1-eta));
-                  	tol = min(tol,vareps*0.01);
+                    tol = max(discErr*0.01,min(this.AdaptiveTol,this.ColocationTol));
                     nIter = 1;
                 end
                 
@@ -277,16 +276,28 @@ classdef HarmonicBalance < Solver
                     J0     = J0 / Nt;
                     alpha  = sqrt(alpha);
                     beta   = sqrt(beta);
-                    vareps = min(vareps,norm(sqrt(sum((x-xold).^2,2))) / norm(sqrt(sum(x.^2,2))));
+                    discErr = 0;
+                    for i = 1:Nt
+                        discErr = discErr + (norm(W*(x(:,i)-xold(:,i))) / norm(W*x(:,i)))^2;
+                    end
+                    discErr = sqrt(discErr / Nt);
+                    
+                    if discErr < this.AdaptiveTol * 2
+                        tol = min(this.AdaptiveTol, this.ColocationTol);
+                        final = true;
+                    else
+                        tol = max(discErr*0.01, min(this.AdaptiveTol,this.ColocationTol));
+                    end
                     
                     if verbose
-                        display(sprintf('Iteration %d, Discrete Residual = %0.3g, Tolerance = %0.3g, Discretization Error = %0.3g, Tolerance = %0.3g \n', nIter, alpha / beta, tol, vareps, adaptTol));
+                        display(sprintf('Iteration %d, Discrete Residual = %0.3g, Tolerance = %0.3g, Discretization Error = %0.3g, Tolerance = %0.3g \n', nIter, alpha / beta, tol, discErr, adaptTol));
                     end
                     
                    	nIter = nIter + 1;
                 end
             end
             this.SimulationTime = toc;
+            this.DiscretizationError = discErr;
             
            	if this.Verbose
                 display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));

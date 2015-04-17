@@ -271,6 +271,7 @@ properties:
                 end
                 first = first && ~first;
             end
+            this.DiscretizationError = discErr;
         end
 
         function [y,y_t,t] = solve_stored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
@@ -479,6 +480,7 @@ properties:
                 end
                 first = first && ~first;
             end
+            this.DiscretizationError = discErr;
         end
     end
     
