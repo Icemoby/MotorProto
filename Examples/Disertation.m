@@ -341,7 +341,14 @@ M = [0:8, -8:-1]';
 % solution.plot('Current','Harmonic');
 
 %% Parameter Sweep Simulation
-atol = 10^(-(1:2));
+stator.SourceType = SourceTypes.VoltageSource;
+stator.ParallelPaths = nParallelPaths;
+stator.Circuits.ElectricalFrequency = f_e;
+stator.Circuits.HarmonicNumbers     = 1;
+stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
+stator.Circuits.HarmonicPhases      = 0;
+
+atol = 10^(-(6));
 
 NSteps    = cell(14,length(atol));
 SimTime   = cell(14,length(atol));
@@ -350,60 +357,75 @@ CoreLoss  = cell(14,length(atol));
 Aharmonic = cell(14,length(atol));
 for i = 1:numel(atol);
     j = 1;
-    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints, 'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', atol(i), 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2,2]);
-
-    for k = 1:numel(atol)
-        %% Shooting-Newton
-        j = 1;
-        simulation.configureAlgorithm('ShootingNewton', 'TimePoints', 18, 'RungeKuttaStages', S(i), 'StorageLevel', 3, 'Verbose', true, 'SymmetricJacobian', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6);
-        solution = simulation.run(x0(:,1));
-
-        SimTime{i}(j,k)   = solution.Algorithm.SimulationTime + T_static;
-        Losses{i}{j,k}    = solution.getBulkVariableData('AverageLosses');
-        Aharmonic{i}{j,k} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-        
-        %% TPFEM
-        j = j + 1;
-        tic
-        Initial condition
-        tt = solution.Algorithm.Times(1:(end-1));
-        h = tt(2)-tt(1);
-        [~,~,c] = solution.Algorithm.getButcherTable(S(i));
-        t = tt + h * c(1);
-        for l = 2:numel(c)
-            t = [t;tt + h*c(l)];
-        end
-        t = reshape(t, 1, []);
-        D = exp(1i*2*pi*f_e*M*t);
-        x_init = real(X0*D);
-        x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
-        x_init = reshape(x_init,numel(c),[]);
-        T_init = toc;
-
-        %Simulation
-        simulation.configureAlgorithm('TPFEM', 'TimePoints', N{i}(k), 'RungeKuttaStages', S(i), 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6);
-        solution = simulation.run(x_init);
-
-        SimTime{i}(j,k)   = solution.Algorithm.SimulationTime + T_static + T_init;
-        Losses{i}{j,k}    = solution.getBulkVariableData('AverageLosses');
-        Aharmonic{i}{j,k} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-        
-        %% Transient
-        j = j + 1;
-        simulation.configureAlgorithm('ShootingNewton', 'TimePoints', N{i}(k), 'RungeKuttaStages', S(i), 'StorageLevel', 0, 'Verbose', true, 'SymmetricJacobian', true, 'MaxGMRESIterations', 0, 'ShootingTolerance', 1e-5);
-        solution = simulation.run(x0(:,1));
-
-        SimTime{i}(j,k)   = solution.Algorithm.SimulationTime + T_static;
-        Losses{i}{j,k}    = solution.getBulkVariableData('AverageLosses');
-        Aharmonic{i}{j,k} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-        
-        %% Save
-        loc = 'C:\\Users\\Jason\\Dropbox\\Papers\\DIRK Transmag 2014\\code\\Simulations 07022014\\RevSimS%dN%d.mat';
-        filename = sprintf(loc,i,k);
-        save(filename,'SimTime', 'Losses', 'Aharmonic', 'Xmax', 'Xmin');
-        
-        clear solution
-        
-        pause(10);
-    end
+    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', atol(i), 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2,2]);
+    solution = simulation.run;
+    SimTime{j,i} = solution.Algorithm.SimulationTime;
+    CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+    CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+    Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+    NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+    
+    j = j+1;
+    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', NSteps{j-1,i}, 'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', atol(i), 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',NSteps{j-1,i});
+    solution = simulation.run;
+    SimTime{j,i} = solution.Algorithm.SimulationTime;
+    CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+    CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+    Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+    NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+    
+%     for k = 1:numel(atol)
+%         %% Shooting-Newton
+%         j = 1;
+%         simulation.configureAlgorithm('ShootingNewton', 'TimePoints', 18, 'RungeKuttaStages', S(i), 'StorageLevel', 3, 'Verbose', true, 'SymmetricJacobian', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6);
+%         solution = simulation.run(x0(:,1));
+% 
+%         SimTime{i}(j,k)   = solution.Algorithm.SimulationTime + T_static;
+%         Losses{i}{j,k}    = solution.getBulkVariableData('AverageLosses');
+%         Aharmonic{i}{j,k} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+%         
+%         %% TPFEM
+%         j = j + 1;
+%         tic
+%         Initial condition
+%         tt = solution.Algorithm.Times(1:(end-1));
+%         h = tt(2)-tt(1);
+%         [~,~,c] = solution.Algorithm.getButcherTable(S(i));
+%         t = tt + h * c(1);
+%         for l = 2:numel(c)
+%             t = [t;tt + h*c(l)];
+%         end
+%         t = reshape(t, 1, []);
+%         D = exp(1i*2*pi*f_e*M*t);
+%         x_init = real(X0*D);
+%         x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
+%         x_init = reshape(x_init,numel(c),[]);
+%         T_init = toc;
+% 
+%         %Simulation
+%         simulation.configureAlgorithm('TPFEM', 'TimePoints', N{i}(k), 'RungeKuttaStages', S(i), 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6);
+%         solution = simulation.run(x_init);
+% 
+%         SimTime{i}(j,k)   = solution.Algorithm.SimulationTime + T_static + T_init;
+%         Losses{i}{j,k}    = solution.getBulkVariableData('AverageLosses');
+%         Aharmonic{i}{j,k} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+%         
+%         %% Transient
+%         j = j + 1;
+%         simulation.configureAlgorithm('ShootingNewton', 'TimePoints', N{i}(k), 'RungeKuttaStages', S(i), 'StorageLevel', 0, 'Verbose', true, 'SymmetricJacobian', true, 'MaxGMRESIterations', 0, 'ShootingTolerance', 1e-5);
+%         solution = simulation.run(x0(:,1));
+% 
+%         SimTime{i}(j,k)   = solution.Algorithm.SimulationTime + T_static;
+%         Losses{i}{j,k}    = solution.getBulkVariableData('AverageLosses');
+%         Aharmonic{i}{j,k} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+%         
+%         %% Save
+%         loc = 'C:\\Users\\Jason\\Dropbox\\Papers\\DIRK Transmag 2014\\code\\Simulations 07022014\\RevSimS%dN%d.mat';
+%         filename = sprintf(loc,i,k);
+%         save(filename,'SimTime', 'Losses', 'Aharmonic', 'Xmax', 'Xmin');
+%         
+%         clear solution
+%         
+%         pause(10);
+%     end
 end

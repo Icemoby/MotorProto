@@ -78,7 +78,6 @@ classdef HarmonicBalance < Solver
             end
             maxAIter = this.MaxAdaptiveIter;
             
-            store   = this.StorageLevel;
             verbose = this.Verbose;
             
             %% Allocate
@@ -164,6 +163,9 @@ classdef HarmonicBalance < Solver
                     R = zeros(Nx,Nt);
                     
                     nIter = 0;
+                    
+                    x = ifft(X,[],2,'symmetric') * Nt;
+                    xold  = x;
                 else
                     final = true;
                 end
@@ -180,7 +182,6 @@ classdef HarmonicBalance < Solver
                 alpha = 0;
                 beta  = 0;
                 r = ifft(R,[],2,'symmetric') * Nt;
-                x = ifft(X,[],2,'symmetric') * Nt;
                 J0 = sparse(Nx,Nx);
                 for i = 1:Nt
                     [Gi,gi] = getMatrix.G(t(i), x(:,i), 1);
@@ -208,14 +209,14 @@ classdef HarmonicBalance < Solver
                 J0    = J0 / Nt;
                 alpha = sqrt(alpha);
                 beta  = sqrt(beta);
-                xold  = x;
+                vareps = alpha / beta;
                 
                 if (vareps < this.AdaptiveTol) || final
                 	tol = min(this.AdaptiveTol, this.ColocationTol);
                 else
                     eta = max(0,(log10(this.AdaptiveTol)-log10(vareps)) / log10(this.AdaptiveTol));
                     tol = 10^(log10(vareps) * eta + log10(this.ColocationTol) * (1-eta));
-                  	tol = max(tol, vareps*this.NewtonTol);
+                  	tol = min(tol,vareps*0.01);
                     nIter = 1;
                 end
                 
@@ -276,7 +277,7 @@ classdef HarmonicBalance < Solver
                     J0     = J0 / Nt;
                     alpha  = sqrt(alpha);
                     beta   = sqrt(beta);
-                    vareps = norm(sqrt(sum((x-xold).^2,2))) / norm(sum(x.^2,2));
+                    vareps = min(vareps,norm(sqrt(sum((x-xold).^2,2))) / norm(sqrt(sum(x.^2,2))));
                     
                     if verbose
                         display(sprintf('Iteration %d, Discrete Residual = %0.3g, Tolerance = %0.3g, Discretization Error = %0.3g, Tolerance = %0.3g \n', nIter, alpha / beta, tol, vareps, adaptTol));
