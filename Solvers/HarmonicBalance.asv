@@ -34,7 +34,7 @@ classdef HarmonicBalance < Solver
             this.Matrices = getMatrix;
             Nx = length(getMatrix.f(0));
             W = blkdiag(getMatrix.PostProcessing.SobolevA);
-            W = blkdiag(getMatrix.PostProcessing.Reduced2Full).' * W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+            W = W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
             
             t = model.getTimePoints(this.TimePoints);
             
@@ -106,18 +106,17 @@ classdef HarmonicBalance < Solver
             aIter = 1;
             discErr = 1;
             while first || ~last
-                if last
-                    newtonTol = this.NewtonTolerance;
-                else
+                %% Fixed Step Size Iteration
+                if ~last
                     newtonTol = this.SmoothingTolerance;
-                end
-                
-                if first || last
+                if last
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
+                    newtonTol = this.NewtonTolerance;
                 else
                     minNewton = this.MinSmoothingIterations;
                     maxNewton = this.MaxSmoothingIterations;
+                    newtonTol = this.SmoothingTolerance;
                 end
                 
                 %% Subdivide Time Interval
@@ -287,12 +286,12 @@ classdef HarmonicBalance < Solver
                     discErr = 0;
                     normErr = 0;
                     for i = 1:Nt
-                        discErr = max(discErr,sqrt(z(:,i).'*W*z(:,i)));
-                        normErr = max(normErr,sqrt(x(:,i).'*W*x(:,i)));
+                        discErr = max(discErr,norm(W*z(:,i)));
+                        normErr = max(normErr,norm(W*x(:,i)));
                     end
                     discErr = discErr / normErr;
                     
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
                         minNewton = this.MinNewtonIterations;
                         maxNewton = this.MaxNewtonIterations;
                         newtonTol = this.NewtonTolerance;

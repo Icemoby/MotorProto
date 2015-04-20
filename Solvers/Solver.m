@@ -40,7 +40,7 @@ properties:
         Times
         
         StoreDecompositions = false;
-        Verbose = false;
+        Verbose = true;
     end
     
     properties (Dependent, SetAccess = private)
@@ -177,7 +177,7 @@ properties:
             Ns = length(be) - 1;
             
             W = blkdiag(getMatrix.PostProcessing.SobolevA);
-            W = W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
+            W = blkdiag(getMatrix.PostProcessing.Reduced2Full).' * W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
             
             ec = zeros(1,Nt);
             Cn = 0;
@@ -185,14 +185,14 @@ properties:
                 km1 = mod(k-2,Nt) + 1;
                 h_k = t(k+1) - t(k);
                 
-                ep = be(1) * W * y_t{end,km1};
+                ep = be(1) * y_t{end,km1};
                 for i = 1:Ns
-                   ep = ep + be(i+1) * W * y_t{i,k};
+                   ep = ep + be(i+1) * y_t{i,k};
                 end
                 ep    = ep * h_k^(1-pe);
-                ec(k) = norm(ep);
+                ec(k) = sqrt(ep.'*W*ep);
                 
-                Cn  = max(Cn, norm(W * y{end,k}));
+                Cn  = max(Cn, sqrt(y{end,k}.'*W*y{end,k}));
             end
             ec = (ec ./ Cn) / factorial(pe);
             ec(1:(end/2)) = ec((end/2+1):end);

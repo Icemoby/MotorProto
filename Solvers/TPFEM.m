@@ -32,15 +32,16 @@ properties:
 
     properties
         NewtonTolerance     = 1e-6;
-        GMRESTolerance      = 1e-6;
+        GMRESTolerance      = 1e-3;
         MaxNewtonIterations = 100;
         MinNewtonIterations = 1;
         MaxGMRESIterations  = 100;
-        RungeKuttaStages    = 3;
+        RungeKuttaStages    = 2;
         SymmetricJacobian   = true;
         
         Adaptive               = false;
         SmoothingTolerance     = 1e-2;
+        MinSmoothingIterations = 1;
         MaxSmoothingIterations = 2;
         AdaptiveTolerance      = 1e-2;
     end
@@ -89,11 +90,12 @@ properties:
             
             tic;
             if this.StoreDecompositions
-                [y,y_t,t] = this.solve_stored(y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
+                [y,y_t,t,discErr] = this.solve_stored(y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
             else
-            	[y,y_t,t] = this.solve_unstored(y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
+            	[y,y_t,t,discErr] = this.solve_unstored(y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
             end
             this.SimulationTime = toc;
+            this.DiscretizationError = discErr;
             
            	if this.Verbose
                 display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));
@@ -119,13 +121,9 @@ properties:
             solution = Solution(this);
         end
         
-        function [y, y_t, t] = solve_unstored(this, y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
-            maxGMRES  = this.MaxGMRESIterations;
-            gmresTol  = this.GMRESTolerance;
-            verbose   = this.Verbose;
-            
-            %% Start
+        function [y, y_t, t, discErr] = solve_unstored(this, y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
            	first = true;
+            discErr = 1;
             if this.Adaptive
                 atol = 1;
                 last = false;
@@ -134,19 +132,24 @@ properties:
             end
             
             while first || ~last
-                %% Fixed Step Size Iteration
-                if first || last
-                    maxNewton = this.MaxNewtonIterations;
+                if last
                     newtonTol = this.NewtonTolerance;
                 else
-                    maxNewton = this.MaxSmoothingIterations;
                     newtonTol = this.SmoothingTolerance;
+                end
+                
+                if first || last
+                    minNewton = this.MinNewtonIterations;
+                    maxNewton = this.MaxNewtonIterations;
+                else
+                    minNewton = this.MinSmoothingIterations;
+                    maxNewton = this.MaxSmoothingIterations;
                 end
                 
                 %% Newton Iteration
                 nNewton = 1;
                 newtonRes = 1;
-                while (newtonRes > newtonTol && nNewton <= maxNewton) || (this.MinNewtonIterations >= nNewton)
+                while (newtonRes > newtonTol && nNewton <= maxNewton) || (minNewton >= nNewton)
                     %% Calculate Residual
                     normf = 0;
                     normr = 0;
@@ -185,16 +188,21 @@ properties:
                     end
                     newtonRes = sqrt(normr / normf);
                     
+                    %% Report
+                    if this.Verbose
+                        display(sprintf('\nIteration %d, Residual = %0.3g, Discretization Error = %0.3g', nNewton, newtonRes, discErr));
+                    end
+                    
                     %% GMRES Phase
-                    if (newtonRes > newtonTol) || (this.MinNewtonIterations >= nNewton)
+                    if (newtonRes > newtonTol) || (minNewton >= nNewton)
                         dy = reshape(r, [], 1);
                         dy = cell2mat(dy);
                         A = @TPFEM.MVPUnstored;
                         
-                        if verbose
-                            dy = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                        if this.Verbose
+                            dy = gmres(A, dy, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
                         else
-                            [dy,~,~,~] = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                            [dy,~,~,~] = gmres(A, dy, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
                         end
                         dy = TPFEM.PCUnstored(dy, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
                         dy = mat2cell(dy, Nx * ones(1, Nt*Ns));
@@ -221,15 +229,11 @@ properties:
                     
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
+                        minNewton = this.MinNewtonIterations;
                         maxNewton = this.MaxNewtonIterations;
                         newtonTol = this.NewtonTolerance;
                         last      = true;
-                    end
-                    
-                    %% Report
-                    if verbose
-                        display(sprintf('Iteration %d, Residual = %0.3g, Discretization Error = %0.3g\n', nNewton, newtonRes, discErr));
                     end
                     
                     nNewton = nNewton + 1;
@@ -241,23 +245,17 @@ properties:
                   	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
                     Nt = length(t) - 1;
                     
-                    if verbose
+                    if this.Verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
                     end
                 end
                 first = first && ~first;
             end
-            this.DiscretizationError = discErr;
         end
    
-        function [y, y_t, t] = solve_stored(this, y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
-            isSymmetric = this.SymmetricJacobian;
-        	maxGMRES  = this.MaxGMRESIterations;
-            gmresTol  = this.GMRESTolerance;
-            verbose   = this.Verbose;
-            
-            %% Start
+        function [y, y_t, t, discErr] = solve_stored(this, y, y_t, r, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
            	first = true;
+            discErr = 1;
             if this.Adaptive
                 atol = 1;
                 last = false;
@@ -270,7 +268,7 @@ properties:
             Cd = cell(Ns, Ns, Nt);
             Jpq = cell(Ns, Nt);
             
-            if isSymmetric
+            if this.SymmetricJacobian
                 L = cell(Ns, Nt);
                 D = cell(Ns, Nt);
                 S = cell(Ns, Nt);
@@ -284,15 +282,20 @@ properties:
             end
             
             while first || ~last
-                %% Fixed Step Size Iteration
-                if first || last
-                    maxNewton = this.MaxNewtonIterations;
+                if last
                     newtonTol = this.NewtonTolerance;
                 else
-                    maxNewton = this.MaxSmoothingIterations;
                     newtonTol = this.SmoothingTolerance;
                 end
-
+                
+                if first || last
+                    minNewton = this.MinNewtonIterations;
+                    maxNewton = this.MaxNewtonIterations;
+                else
+                    minNewton = this.MinSmoothingIterations;
+                    maxNewton = this.MaxSmoothingIterations;
+                end
+                
                 for k = 1:Nt
                     h_k = t(k+1) - t(k);
                     for i = 1:Ns
@@ -311,7 +314,7 @@ properties:
                 %% Newton Iterations
                 nNewton   = 1;
                 newtonRes = 1;
-                while (newtonRes > newtonTol && nNewton <= maxNewton) || (this.MinNewtonIterations >= nNewton)
+                while (newtonRes > newtonTol && nNewton <= maxNewton) || (minNewton >= nNewton)
                     %% Calculate Residual
                     normf = 0;
                     normr = 0;
@@ -338,7 +341,7 @@ properties:
                             end
 
                             J_ik = K{i,k} + Cd{i,i,k} + G_ik;
-                            if isSymmetric
+                            if this.SymmetricJacobian
                                 [L{i,k}, D{i,k}, P{i,k}, S{i,k}] = ldl(J_ik);
                             else
                                 [L{i,k}, U{i,k}, P{i,k}, Q{i,k}, R{i,k}] = lu(J_ik);
@@ -349,26 +352,31 @@ properties:
                         end
                     end
                     newtonRes = sqrt(normr / normf);
-
+                    
+                    %% Report
+                    if this.Verbose
+                        display(sprintf('\nIteration %d, Residual = %0.3g, Discretization Error = %0.3g', nNewton, newtonRes, discErr));
+                    end
+                    
                     %% GMRES Phase
-                    if (newtonRes > newtonTol) || (this.MinNewtonIterations >= nNewton)
+                    if (newtonRes > newtonTol) || (minNewton >= nNewton)
                         dy = reshape(r,[],1);
                         dy = cell2mat(dy);
 
-                        if isSymmetric
+                        if this.SymmetricJacobian
                             A = @TPFEM.MVPStoredLDL;
-                            if verbose
-                                dy = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, Cd, Jpq, L, D, P, S, Ns, Nt, Nx);
+                            if this.Verbose
+                                dy = gmres(A, dy, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], dy, Cd, Jpq, L, D, P, S, Ns, Nt, Nx);
                             else
-                                [dy,~,~,~] = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, Cd, Jpq, L, D, P, S, Ns, Nt, Nx);
+                                [dy,~,~,~] = gmres(A, dy, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], dy, Cd, Jpq, L, D, P, S, Ns, Nt, Nx);
                             end
                             dy = TPFEM.PCStoredLDL(dy, Cd, Jpq, L, D, P, S, Ns, Nt, Nx);
                         else
                             A = @TPFEM.MVPStoredLU;
-                            if verbose
-                                dy = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, Cd, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
+                            if this.Verbose
+                                dy = gmres(A, dy, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], dy, Cd, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
                             else
-                                [dy,~,~,~] = gmres(A, dy, maxGMRES, gmresTol, 1, [], [], dy, Cd, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
+                                [dy,~,~,~] = gmres(A, dy, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], dy, Cd, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
                             end
                             dy = TPFEM.PCStoredLU(dy, Cd, Jpq, L, D, P, S, Ns, Nt, Nx);
                         end
@@ -396,15 +404,10 @@ properties:
                     
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
                         maxNewton = this.MaxNewtonIterations;
                         newtonTol = this.NewtonTolerance;
                         last      = true;
-                    end
-                    
-                    %% Report
-                    if verbose
-                        display(sprintf('Iteration %d, Residual = %0.3g, Discretization Error = %0.3g\n', nNewton, newtonRes, discErr));
                     end
                     
                     nNewton = nNewton + 1;
@@ -416,13 +419,12 @@ properties:
                   	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
                     Nt = length(t) - 1;
                     
-                    if verbose
+                    if this.Verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
                     end
                 end
                 first = first && ~first;
             end
-            this.DiscretizationError = discErr;
         end
     end
     
@@ -496,7 +498,6 @@ properties:
         function x = PCUnstored(x, z, t, c, d, p, q, Ns, Nt, Nx, getMatrix)
             x = mat2cell(x, Nx * ones(1, Ns * Nt));
             x = reshape(x, Ns, Nt);
-            y = x;
             
             %% k = 1 Iteration
             k  = 1;

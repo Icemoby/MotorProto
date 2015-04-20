@@ -160,9 +160,9 @@ stator.Circuits.HarmonicPhases      = angle(V);
 
 nTimePoints = 18;
 %simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
-simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true,'Adaptive',true,'AdaptiveTolerance',1e-6);
+%simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true,'Adaptive',false,'AdaptiveTolerance',1e-5);
 %simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-6);
-%simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', true, 'AdaptiveTolerance', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2,2]);
+simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', true, 'AdaptiveTolerance', 1e-6, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2,2]);
 
 model.build;
 mesh.build;

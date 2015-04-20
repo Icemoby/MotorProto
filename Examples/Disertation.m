@@ -190,32 +190,147 @@ Ireal = real(DV) / (L0p+L2p+conj(L2p));
 Iimag = imag(DV) / (L0p+conj(L2p)-L2p);
 Isquare = 2*(Ireal+1i*Iimag);
 
-%% Sine and square wave static simulations
-stator.Circuits.ElectricalFrequency = f_e;
-stator.Circuits.HarmonicNumbers     = 1;
-stator.Circuits.HarmonicAmplitudes  = abs(Isine);
-stator.Circuits.HarmonicPhases      = angle(Isine);
-ICSINE = simulation.run;
+O = 1;
+for o = 1:O
+    %% Sine wave static simulations
+    stator.Circuits.ElectricalFrequency = f_e;
+    stator.Circuits.HarmonicNumbers     = 1;
+    stator.Circuits.HarmonicAmplitudes  = abs(Isine);
+    stator.Circuits.HarmonicPhases      = angle(Isine);
+    ICSINE = simulation.run;
 
-% ICSINE.plot('Current','Time');
-% ICSINE.plot('Voltage','Harmonic');
-% ICSINE.plot('Torque','Harmonic');
+    Lambdah = ICSINE.getBulkVariableData('FluxLinkage', 'Harmonic');
 
-Vb = ICSINE.getBulkVariableData('Voltage', 'Time');
-Ib = ICSINE.getBulkVariableData('Current', 'Time');
+    mf  = ICSINE.Algorithm.Matrices;
+    pp  = mf.PostProcessing;
+    exo = mf.Exogenous.Magnetic;
+    n1  = size(pp(1).Reduced2Full, 2);
 
-stator.Circuits.ElectricalFrequency = f_e;
-stator.Circuits.HarmonicNumbers     = 1;
-stator.Circuits.HarmonicAmplitudes  = abs(Isquare);
-stator.Circuits.HarmonicPhases      = angle(Isquare);
-ICSQUARE = simulation.run;
+    F = [sparse(n1, 3); exo(2).Ff];
+    T = [sparse(3, n1), pp(2).X2Lambda * pp(2).Reduced2Full];
+    X = ICSINE.Algorithm.X;
+    t = ICSINE.Algorithm.Times;
+    N = numel(t) - 1;
+    t = t(1:N);
+    Labc = cell(1,1,N);
 
-% ICSQUARE.plot('Current','Time');
-% ICSQUARE.plot('Voltage','Harmonic');
-% ICSQUARE.plot('Torque','Harmonic');
+    for i = 1:N
+        x = [pp(1).Full2Reduced*X{1,i};pp(2).Full2Reduced * X{2,i}];
+        K = mf.K(t(i));
+        G = mf.G(t(i), x);
 
-Vb = {Vb, ICSQUARE.getBulkVariableData('Voltage', 'Time')};
-Ib = {Ib, ICSQUARE.getBulkVariableData('Current', 'Time')};
+        Labc{i} = full(T * ((K+G) \ F));
+    end
+    L  = cell2mat(Labc);
+
+    L0 = zeros(3,3);
+    L2 = zeros(3,3);
+    Lambdah = Lambdah{1};
+
+    for i = 1:3
+        Lambdah{i} = Lambdah{i}(2);
+        for j = 1:3
+            Lh = fft(squeeze(L(i,j,:))) / size(L,3);
+            L0(i,j) = Lh(1);
+            L2(i,j) = Lh(3);
+        end
+    end
+    Lambdah = cell2mat(Lambdah);
+    pvec = exp(1i*2*pi*[0;-1/3;1/3]);
+    L0p  = L0*pvec;
+    L0p  = L0p(1);
+    L2p  = L2*conj(pvec);
+    L2p  = L2p(1);
+
+    DV = (170/sqrt(3)-(1i*2*pi*f_e)*Lambdah(1)) / (1i*2*pi*f_e);
+    Ireal = real(DV) / (L0p+L2p+conj(L2p));
+    Iimag = imag(DV) / (L0p+conj(L2p)-L2p);
+    Isine = Isine + 2*(Ireal+1i*Iimag);
+
+    stator.Circuits.ElectricalFrequency = f_e;
+    stator.Circuits.HarmonicNumbers     = 1;
+    stator.Circuits.HarmonicAmplitudes  = abs(Isine);
+    stator.Circuits.HarmonicPhases      = angle(Isine);
+    ICSINE = simulation.run;
+
+    if o == O
+        Vb = ICSINE.getBulkVariableData('Voltage', 'Time');
+        Ib = ICSINE.getBulkVariableData('Current', 'Time');
+    end
+    
+    % ICSINE.plot('Current','Time');
+    % ICSINE.plot('Voltage','Harmonic');
+    % ICSINE.plot('Torque','Harmonic');
+
+    %% Square wave static simulation
+    stator.Circuits.ElectricalFrequency = f_e;
+    stator.Circuits.HarmonicNumbers     = 1;
+    stator.Circuits.HarmonicAmplitudes  = abs(Isquare);
+    stator.Circuits.HarmonicPhases      = angle(Isquare);
+    ICSQUARE = simulation.run;
+
+    Lambdah = ICSQUARE.getBulkVariableData('FluxLinkage', 'Harmonic');
+
+    mf  = ICSQUARE.Algorithm.Matrices;
+    pp  = mf.PostProcessing;
+    exo = mf.Exogenous.Magnetic;
+    n1  = size(pp(1).Reduced2Full, 2);
+
+    F = [sparse(n1, 3); exo(2).Ff];
+    T = [sparse(3, n1), pp(2).X2Lambda * pp(2).Reduced2Full];
+    X = ICSQUARE.Algorithm.X;
+    t = ICSQUARE.Algorithm.Times;
+    N = numel(t) - 1;
+    t = t(1:N);
+    Labc = cell(1,1,N);
+
+    for i = 1:N
+        x = [pp(1).Full2Reduced*X{1,i};pp(2).Full2Reduced * X{2,i}];
+        K = mf.K(t(i));
+        G = mf.G(t(i), x);
+
+        Labc{i} = full(T * ((K+G) \ F));
+    end
+    L  = cell2mat(Labc);
+
+    L0 = zeros(3,3);
+    L2 = zeros(3,3);
+    Lambdah = Lambdah{1};
+
+    for i = 1:3
+        Lambdah{i} = Lambdah{i}(2);
+        for j = 1:3
+            Lh = fft(squeeze(L(i,j,:))) / size(L,3);
+            L0(i,j) = Lh(1);
+            L2(i,j) = Lh(3);
+        end
+    end
+    Lambdah = cell2mat(Lambdah);
+    pvec = exp(1i*2*pi*[0;-1/3;1/3]);
+    L0p  = L0*pvec;
+    L0p  = L0p(1);
+    L2p  = L2*conj(pvec);
+    L2p  = L2p(1);
+
+    DV = (170*2/pi-(1i*2*pi*f_e)*Lambdah(1)) / (1i*2*pi*f_e);
+    Ireal = real(DV) / (L0p+L2p+conj(L2p));
+    Iimag = imag(DV) / (L0p+conj(L2p)-L2p);
+    Isquare = Isquare + 2*(Ireal+1i*Iimag);
+
+    stator.Circuits.ElectricalFrequency = f_e;
+    stator.Circuits.HarmonicNumbers     = 1;
+    stator.Circuits.HarmonicAmplitudes  = abs(Isquare);
+    stator.Circuits.HarmonicPhases      = angle(Isquare);
+    ICSQUARE = simulation.run;
+
+    if o == O
+        Vb = {Vb, ICSQUARE.getBulkVariableData('Voltage', 'Time')};
+        Ib = {Ib, ICSQUARE.getBulkVariableData('Current', 'Time')};
+    end
+    % ICSQUARE.plot('Current','Time');
+    % ICSQUARE.plot('Voltage','Harmonic');
+    % ICSQUARE.plot('Torque','Harmonic');
+end
 
 %% Sine and square wave initial conditions
 stator.SourceType = 'VoltageSource';
@@ -373,7 +488,7 @@ for w = 1:2
     
     for i = 1:numel(atol);
         j = 1;
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', atol(i), 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[1,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 18, 'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol(i), 'Strategy', 'plan', 'Plan', [1,2,2,2,2,2,2,2,2,2,2,2,2,2]);
         solution = simulation.run(x0{w}(:,1:18));
         SimTime{j,i,w} = solution.Algorithm.SimulationTime;
         DiscErr{j,i,w} = solution.Algorithm.DiscretizationError;
@@ -384,10 +499,14 @@ for w = 1:2
         pause(1);
 
         j = j+1;
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', NSteps{j-1,i,w}, 'StoreDecompositions', true, 'Verbose', true, 'AdaptiveTol', atol(i), 'NewtonTol', 1e-6, 'GMRESTol', 1e-3, 'ColocationTol', 1e-6, 'Strategy','plan','Plan',[NSteps{j-1,i}/18]);
-        solution = simulation.run(x0{w}(:,1:18));
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', NSteps{j-1,i,w}, 'StoreDecompositions', true, 'Adaptive', false, 'Strategy', 'plan', 'Plan', 1);
+       	t = model.getTimePoints(NSteps{j-1,i,w});
+        t(end) = [];
+        D = exp(1i*2*pi*f_e*M*t);
+    	x_init = real(X0{w}*D);
+        solution = simulation.run(x_init);
         SimTime{j,i,w} = solution.Algorithm.SimulationTime;
-        DiscErr{j,i,w} = solution.Algorithm.DiscretizationError;
+        DiscErr{j,i,w} = DiscErr{j-1,i,w};
         CondLoss{j,i,w} = solution.getBulkVariableData('AverageConductionLosses');
         CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
         Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
@@ -396,7 +515,7 @@ for w = 1:2
 
         for stages = 1:3
             j = j + 1;
-            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', 18, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true,'MaxNewtonIterations',30,'MaxShootingIterations',30,'Adaptive',true,'AdaptiveTolerance',atol(i));
+            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', 18, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol(i));
             solution = simulation.run(x0{w}(:,1));
             SimTime{j,i,w} = solution.Algorithm.SimulationTime;
             DiscErr{j,i,w} = solution.Algorithm.DiscretizationError;
@@ -407,7 +526,7 @@ for w = 1:2
             pause(1);
 
             j = j + 1;
-            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i,w}, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true,'MaxNewtonIterations',30,'MaxShootingIterations',30,'Adaptive',false,'AdaptiveTolerance',atol(i));
+            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i,w}, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol(i));
             solution = simulation.run(x0{w}(:,1));
             SimTime{j,i,w} = solution.Algorithm.SimulationTime;
             DiscErr{j,i,w} = solution.Algorithm.DiscretizationError;
@@ -418,7 +537,7 @@ for w = 1:2
             pause(1);
 
             j = j + 1;
-            simulation.configureAlgorithm('TPFEM', 'TimePoints', 18, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol(i));
+            simulation.configureAlgorithm('TPFEM', 'TimePoints', 18, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol(i));
             t = linspace(0,1/f_e,18+1);
             h = t(2)-t(1);
             [~,~,c] = solution.Algorithm.getButcherTable(stages);
@@ -441,7 +560,7 @@ for w = 1:2
             pause(1);
 
             j = j + 1;
-            simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i,w}, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-3, 'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol(i));
+            simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i,w}, 'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol(i));
             t = model.getTimePoints(NSteps{j-1,i,w});
             h = t(2)-t(1);
             [~,~,c] = solution.Algorithm.getButcherTable(stages);

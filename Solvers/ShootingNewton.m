@@ -35,16 +35,18 @@ properties:
     properties
         ShootingTolerance     = 1e-6;
         NewtonTolerance       = 1e-6;
-        GMRESTolerance        = 1e-6;
+        GMRESTolerance        = 1e-3;
+        MinShootingIterations = 1;
         MaxShootingIterations = 100;
         MinNewtonIterations   = 1;
         MaxNewtonIterations   = 100;
         MaxGMRESIterations    = 100;
-        RungeKuttaStages      = 3;
+        RungeKuttaStages      = 2;
         SymmetricJacobian     = false;
         
         Adaptive               = false;
         SmoothingTolerance     = 1e-2;
+        MinSmoothingIterations = 1;
         MaxSmoothingIterations = 2;
         AdaptiveTolerance      = 1e-2;
     end
@@ -96,11 +98,12 @@ properties:
             
             tic;
             if this.StoreDecompositions
-                [y,y_t,t] = this.solve_stored(y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
+                [y,y_t,t,discErr] = this.solve_stored(y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
             else
-            	[y,y_t,t] = this.solve_unstored(y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
+            	[y,y_t,t,discErr] = this.solve_unstored(y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix);
             end
             this.SimulationTime = toc;
+            this.DiscretizationError = discErr;
             
            	if this.Verbose
                 display(sprintf('\nSimulation Time = %0.3g seconds', this.SimulationTime));
@@ -126,20 +129,14 @@ properties:
             solution = Solution(this);
         end
         
-        function [y,y_t,t] = solve_unstored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
-            %% Algorithm Parameters
-            maxNewton  = this.MaxNewtonIterations;
-            maxGMRES   = this.MaxGMRESIterations;
-            newtonTol  = this.NewtonTolerance;
-            gmresTol   = this.GMRESTolerance;
-            verbose    = this.Verbose;
-            
+        function [y,y_t,t,discErr] = solve_unstored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
             %% Minimal Matrix Storage
             Ca = cell(1, Ns);
             
            	%% Start
             first = true;
             if this.Adaptive
+                discErr = 1;
                 atol = 1;
                 last = false;
             else
@@ -147,20 +144,25 @@ properties:
             end
             
             while first || ~last
-                %% Fixed Step Size Iteration
-                if first || last
-                    maxShooting = this.MaxShootingIterations;
+                if last
                     shootingTol = this.ShootingTolerance;
                 else
-                    maxShooting = this.MaxSmoothingIterations;
                     shootingTol = this.SmoothingTolerance;
+                end
+                
+                if first || last
+                    minShooting = this.MinShootingIterations;
+                    maxShooting = this.MaxShootingIterations;
+                else
+                    minShooting = this.MinSmoothingIterations;
+                    maxShooting = this.MaxSmoothingIterations;
                 end
                 
                 ys0 = y{Ns,Nt};%needed for updating y_t{Ns,1} after GMRES
                 
                 nShooting   = 1;
                 shootingRes = 1;
-                while (shootingRes > shootingTol && nShooting <= maxShooting) || (this.MinNewtonIterations >= nShooting)
+                while (shootingRes > shootingTol && nShooting <= maxShooting) || (minShooting >= nShooting)
                     %% Calculate Residual
                     for k = 2:(Nt+1)
                         h_k = t(k) - t(k-1);
@@ -185,9 +187,9 @@ properties:
                             K_ik = getMatrix.K(t_ik, h_ik);
 
                             %% Newton Iteration
-                            nNewton   = 0;
+                            nNewton   = 1;
                             newtonRes = 1;
-                            while newtonRes > newtonTol && nNewton < maxNewton
+                            while newtonRes >= this.NewtonTolerance && nNewton <= this.MaxNewtonIterations
                                 nNewton = nNewton + 1;
                                 [G_ik, g_ik] = getMatrix.G(t_ik, y{i,k}, h_ik);
 
@@ -221,24 +223,25 @@ properties:
 
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
+                        minShooting = this.MinShootingIterations;
                         maxShooting = this.MaxShootingIterations;
                         shootingTol = this.ShootingTolerance;
                         last = true;
                     end
                     
                     %% Report
-                    if verbose
+                    if this.Verbose
                         display(sprintf('\nIteration %d, Residual = %0.3g, Discretization Error = %0.3g', nShooting, shootingRes, discErr));
                     end
 
                     %% GMRES Phase
-                    if (shootingRes > shootingTol) && (maxGMRES > 0)
+                    if (shootingRes > shootingTol) && (this.MaxGMRESIterations > 0)
                         A = @ShootingNewton.MVPUnstored;
-                        if verbose
-                            dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                        if this.Verbose
+                            dy = gmres(A, r, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], r, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
                         else
-                            [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
+                            [dy,~,~,~] = gmres(A, r, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], r, y, t, c, d, p, q, Ns, Nt, Nx, getMatrix);
                         end
                         
                         dy = mat2cell(dy,Nx*ones(Ns+1,1),1);
@@ -251,7 +254,7 @@ properties:
                         for j = 1:Ns
                             y_t{Ns,1} = y_t{Ns,1} + (d(Ns,j)/h_k)*y{j,1};
                         end
-                    elseif (maxGMRES == 0) || (this.MinNewtonIterations >= nShooting)
+                    elseif (this.MaxGMRESIterations == 0) || (minShooting >= nShooting)
                         y(:,1)   = y(:,Nt+1);
                         y_t(:,1) = y_t(:,Nt+1);
                     end
@@ -271,18 +274,17 @@ properties:
                 end
                 first = first && ~first;
             end
-            this.DiscretizationError = discErr;
         end
 
-        function [y,y_t,t] = solve_stored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
-            %% Algorithm Parameters
-            maxNewton   = this.MaxNewtonIterations;
-            maxGMRES    = this.MaxGMRESIterations;
-            newtonTol   = this.NewtonTolerance;
-            gmresTol    = this.GMRESTolerance;
-            isSymmetric = this.SymmetricJacobian;
-            verbose     = this.Verbose;
-
+        function [y,y_t,t,discErr] = solve_stored(this, y, y_t, t, c, d, p, q, bu, be, pe, Nt, Ns, Nx, getMatrix)
+            first = true;
+            if this.Adaptive
+                atol = 1;
+                last = false;
+            else
+                last = true;
+            end
+            
             %% Store Everything
             K   = cell(Ns, Nt+1);
             f   = cell(Ns, Nt+1);
@@ -301,15 +303,6 @@ properties:
                 R = cell(Ns, Nt+1);
             end
             
-            %% Start
-            first = true;
-            if this.Adaptive
-                atol = 1;
-                last = false;
-            else
-                last = true;
-            end
-            
             while first || ~last
                 %% Preallocate Matrices
                 for k = 2:(Nt+1)
@@ -325,20 +318,25 @@ properties:
                     end
                 end
                 
-                %% Fixed Step Size Iteration
-                if first || last
-                    maxShooting = this.MaxShootingIterations;
+                if last
                     shootingTol = this.ShootingTolerance;
                 else
-                    maxShooting = this.MaxSmoothingIterations;
                     shootingTol = this.SmoothingTolerance;
+                end
+                
+                if first || last
+                    minShooting = this.MinShootingIterations;
+                    maxShooting = this.MaxShootingIterations;
+                else
+                    minShooting = this.MinSmoothingIterations;
+                    maxShooting = this.MaxSmoothingIterations;
                 end
                 
                 ys0 = y{Ns,Nt};%needed for updating y_t{Ns,1} after GMRES
                 
                 nShooting   = 1;
                 shootingRes = 1;
-                while (shootingRes > shootingTol && nShooting <= maxShooting) || (this.MinNewtonIterations >= nShooting) 
+                while (shootingRes > shootingTol && nShooting <= maxShooting) || (minShooting >= nShooting) 
                     %% Calculate Residual
                     for k = 2:(Nt+1)
                         h_k = t(k) - t(k-1);
@@ -357,9 +355,9 @@ properties:
                             rpq        = q(i) * rpq - Cpq * y{Ns,k-1};
 
                             %% Newton Iteration
-                            nNewton   = 0;
+                            nNewton   = 1;
                             newtonRes = 1;
-                            while newtonRes > newtonTol && nNewton < maxNewton
+                            while newtonRes > this.NewtonTolerance && nNewton <= this.MaxNewtonIterations
                                 nNewton = nNewton + 1;
 
                                 [G_ik, g_ik] = getMatrix.G(t_ik, y{i,k}, h_ik);
@@ -372,7 +370,7 @@ properties:
                                 newtonRes = norm(r_ik) / norm(g_ik - f{i,k});
 
                                 J_ik = K{i,k} + Ca{i,i,k} + G_ik;
-                                if isSymmetric
+                                if this.SymmetricJacobian
                                     [L_ik, D_ik, P_ik, S_ik] = ldl(J_ik);
                                     r_ik = S_ik  * r_ik;
                                     r_ik = P_ik' * r_ik;
@@ -398,7 +396,7 @@ properties:
                                 y_t{i,k} = y_t{i,k} + (d(i,j)/h_k)*y{j,k};
                             end
 
-                            if isSymmetric
+                            if this.SymmetricJacobian
                                 L{i,k} = L_ik;
                                 D{i,k} = D_ik;
                                 P{i,k} = P_ik;
@@ -423,32 +421,32 @@ properties:
 
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
                         maxShooting = this.MaxShootingIterations;
                         shootingTol = this.ShootingTolerance;
                         last = true;
                     end
                     
                     %% Report
-                    if verbose
+                    if this.Verbose
                         display(sprintf('\nIteration %d, Residual = %0.3g, Discretization Error = %0.3g', nShooting, shootingRes, discErr));
                     end
                     
                     %% GMRES Phase
-                    if (shootingRes > shootingTol) && (maxGMRES > 0)
-                        if isSymmetric
+                    if (shootingRes > shootingTol) && (this.MaxGMRESIterations > 0)
+                        if this.SymmetricJacobian
                             A = @ShootingNewton.MVPStoredLDL;
-                            if verbose
-                                dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, D, P, S, Ns, Nt, Nx);
+                            if this.Verbose
+                                dy = gmres(A, r, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], r, Ca, Jpq, L, D, P, S, Ns, Nt, Nx);
                             else
-                                [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, K, Ca, Jpq, L, D, P, S, Ns, Nt, Nx);
+                                [dy,~,~,~] = gmres(A, r, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], r, K, Ca, Jpq, L, D, P, S, Ns, Nt, Nx);
                             end
                         else
                             A = @ShootingNewton.MVPStoredLU;
-                            if verbose
-                                dy = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
+                            if this.Verbose
+                                dy = gmres(A, r, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
                             else
-                                [dy,~,~,~] = gmres(A, r, maxGMRES, gmresTol, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
+                                [dy,~,~,~] = gmres(A, r, this.MaxGMRESIterations, this.GMRESTolerance, 1, [], [], r, Ca, Jpq, L, U, P, Q, R, Ns, Nt, Nx);
                             end
                         end
                         dy = mat2cell(dy,Nx*ones(Ns+1,1),1);
@@ -461,10 +459,11 @@ properties:
                         for j = 1:Ns
                             y_t{Ns,1} = y_t{Ns,1} + (d(Ns,j)/h_k)*y{j,1};
                         end
-                    elseif (maxGMRES == 0) || (this.MinNewtonIterations >= nShooting)
+                    elseif (this.MaxGMRESIterations == 0) || (minShooting >= nShooting)
                         y(:,1)   = y(:,Nt+1);
                         y_t(:,1) = y_t(:,Nt+1);
                     end
+                    
                     nShooting = nShooting + 1;
                 end
                 
@@ -474,13 +473,13 @@ properties:
                   	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
                     Nt = length(t) - 1;
                     
-                    if verbose
+                    if this.Verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
                     end
                 end
+                
                 first = first && ~first;
             end
-            this.DiscretizationError = discErr;
         end
     end
     
