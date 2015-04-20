@@ -496,6 +496,7 @@ for w = 1:2
         CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
         Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
         NSteps{j,i,w} = numel(solution.Algorithm.Times)-1;
+        clear solution;
         pause(1);
 
         j = j+1;
@@ -511,6 +512,7 @@ for w = 1:2
         CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
         Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
         NSteps{j,i,w} = numel(solution.Algorithm.Times)-1;
+        clear solution;
         pause(1);
 
         for stages = 1:3
@@ -523,6 +525,7 @@ for w = 1:2
             CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
             Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
             NSteps{j,i,w} = numel(solution.Algorithm.Times)-1;
+            clear solution;
             pause(1);
 
             j = j + 1;
@@ -534,6 +537,7 @@ for w = 1:2
             CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
             Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
             NSteps{j,i,w} = numel(solution.Algorithm.Times)-1;
+            clear solution;
             pause(1);
 
             j = j + 1;
@@ -557,6 +561,7 @@ for w = 1:2
             CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
             Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
             NSteps{j,i,w} = numel(solution.Algorithm.Times)-1;
+            clear solution;
             pause(1);
 
             j = j + 1;
@@ -581,6 +586,7 @@ for w = 1:2
             CoreLoss{j,i,w} = solution.getBulkVariableData('AverageCoreLosses');
             Aharmonic{j,i,w} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
             NSteps{j,i,w} = numel(solution.Algorithm.Times)-1;
+            clear solution;
             pause(1);
         end
         
