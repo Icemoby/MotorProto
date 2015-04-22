@@ -144,16 +144,12 @@ properties:
             end
             
             while first || ~last
-                if last
+                if first
                     shootingTol = this.ShootingTolerance;
-                else
-                    shootingTol = this.SmoothingTolerance;
-                end
-                
-                if first || last
                     minShooting = this.MinShootingIterations;
                     maxShooting = this.MaxShootingIterations;
                 else
+                    shootingTol = this.SmoothingTolerance;
                     minShooting = this.MinSmoothingIterations;
                     maxShooting = this.MaxSmoothingIterations;
                 end
@@ -223,10 +219,7 @@ properties:
 
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
-                        minShooting = this.MinShootingIterations;
-                        maxShooting = this.MaxShootingIterations;
-                        shootingTol = this.ShootingTolerance;
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
                         last = true;
                     end
                     
@@ -318,16 +311,12 @@ properties:
                     end
                 end
                 
-                if last
+                if first
                     shootingTol = this.ShootingTolerance;
-                else
-                    shootingTol = this.SmoothingTolerance;
-                end
-                
-                if first || last
                     minShooting = this.MinShootingIterations;
                     maxShooting = this.MaxShootingIterations;
                 else
+                    shootingTol = this.SmoothingTolerance;
                     minShooting = this.MinSmoothingIterations;
                     maxShooting = this.MaxSmoothingIterations;
                 end
@@ -421,9 +410,7 @@ properties:
 
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
-                        maxShooting = this.MaxShootingIterations;
-                        shootingTol = this.ShootingTolerance;
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
                         last = true;
                     end
                     

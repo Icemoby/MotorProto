@@ -106,22 +106,18 @@ classdef HarmonicBalance < Solver
             aIter = 1;
             discErr = 1;
             while first || ~last
-                if last
+                if first
                     newtonTol = this.NewtonTolerance;
-                else
-                    newtonTol = this.SmoothingTolerance;
-                end
-                
-                if first || last
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
                 else
+                    newtonTol = this.SmoothingTolerance;
                     minNewton = this.MinSmoothingIterations;
                     maxNewton = this.MaxSmoothingIterations;
                 end
                 
                 %% Subdivide Time Interval
-                if ~(discErr <= 2 * this.AdaptiveTolerance)
+                if discErr > 2 * this.AdaptiveTolerance
                     aIter = aIter + 1;
                     last = last || (aIter == length(plan));
                    	d = plan(aIter);
@@ -211,11 +207,8 @@ classdef HarmonicBalance < Solver
                 alpha = sqrt(alpha);
                 beta  = sqrt(beta);
                 
-                if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~first
-                    minNewton = this.MinNewtonIterations;
-                    maxNewton = this.MaxNewtonIterations;
-                    newtonTol = this.NewtonTolerance;
-                    last      = true;
+                if this.Adaptive && (discErr <  2 * this.AdaptiveTolerance) && ~(first && nIter == 1)
+                    last = true;
                 end
                 
                 %% Start Newton Iteration

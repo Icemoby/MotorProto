@@ -76,6 +76,8 @@ properties:
                     a = [0 0;
                          0 1];
                     bu = [0;1];
+                    be = [0,1];
+                    pe = 1;
                 case 2
                     a = [0,             0,             0;
                          1 - 2^(1/2)/2, 1 - 2^(1/2)/2, 0;
@@ -84,6 +86,8 @@ properties:
                     bu = [sqrt(2)/2, -sqrt(2)/4;
                           sqrt(2)/2, -sqrt(2)/4;
                           1-sqrt(2), sqrt(2)/2];
+                    be = [-sqrt(2)/4, -sqrt(2)/4, sqrt(2)/2];
+                    pe = 2;
                 case 3            
                     c2 = roots([3 -18 18 -4]);
                     c2 = c2(3);
@@ -116,10 +120,15 @@ properties:
                     bu(4,3) = (2/(3*(c2^2 - 4*c2 + 2)));
                     bu(4,2) = (-(2*c2)/(c2^2 - 4*c2 + 2));
                     bu(4,1) = (c2^2/(c2^2 - 4*c2 + 2));
+                    
+                    be = zeros(1,4);
+                    be(1) = -((c2 - 1)^2*(3*c2^2 - 4*c2 + 2))/(c2*(3*c2^2 - 6*c2 + 4)*(c2^2 - 4*c2 + 2));
+                    be(2) = ((3*c2^2)/4 - 1/2)/((c2 - 1)*(c2^2 - 4*c2 + 2)) + 3/4;
+                    be(3) = ((3*c2^2 - 4*c2 + 2)^2*(c2^2 - 2*c2 + 2))/(4*(c2^2 - 4*c2 + 2)*(- 3*c2^4 + 9*c2^3 - 10*c2^2 + 4*c2));
+                    be(4) = (c2*(c2 - 2))/(c2^2 - 4*c2 + 2);
+                    be = a(end,:) - be;
+                    pe = 3;
             end
-            pe = size(bu,2);
-            be = bu(:,pe).'*factorial(pe);
-            
             b = a(end,:);
             c = sum(a,2);
             c = c(2:end);
@@ -194,7 +203,7 @@ properties:
                 
                 Cn  = max(Cn, sqrt(y{end,k}.'*W*y{end,k}));
             end
-            ec = (ec ./ Cn) / factorial(pe);
+            ec = (ec ./ Cn);
             ec(1:(end/2)) = ec((end/2+1):end);
             ec = [ec(end),ec];
             h  = [t(end)-t(end-1), diff(t)];
@@ -202,7 +211,12 @@ properties:
             emax = max(ec.*h.^pe)^((pe+1)/pe);
             
 %             figure;
-%             plot(t, (ec.*(h.^(pe))).^((pe+1)/pe))
+%             s = [t(1:end-1);t(2:end)];
+%             s = reshape(s,1,[]);
+%             v = (ec);
+%             v = [v(1:end-1);v(1:end-1)];
+%             v = reshape(v,1,[]);
+%             plot(s,v)
 %             pause(1);
 %             figure;
 %             plot(t, ec)
@@ -216,9 +230,9 @@ properties:
                 h   = [t(end)-t(end-1),diff(t)];
                 tol = mean(ec.*h.^pe);
                 ngr = floor((-1/pe) * log(tol_max / tol) / log(rfact));
-                tol = tol_max * (2^(pe*ngr));
+                tol = 2^(-1/(pe+1))*tol_max * (2^(pe*ngr));
             else
-                tol = max(tol*2^(-pe), tol_max / 2);
+                tol = max(tol*2^(-pe), 2^(-1/(pe+1))*tol_max);
             end
             
             Nt = length(t) - 1;
@@ -229,6 +243,13 @@ properties:
             else
                 %% Calculate new time-point function
                 hc = (tol./ec).^(1/pe);
+                
+%                 s = [t(1:end-1);t(2:end)];
+%                 v = [hc(2:end);hc(2:end)];
+%                 figure;
+%                 plot(reshape(s,1,[]),reshape(v,1,[]));
+%                 pause(1);
+                
                 I  = 2:(Nt/6+1);
                 hc(I) = hc(I+3*Nt/6); %values in [T/2,T] are usually more well smoothed
                 for i = 4:5

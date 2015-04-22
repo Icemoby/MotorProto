@@ -132,16 +132,12 @@ properties:
             end
             
             while first || ~last
-                if last
+                if first
                     newtonTol = this.NewtonTolerance;
-                else
-                    newtonTol = this.SmoothingTolerance;
-                end
-                
-                if first || last
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
                 else
+                    newtonTol = this.SmoothingTolerance;
                     minNewton = this.MinSmoothingIterations;
                     maxNewton = this.MaxSmoothingIterations;
                 end
@@ -229,11 +225,8 @@ properties:
                     
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
-                        minNewton = this.MinNewtonIterations;
-                        maxNewton = this.MaxNewtonIterations;
-                        newtonTol = this.NewtonTolerance;
-                        last      = true;
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nNewton == 1)
+                        last = true;
                     end
                     
                     nNewton = nNewton + 1;
@@ -282,16 +275,12 @@ properties:
             end
             
             while first || ~last
-                if last
+                if first
                     newtonTol = this.NewtonTolerance;
-                else
-                    newtonTol = this.SmoothingTolerance;
-                end
-                
-                if first || last
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
                 else
+                    newtonTol = this.SmoothingTolerance;
                     minNewton = this.MinSmoothingIterations;
                     maxNewton = this.MaxSmoothingIterations;
                 end
@@ -404,10 +393,8 @@ properties:
                     
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
-                        maxNewton = this.MaxNewtonIterations;
-                        newtonTol = this.NewtonTolerance;
-                        last      = true;
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nNewton == 1)
+                        last = true;
                     end
                     
                     nNewton = nNewton + 1;
