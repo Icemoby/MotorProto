@@ -78,8 +78,10 @@ classdef HarmonicBalance < Solver
             end
                 
             C = getMatrix.C(0,1,1);
-            
             if this.StoreDecompositions
+                G = cell(1,Nt);
+                g = zeros(Nx,Nt);
+                
                 K = cell(1,Nt);
                 f = zeros(Nx,Nt);
 
@@ -138,11 +140,11 @@ classdef HarmonicBalance < Solver
                     t = linspace(0,T,Nt+1);
                     
                     if this.StoreDecompositions
-                        G = cell(1,Nt);
-                        g = zeros(Nx,Nt);
+                        G = [G, cell(1, Nt*(d-1)/d)];
+                        g = [g, zeros(Nx, Nt*(d-1)/d)];
 
-                        K = [K, cell(1, Nt*(d-1))];
-                        f = [f, zeros(Nx, Nt*(d-1))];
+                        K = [K, cell(1, Nt*(d-1)/d)];
+                        f = [f, zeros(Nx, Nt*(d-1)/d)];
 
                         for i = (Nt-d+1):-d:1
                             j      = (i+d-1) / d;
@@ -200,6 +202,7 @@ classdef HarmonicBalance < Solver
                     beta = beta + 0.5*norm(r(:,i)+fi)^2;
                     
                     r(:,i) = r(:,i) - fi;
+                    r(:,i) = r(:,i);
                     
                     alpha = alpha + norm(r(:,i))^2;
                 end
@@ -443,6 +446,44 @@ classdef HarmonicBalance < Solver
             end
         end
         
+        function [l, l_t] = getTimeMappingHarmonics(X, t, h, W)
+            T  = t(end);
+            Nt = length(h);
+            X_t = X;
+            for i = 1:Nt
+                X_t(:,i) = (1i*h(i))^2*X_t(:,i);
+            end
+            x_t = ifft(X_t,[],2,'symmetric') * Nt;
+            
+            nxp = zeros(1,Nt);
+            for i = 1:Nt
+                nxp(i) = sqrt(x_t(:,i)'*W*x_t(:,i));
+            end
+            NXP = fft(nxp) / Nt;
+            NXP = [NXP(1:(Nt/2)),NXP(Nt/2+1)/2,zeros(1,1*Nt),NXP(Nt/2+1)/2,NXP((Nt/2+2):end)];
+            Nh  = 2*Nt + 1;
+            Nh2 = 1*Nt;
+            nxp = ifft(NXP) * Nh;
+            
+            nxp = 1 ./ nxp;
+            NXP = fft(nxp,[],2) / Nh;
+            NXP = NXP.' / NXP(1);
+            NXP = NXP .* sinc(2*[0:(Nh2) (Nh2):-1:1] / Nh2).';
+            NXP(1) = [];
+            NXP(1:Nh2) = NXP(1:Nh2) ./ (1i*2*pi*(1:Nh2).');
+            NXP((Nh2+1):end) = NXP((Nh2+1):end) ./ (-1i*2*pi*(1:Nh2).');
+            
+            u   = linspace(0,1,2*Nt).';
+            u(end) = [];
+            
+            D = exp(1i*2*pi*u*[1:Nh2,-Nh2:-1]);
+            
+            l   = T*real(u+D*NXP);
+            l_t = T*real(1+D*(NXP.*(1i*2*pi*[1:Nh2,-Nh2:-1].')));
+            
+%             figure;plot(u,l);
+%             figure;plot(u,l_t);
+        end
         
         function solverOut = configureSolver(varargin)
             if nargin > 0

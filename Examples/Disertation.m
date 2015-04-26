@@ -475,8 +475,8 @@ for w = 1:2
             stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
             stator.Circuits.HarmonicPhases      = 0;
         case 2
-            h = 1:2:1001;
-            V = 340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000)));
+            h = 1:2:2001;
+            V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
             stator.SourceType = SourceTypes.VoltageSource;
             stator.ParallelPaths = nParallelPaths;
             stator.Circuits.ElectricalFrequency = f_e;

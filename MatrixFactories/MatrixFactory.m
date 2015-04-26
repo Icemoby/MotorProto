@@ -1376,6 +1376,7 @@ classdef MatrixFactory
             l = lcond;
             for i = 1:numel(l)
                 l{i} = bsxfun(@plus, l{i}, lcore{i});
+                l{i}(l{i} == 0) = NaN;
             end
             
             text   = '(P_{loss} = %0.3g W)';

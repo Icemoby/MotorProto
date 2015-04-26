@@ -369,7 +369,7 @@ function gHandleOut = mbCurve(this)
     if all(this.HData == 0) && all(this.BData == 0)
         b = [0 1].';
     else
-        b = linspace(0, max(this.BData)*1.1, 1000).';
+        b = linspace(0, max(this.Bs)*1.5, 1000).';
     end
     m     = this.magnitudeM(b);
     
@@ -386,7 +386,7 @@ function gHandleOut = dMdBCurve(this)
     if all(this.HData == 0) && all(this.BData == 0)
         b = [0 1].';
     else
-        b = linspace(0, max(this.BData)*1.1, 1000).';
+        b = linspace(0, max(this.Bs)*1.5, 1000).';
     end
     [~, dmdb] = this.magnitudeM(b);
     gHandleOut = plot(b, dmdb);
@@ -426,8 +426,8 @@ function plotCoreLossCurves(this)
     
     grid on;
     legend('Data','Interpolation')
-    ylabel('[Loss Density [W / m^3]');
-    xlabel('[Flux Density [T]');
+    ylabel('Loss Density [W / m^3]');
+    xlabel('Flux Density [T]');
     set(gca,'XScale','log');
     set(gca,'YScale','log');
 end
