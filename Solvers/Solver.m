@@ -375,17 +375,65 @@ properties:
             if all(dt-mean(dt)) < sqrt(eps) * mean(dt)
                 X = fft(x,[],2) / (numel(t) - 1);
             else
-                a = 2*pi*t / t(end);
-                N = numel(a)-1;
+                %% Time--Mapped Fourier Transform
+                T = t(end);
+                N = numel(t) - 1;
+                s = t / T;
+                s = s-linspace(0,1,N+1);
+                s(end) = [];
+                S = fft(s,[],2) / N;
+                
+                M = 2 * N;
+                lpart = linspace(0,1,M+1);
+                lpart(end) = [];
+                
+                tr = lpart;
+                tp = lpart;
+                
+                for i = 1:length(tp)
+                    r = inf;
+                    while abs(r) > T * sqrt(eps)
+                        if mod(N,2) == 0
+                            K = [0:(N/2) (1-N/2):-1];
+                            D = exp(1i*K.'*2*pi*tp(i));
+                            J = (1i*K.'*2*pi).*D;
+                            D(N/2+1) = cos(2*pi*N/2*tp(i));
+                            J(N/2+1) = -2*pi*N/2*sin(2*pi*N/2*tp(i));
+                            J = S*J+1;
+                        else
+                            K = [0:((N-1)/2), ((1-N)/2):-1];
+                            D = exp(1i*K.'*2*pi*tp);
+                        end
+
+                        r = tp(i)+S*D-tr(i);
+                        d = J \ r;
+                        tp(i) = tp(i) - d;
+                    end
+                    
+                    if i < length(tp)
+                        tp(i+1) = tp(i) + 1 / M;
+                    end
+                end
+                tp = real(tp);
+                
+                X = fft(x,[],2) / N;
                 if mod(N,2) == 0
                     K = [0:(N/2) (1-N/2):-1];
-                    D = exp(1i*K.'*a(1:end-1));
-                    D(N/2+1,:) = cos(N/2*a(1:end-1));
+                    D = exp(1i*K.'*2*pi*tp);
+                    D(N/2+1,:) = cos(2*pi*N/2*tp);
                 else
                     K = [0:((N-1)/2), ((1-N)/2):-1];
-                    D = exp(1i*K.'*a(1:end-1));
+                    D = exp(1i*K.'*2*pi*tp);
                 end
-                X = x/D;
+                y = X*D;
+                X = fft(y,[],2) / M;
+                
+                if mod(N,2) == 0
+                    X = [X(:,1:(N/2)) X(:,(end-N/2+1):end)];
+                    X(:,N/2+1) = 2*real(X(:,N/2+1));
+                else
+                    X = [X(1:((N-1)/2)) X((end-(N-1)/2+1):end)];
+                end
             end
     	end
     end

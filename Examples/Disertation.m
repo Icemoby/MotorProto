@@ -456,14 +456,7 @@ M = [0:8, -8:-1]';
 % solution.plot('Current','Harmonic');
 
 %% Parameter Sweep Simulation
-atol = {10.^(-(2:6))};
-atol = repmat(atol,14,1);
-atol{3} = 10.^(-(2:5));
-for i = 1:3
-    atol{3+i} = atol{3};
-end
-
-for w = 2
+for w = 1:2
     switch w
         case 1
             atol = {10.^(-(2:6))};
@@ -503,7 +496,7 @@ for w = 2
             Aharmonic = cell(14,length(atol{1}));
             DiscErr   = cell(14,length(atol{1}));
             
-            h = 1:2:1001;
+            h = 1:2:2001;
             V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
             stator.SourceType = SourceTypes.VoltageSource;
             stator.ParallelPaths = nParallelPaths;

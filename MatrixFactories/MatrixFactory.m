@@ -1587,7 +1587,12 @@ classdef MatrixFactory
             switch lower(dataType)
                 case {'default','time'}
                     [l, figLabels, figTitles] = InstantaneousConductionLosses(this, solver, 'Time');
-                    l = cellfun(@(x)(mean(x)), l).';
+                    Nt = numel(solver.Times) - 1;
+                    for i = 1:numel(l)
+                        l{i} = solver.fft(l{i}(1:Nt));
+                        l{i} = real(l{i}(1));
+                    end
+                    l = cell2mat(l).';
                     l = {l};
                 case 'harmonic'
                    	x        = solver.X;
