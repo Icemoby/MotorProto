@@ -288,11 +288,8 @@ classdef HarmonicBalance < Solver
                     end
                     discErr = discErr / normErr;
                     
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2)
-                        minNewton = this.MinNewtonIterations;
-                        maxNewton = this.MaxNewtonIterations;
-                        newtonTol = this.NewtonTolerance;
-                        last      = true;
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~(first && nIter == 1)
+                        last = true;
                     end
                     
                     if this.Verbose
