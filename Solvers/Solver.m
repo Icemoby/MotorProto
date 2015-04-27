@@ -230,12 +230,13 @@ properties:
                 h   = [t(end)-t(end-1),diff(t)];
                 tol = mean(ec.*h.^pe);
                 ngr = floor((-1/pe) * log(tol_max / tol) / log(rfact));
-                tol = 2^(-1/(pe+1))*tol_max * (2^(pe*ngr));
+                %tol = 2^(-1/(pe+1))*tol_max * (2^(pe*ngr));
+                tol = 0.5 * tol_max * (2^(pe*ngr));
             else
-                if tol*2^(-pe) >= 2^(-1/(pe+1))*tol_max
-                    tol = tol*2^(-pe);
+                if tol*2^(-pe) >= 0.5 * tol_max
+                    tol = tol * 2^(-pe);
                 else
-                    tol = tol*2^(-1/(pe+1));
+                    tol = tol * 2^(-1/(pe+1));
                 end
             end
             
