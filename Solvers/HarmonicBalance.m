@@ -90,6 +90,9 @@ classdef HarmonicBalance < Solver
                     f(:,i) = getMatrix.f(t(i),1);
                 end
                 
+                M1 = cell(5,Nt);
+                M2 = cell(5,Nt);
+                
                 MVP = @HarmonicBalance.MVPStoredLU;
                 PC = @HarmonicBalance.PCStoredLU;
             else
@@ -157,8 +160,8 @@ classdef HarmonicBalance < Solver
                             f(:,i) = getMatrix.f(t(i),1);
                         end
                         
-                        M1 = cell(5,Nt);
-                        M2 = cell(5,Nt);
+                        M1 = [M1,cell(5,Nt*(d-1)/d)];
+                        M2 = [M2,cell(5,Nt*(d-1)/d)];
                     end
                     
                     R = zeros(Nx,Nt);

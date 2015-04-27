@@ -232,7 +232,11 @@ properties:
                 ngr = floor((-1/pe) * log(tol_max / tol) / log(rfact));
                 tol = 2^(-1/(pe+1))*tol_max * (2^(pe*ngr));
             else
-                tol = max(tol*2^(-pe), 2^(-1/(pe+1))*tol_max);
+                if tol*2^(-pe) >= 2^(-1/(pe+1))*tol_max
+                    tol = tol*2^(-pe);
+                else
+                    tol = tol*2^(-1/(pe+1));
+                end
             end
             
             Nt = length(t) - 1;

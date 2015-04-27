@@ -160,8 +160,7 @@ for i = 1:N
 end
 L  = cell2mat(Labc);
 
-%% Calculate sinusoidal current magnitude and phase for sine and square wave
-voltages
+%% Calculate sinusoidal current magnitude and phase for sine and square wave voltages
 L0 = zeros(3,3);
 L2 = zeros(3,3);
 Lambdah = Lambdah{1};
@@ -467,6 +466,13 @@ end
 for w = 2
     switch w
         case 1
+            atol = {10.^(-(2:6))};
+            atol = repmat(atol,14,1);
+            atol{3} = 10.^(-(2:5));
+            for i = 1:3
+                atol{3+i} = atol{3};
+            end
+
             filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSine.mat');
             NSteps    = cell(14,length(atol{1}));
             SimTime   = cell(14,length(atol{1}));
@@ -482,6 +488,13 @@ for w = 2
             stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
             stator.Circuits.HarmonicPhases      = 0;
         case 2
+            atol = {10.^(-(1:5))};
+            atol = repmat(atol,14,1);
+            atol{3} = 10.^(-(1:4));
+            for i = 1:3
+                atol{3+i} = atol{3};
+            end
+            
             filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSquare.mat');
             NSteps    = cell(14,length(atol{1}));
             SimTime   = cell(14,length(atol{1}));
@@ -503,7 +516,7 @@ for w = 2
     
     j = 1;
     for i = 1:numel(atol{j})
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6,'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i), 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 12,'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i), 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2]);
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
         DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -519,7 +532,7 @@ for w = 2
     
     j = j+1;
     for i = 1:numel(atol{j})
-        t = model.getTimePoints(NSteps{j-1,i,w});
+        t = model.getTimePoints(NSteps{j-1,i});
         simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false, 'Strategy', 'plan', 'Plan', length(t)-1);
         %        	t = model.getTimePoints(NSteps{j-1,i,w});
         %         t(end) = [];
@@ -528,7 +541,7 @@ for w = 2
         %         solution = simulation.run(x_init);
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
-        DiscErr{j,i} = DiscErr{j-1,i,w};
+        DiscErr{j,i} = DiscErr{j-1,i};
         CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
         CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
         Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
@@ -559,7 +572,7 @@ for w = 2
         
         j = j + 1;
         for i = 1:numel(atol{j})
-            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i,w}, 'RungeKuttaStages', stages, 'StoreDecompositions', true,'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
+            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i}, 'RungeKuttaStages', stages, 'StoreDecompositions', true,'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
             %solution = simulation.run(x0{w}(:,1));
             solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
@@ -605,7 +618,7 @@ for w = 2
         
         j = j + 1;
         for i = 1:numel(atol{j})
-            simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i,w},'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
+            simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i},'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
             %             t = model.getTimePoints(NSteps{j-1,i,w});
             %             h = t(2)-t(1);
             %             [~,~,c] = TPFEM.getButcherTable(stages);
