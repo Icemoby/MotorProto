@@ -144,7 +144,7 @@ properties:
             end
             
             while first || ~last
-                if first
+                if first || last
                     shootingTol = this.ShootingTolerance;
                     minShooting = this.MinShootingIterations;
                     maxShooting = this.MaxShootingIterations;
@@ -220,6 +220,9 @@ properties:
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
+                        shootingTol = this.ShootingTolerance;
+                        minShooting = this.MinShootingIterations;
+                        maxShooting = this.MaxShootingIterations;
                         last = true;
                     end
                     
@@ -261,7 +264,7 @@ properties:
                   	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
                     Nt = length(t) - 1;
                     
-                    if verbose
+                    if this.Verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
                     end
                 end
@@ -311,7 +314,7 @@ properties:
                     end
                 end
                 
-                if first
+                if first || last
                     shootingTol = this.ShootingTolerance;
                     minShooting = this.MinShootingIterations;
                     maxShooting = this.MaxShootingIterations;
@@ -411,6 +414,9 @@ properties:
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
+                        shootingTol = this.ShootingTolerance;
+                        minShooting = this.MinShootingIterations;
+                        maxShooting = this.MaxShootingIterations;
                         last = true;
                     end
                     

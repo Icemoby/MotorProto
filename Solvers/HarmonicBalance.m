@@ -111,7 +111,7 @@ classdef HarmonicBalance < Solver
             aIter = 1;
             discErr = 1;
             while first || ~last
-                if first
+                if first || last
                     newtonTol = this.NewtonTolerance;
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
@@ -215,6 +215,9 @@ classdef HarmonicBalance < Solver
                 
                 if this.Adaptive && (discErr <  2 * this.AdaptiveTolerance) && ~(first && nIter == 1)
                     last = true;
+                    newtonTol = this.NewtonTolerance;
+                    minNewton = this.MinNewtonIterations;
+                    maxNewton = this.MaxNewtonIterations;
                 end
                 
                 %% Start Newton Iteration
@@ -292,6 +295,9 @@ classdef HarmonicBalance < Solver
                     discErr = discErr / normErr;
                     
                     if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~(first && nIter == 1)
+                        newtonTol = this.NewtonTolerance;
+                        minNewton = this.MinNewtonIterations;
+                        maxNewton = this.MaxNewtonIterations;
                         last = true;
                     end
                     

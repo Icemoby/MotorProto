@@ -43,7 +43,7 @@ properties:
         SmoothingTolerance     = 1e-2;
         MinSmoothingIterations = 1;
         MaxSmoothingIterations = 2;
-        AdaptiveTolerance      = 1e-2;
+        AdaptiveTolerance      = 1e-3;
     end
     
     methods
@@ -132,7 +132,7 @@ properties:
             end
             
             while first || ~last
-                if first
+                if first || last
                     newtonTol = this.NewtonTolerance;
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
@@ -226,6 +226,9 @@ properties:
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nNewton == 1)
+                        newtonTol = this.NewtonTolerance;
+                        minNewton = this.MinNewtonIterations;
+                        maxNewton = this.MaxNewtonIterations;
                         last = true;
                     end
                     
@@ -275,7 +278,7 @@ properties:
             end
             
             while first || ~last
-                if first
+                if first || last
                     newtonTol = this.NewtonTolerance;
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
@@ -394,6 +397,9 @@ properties:
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nNewton == 1)
+                       	newtonTol = this.NewtonTolerance;
+                        minNewton = this.MinNewtonIterations;
+                        maxNewton = this.MaxNewtonIterations;
                         last = true;
                     end
                     

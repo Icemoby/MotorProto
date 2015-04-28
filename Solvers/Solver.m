@@ -383,7 +383,7 @@ properties:
                 s(end) = [];
                 S = fft(s,[],2) / N;
                 
-                M = 2 * N;
+                M = 4 * N;
                 lpart = linspace(0,1,M+1);
                 lpart(end) = [];
                 
