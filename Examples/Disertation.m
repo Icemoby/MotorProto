@@ -456,190 +456,234 @@ M = [0:8, -8:-1]';
 % solution.plot('Current','Harmonic');
 
 %% Parameter Sweep Simulation
-% for w = 1:2
-%     switch w
-%         case 1
-%             atol = {10.^(-(2:6))};
-%             atol = repmat(atol,14,1);
-%             atol{3} = 10.^(-(2:5));
-%             for i = 1:3
-%                 atol{3+i} = atol{3};
-%             end
-% 
-%             filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSine.mat');
-%             NSteps    = cell(14,length(atol{1}));
-%             SimTime   = cell(14,length(atol{1}));
-%             CondLoss  = cell(14,length(atol{1}));
-%             CoreLoss  = cell(14,length(atol{1}));
-%             Aharmonic = cell(14,length(atol{1}));
-%             DiscErr   = cell(14,length(atol{1}));
-%             
-%             stator.SourceType = SourceTypes.VoltageSource;
-%             stator.ParallelPaths = nParallelPaths;
-%             stator.Circuits.ElectricalFrequency = f_e;
-%             stator.Circuits.HarmonicNumbers     = 1;
-%             stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
-%             stator.Circuits.HarmonicPhases      = 0;
-%         case 2
-%             atol = {10.^(-(1:5))};
-%             atol = repmat(atol,14,1);
-%             atol{3} = 10.^(-(1:4));
-%             for i = 1:3
-%                 atol{3+i} = atol{3};
-%             end
-%             
-%             filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSquare.mat');
-%             NSteps    = cell(14,length(atol{1}));
-%             SimTime   = cell(14,length(atol{1}));
-%             CondLoss  = cell(14,length(atol{1}));
-%             CoreLoss  = cell(14,length(atol{1}));
-%             Aharmonic = cell(14,length(atol{1}));
-%             DiscErr   = cell(14,length(atol{1}));
-%             
-%             h = 1:2:2001;
-%             V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
-%             stator.SourceType = SourceTypes.VoltageSource;
-%             stator.ParallelPaths = nParallelPaths;
-%             stator.Circuits.ElectricalFrequency = f_e;
-%             stator.Circuits.HarmonicNumbers     = h;
-%             stator.Circuits.HarmonicAmplitudes  = abs(V);
-%             stator.Circuits.HarmonicPhases      = angle(V);
-%     end
-%     pause(10);
-%     
-%     j = 1;
-%     for i = 1:numel(atol{j})
-%         simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 12,'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i), 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2]);
-%         solution = simulation.run;
-%         SimTime{j,i} = solution.Algorithm.SimulationTime;
-%         DiscErr{j,i} = solution.Algorithm.DiscretizationError;
-%         CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
-%         CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
-%         Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-%         NSteps{j,i} = numel(solution.Algorithm.Times)-1;
-%         clear solution;
-%         pause(10);
-%     end
-%     save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-%     pause(10);
-%     
-%     j = j+1;
-%     for i = 1:numel(atol{j})
-%         t = model.getTimePoints(NSteps{j-1,i});
-%         simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false, 'Strategy', 'plan', 'Plan', length(t)-1);
-%         %        	t = model.getTimePoints(NSteps{j-1,i,w});
-%         %         t(end) = [];
-%         %         D = exp(1i*2*pi*f_e*M*t);
-%         %     	x_init = real(X0{w}*D);
-%         %         solution = simulation.run(x_init);
-%         solution = simulation.run;
-%         SimTime{j,i} = solution.Algorithm.SimulationTime;
-%         DiscErr{j,i} = DiscErr{j-1,i};
-%         CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
-%         CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
-%         Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-%         NSteps{j,i} = numel(solution.Algorithm.Times)-1;
-%         clear solution;
-%         pause(10);
-%     end
-%     save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-%     pause(10);
-%     
-%     for stages = 1:3
-%         j = j + 1;
-%         for i = 1:numel(atol{j})
-%             simulation.configureAlgorithm('ShootingNewton',  'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
-%             %solution = simulation.run(x0{w}(:,1));
-%             solution = simulation.run;
-%             SimTime{j,i} = solution.Algorithm.SimulationTime;
-%             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
-%             CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
-%             CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
-%             Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-%             NSteps{j,i} = numel(solution.Algorithm.Times)-1;
-%             clear solution;
-%             pause(10);
-%         end
-%         save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-%         pause(10);
-%         
-%         j = j + 1;
-%         for i = 1:numel(atol{j})
-%             simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i}, 'RungeKuttaStages', stages, 'StoreDecompositions', true,'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
-%             %solution = simulation.run(x0{w}(:,1));
-%             solution = simulation.run;
-%             SimTime{j,i} = solution.Algorithm.SimulationTime;
-%             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
-%             CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
-%             CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
-%             Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-%             NSteps{j,i} = numel(solution.Algorithm.Times)-1;
-%             clear solution;
-%             pause(10);
-%         end
-%         save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-%         pause(10);
-%         
-%         j = j + 1;
-%         for i = 1:numel(atol{j})
-%             simulation.configureAlgorithm('TPFEM', 'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
-%             %             t = linspace(0,1/f_e,18+1);
-%             %             h = t(2)-t(1);
-%             %             [~,~,c] = TPFEM.getButcherTable(stages);
-%             %             tt = t + h * c(1);
-%             %             for l = 2:numel(c)
-%             %                 tt = [tt;t + h*c(l)];
-%             %             end
-%             %             tt = reshape(tt, 1, []);
-%             %             D = exp(1i*2*pi*f_e*M*tt);
-%             %             x_init = real(X0{w}*D);
-%             %             x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
-%             %             x_init = reshape(x_init,numel(c),[]);
-%             %             solution = simulation.run(x_init);
-%             solution = simulation.run;
-%             SimTime{j,i} = solution.Algorithm.SimulationTime;
-%             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
-%             CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
-%             CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
-%             Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-%             NSteps{j,i} = numel(solution.Algorithm.Times)-1;
-%             clear solution;
-%             pause(10);
-%         end
-%         save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-%         pause(10);
-%         
-%         j = j + 1;
-%         for i = 1:numel(atol{j})
-%             simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i},'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
-%             %             t = model.getTimePoints(NSteps{j-1,i,w});
-%             %             h = t(2)-t(1);
-%             %             [~,~,c] = TPFEM.getButcherTable(stages);
-%             %             tt = t + h * c(1);
-%             %             for l = 2:numel(c)
-%             %                 tt = [tt;t + h*c(l)];
-%             %             end
-%             %             tt = reshape(tt, 1, []);
-%             %             D = exp(1i*2*pi*f_e*M*tt);
-%             %             x_init = real(X0{w}*D);
-%             %             x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
-%             %             x_init = reshape(x_init,numel(c),[]);
-%             %             solution = simulation.run(x_init);
-%             solution = simulation.run;
-%             SimTime{j,i} = solution.Algorithm.SimulationTime;
-%             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
-%             CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
-%             CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
-%             Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
-%             NSteps{j,i} = numel(solution.Algorithm.Times)-1;
-%             clear solution;
-%             pause(10);
-%         end
-%         
-%         save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-%         pause(10);
-%     end
-% end
+for w = 1:2
+    switch w
+        case 1
+            atol = {10.^(-(2:6))};
+            atol = repmat(atol,14,1);
+            atol{3} = 10.^(-(2:5));
+            for i = 1:3
+                atol{3+i} = atol{3};
+            end
+
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSine1.mat');
+            NSteps    = cell(14,length(atol{1}));
+            SimTime   = cell(14,length(atol{1}));
+            CondLoss  = cell(14,length(atol{1}));
+            CoreLoss  = cell(14,length(atol{1}));
+            Aharmonic = cell(14,length(atol{1}));
+            DiscErr   = cell(14,length(atol{1}));
+            
+            stator.SourceType = SourceTypes.VoltageSource;
+            stator.ParallelPaths = nParallelPaths;
+            stator.Circuits.ElectricalFrequency = f_e;
+            stator.Circuits.HarmonicNumbers     = 1;
+            stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
+            stator.Circuits.HarmonicPhases      = 0;
+        case 2
+            atol = {10.^(-(1:5))};
+            atol = repmat(atol,14,1);
+            atol{3} = 10.^(-(1:4));
+            for i = 1:3
+                atol{3+i} = atol{3};
+            end
+            
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSquare1.mat');
+            NSteps    = cell(14,length(atol{1}));
+            SimTime   = cell(14,length(atol{1}));
+            CondLoss  = cell(14,length(atol{1}));
+            CoreLoss  = cell(14,length(atol{1}));
+            Aharmonic = cell(14,length(atol{1}));
+            DiscErr   = cell(14,length(atol{1}));
+            
+            h = 1:2:2001;
+            V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
+            stator.SourceType = SourceTypes.VoltageSource;
+            stator.ParallelPaths = nParallelPaths;
+            stator.Circuits.ElectricalFrequency = f_e;
+            stator.Circuits.HarmonicNumbers     = h;
+            stator.Circuits.HarmonicAmplitudes  = abs(V);
+            stator.Circuits.HarmonicPhases      = angle(V);
+    end
+    pause(10);
+    
+    j = 1;
+    for i = 1:numel(atol{j})
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 12,'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i), 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+        solution = simulation.run;
+        SimTime{j,i} = solution.Algorithm.SimulationTime;
+        DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+        CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+        CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+        Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+        NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+        clear solution;
+        pause(10);
+    end
+    save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+    pause(10);
+    
+    j = j+1;
+    for i = 1:numel(atol{j})
+        t = model.getTimePoints(NSteps{j-1,i});
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false, 'Strategy', 'plan', 'Plan', length(t)-1);
+        %        	t = model.getTimePoints(NSteps{j-1,i,w});
+        %         t(end) = [];
+        %         D = exp(1i*2*pi*f_e*M*t);
+        %     	x_init = real(X0{w}*D);
+        %         solution = simulation.run(x_init);
+        solution = simulation.run;
+        SimTime{j,i} = solution.Algorithm.SimulationTime;
+        DiscErr{j,i} = DiscErr{j-1,i};
+        CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+        CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+        Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+        NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+        clear solution;
+        pause(10);
+    end
+    save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+    pause(10);
+    
+    for stages = 1:3
+        j = j + 1;
+        for i = 1:numel(atol{j})
+            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
+            %solution = simulation.run(x0{w}(:,1));
+            solution = simulation.run;
+            SimTime{j,i} = solution.Algorithm.SimulationTime;
+            DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+            CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+            CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+            Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+            NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+            clear solution;
+            pause(10);
+        end
+        save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+        pause(10);
+        
+        j = j + 1;
+        for i = 1:numel(atol{j})
+            simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i}, 'RungeKuttaStages', stages, 'StoreDecompositions', true,'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
+            %solution = simulation.run(x0{w}(:,1));
+            solution = simulation.run;
+            SimTime{j,i} = solution.Algorithm.SimulationTime;
+            DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+            CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+            CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+            Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+            NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+            clear solution;
+            pause(10);
+        end
+        save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+        pause(10);
+        
+        j = j + 1;
+        for i = 1:numel(atol{j})
+            simulation.configureAlgorithm('TPFEM', 'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
+            %             t = linspace(0,1/f_e,18+1);
+            %             h = t(2)-t(1);
+            %             [~,~,c] = TPFEM.getButcherTable(stages);
+            %             tt = t + h * c(1);
+            %             for l = 2:numel(c)
+            %                 tt = [tt;t + h*c(l)];
+            %             end
+            %             tt = reshape(tt, 1, []);
+            %             D = exp(1i*2*pi*f_e*M*tt);
+            %             x_init = real(X0{w}*D);
+            %             x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
+            %             x_init = reshape(x_init,numel(c),[]);
+            %             solution = simulation.run(x_init);
+            solution = simulation.run;
+            SimTime{j,i} = solution.Algorithm.SimulationTime;
+            DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+            CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+            CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+            Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+            NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+            clear solution;
+            pause(10);
+        end
+        save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+        pause(10);
+        
+        j = j + 1;
+        for i = 1:numel(atol{j})
+            simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i},'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
+            %             t = model.getTimePoints(NSteps{j-1,i,w});
+            %             h = t(2)-t(1);
+            %             [~,~,c] = TPFEM.getButcherTable(stages);
+            %             tt = t + h * c(1);
+            %             for l = 2:numel(c)
+            %                 tt = [tt;t + h*c(l)];
+            %             end
+            %             tt = reshape(tt, 1, []);
+            %             D = exp(1i*2*pi*f_e*M*tt);
+            %             x_init = real(X0{w}*D);
+            %             x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
+            %             x_init = reshape(x_init,numel(c),[]);
+            %             solution = simulation.run(x_init);
+            solution = simulation.run;
+            SimTime{j,i} = solution.Algorithm.SimulationTime;
+            DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+            CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+            CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+            Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+            NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+            clear solution;
+            pause(10);
+        end
+        
+        save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+        pause(10);
+    end
+end
+
+%% Exact Solution
+for w = 1:2
+    switch w
+        case 1
+            atol = 10^-8;
+
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SineExact1.mat');
+            
+            stator.SourceType = SourceTypes.VoltageSource;
+            stator.ParallelPaths = nParallelPaths;
+            stator.Circuits.ElectricalFrequency = f_e;
+            stator.Circuits.HarmonicNumbers     = 1;
+            stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
+            stator.Circuits.HarmonicPhases      = 0;
+        case 2
+            atol = 10^-7;
+            
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SquareExact1.mat');
+            
+            h = 1:2:2001;
+            V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
+            stator.SourceType = SourceTypes.VoltageSource;
+            stator.ParallelPaths = nParallelPaths;
+            stator.Circuits.ElectricalFrequency = f_e;
+            stator.Circuits.HarmonicNumbers     = h;
+            stator.Circuits.HarmonicAmplitudes  = abs(V);
+            stator.Circuits.HarmonicPhases      = angle(V);
+    end
+    pause(10);
+    
+    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6,'StoreDecompositions', false, 'Adaptive', true, 'AdaptiveTolerance', atol, 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+    solution = simulation.run;
+    SimTime = solution.Algorithm.SimulationTime;
+    DiscErr = solution.Algorithm.DiscretizationError;
+    CondLoss = solution.getBulkVariableData('AverageConductionLosses');
+    CoreLoss = solution.getBulkVariableData('AverageCoreLosses');
+    Aharmonic = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+    NSteps = numel(solution.Algorithm.Times)-1;
+    clear solution;
+
+    save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+    pause(10);
+end
 
 %% Sim Time Factors
 stages = 3;
@@ -653,7 +697,7 @@ for w = 1:2
             case 1
                 atol = 1e-3;
 
-                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSine.mat');
+                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSine1.mat');
                 NSteps    = cell(8,8);
                 SimTime   = cell(8,8);
                 CondLoss  = cell(8,8);
@@ -670,7 +714,7 @@ for w = 1:2
             case 2
                 atol = 1e-3;
 
-                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSquare.mat');
+                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSquare1.mat');
                 NSteps    = cell(8,8);
                 SimTime   = cell(8,8);
                 CondLoss  = cell(8,8);
