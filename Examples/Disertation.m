@@ -509,7 +509,7 @@ for w = 1:2
     
     j = 1;
     for i = 1:numel(atol{j})
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 12,'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i), 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
         DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -526,12 +526,7 @@ for w = 1:2
     j = j+1;
     for i = 1:numel(atol{j})
         t = model.getTimePoints(NSteps{j-1,i});
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false, 'Strategy', 'plan', 'Plan', length(t)-1);
-        %        	t = model.getTimePoints(NSteps{j-1,i,w});
-        %         t(end) = [];
-        %         D = exp(1i*2*pi*f_e*M*t);
-        %     	x_init = real(X0{w}*D);
-        %         solution = simulation.run(x_init);
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false);
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
         DiscErr{j,i} = DiscErr{j-1,i};
@@ -549,7 +544,6 @@ for w = 1:2
         j = j + 1;
         for i = 1:numel(atol{j})
             simulation.configureAlgorithm('ShootingNewton',  'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
-            %solution = simulation.run(x0{w}(:,1));
             solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -583,19 +577,6 @@ for w = 1:2
         j = j + 1;
         for i = 1:numel(atol{j})
             simulation.configureAlgorithm('TPFEM', 'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
-            %             t = linspace(0,1/f_e,18+1);
-            %             h = t(2)-t(1);
-            %             [~,~,c] = TPFEM.getButcherTable(stages);
-            %             tt = t + h * c(1);
-            %             for l = 2:numel(c)
-            %                 tt = [tt;t + h*c(l)];
-            %             end
-            %             tt = reshape(tt, 1, []);
-            %             D = exp(1i*2*pi*f_e*M*tt);
-            %             x_init = real(X0{w}*D);
-            %             x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
-            %             x_init = reshape(x_init,numel(c),[]);
-            %             solution = simulation.run(x_init);
             solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -612,19 +593,6 @@ for w = 1:2
         j = j + 1;
         for i = 1:numel(atol{j})
             simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i},'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
-            %             t = model.getTimePoints(NSteps{j-1,i,w});
-            %             h = t(2)-t(1);
-            %             [~,~,c] = TPFEM.getButcherTable(stages);
-            %             tt = t + h * c(1);
-            %             for l = 2:numel(c)
-            %                 tt = [tt;t + h*c(l)];
-            %             end
-            %             tt = reshape(tt, 1, []);
-            %             D = exp(1i*2*pi*f_e*M*tt);
-            %             x_init = real(X0{w}*D);
-            %             x_init = mat2cell(x_init, size(x_init,1), ones(1,size(x_init,2)));
-            %             x_init = reshape(x_init,numel(c),[]);
-            %             solution = simulation.run(x_init);
             solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -741,10 +709,10 @@ for w = 1:2
                     t(end) = [];
                     D = exp(1i*2*pi*f_e*M*t);
                     x_init = real(X0{w}*D);
-                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 18, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol, 'Strategy', 'plan', 'Plan', [18,1,2,2,2,2,2,2,2,2,2,2,2,2]);
+                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 18, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol);
                     solution = simulation.run(x_init);
                 else
-                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol, 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol);
                     solution = simulation.run;
                 end
                 SimTime{j,i} = solution.Algorithm.SimulationTime;
@@ -763,10 +731,10 @@ for w = 1:2
                     t(end) = [];
                     D = exp(1i*2*pi*f_e*M*t);
                     x_init = real(X0{w}*D);
-                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t),'StoreDecompositions', store, 'Adaptive', false, 'Strategy', 'plan', 'Plan', 1);
+                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t),'StoreDecompositions', store, 'Adaptive', false);
                     solution = simulation.run(x_init);
                 else
-                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', store, 'Adaptive', false, 'Strategy', 'plan', 'Plan', length(t)-1);
+                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', store, 'Adaptive', false);
                     solution = simulation.run;
                 end
                 SimTime{j,i} = solution.Algorithm.SimulationTime;

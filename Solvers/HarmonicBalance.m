@@ -12,9 +12,6 @@ classdef HarmonicBalance < Solver
         MinSmoothingIterations = 1;
         MaxSmoothingIterations = 2;
         AdaptiveTolerance      = 1e-2;
-        
-        Strategy = 'target';
-        Plan = [];
     end
     
     methods
@@ -36,38 +33,12 @@ classdef HarmonicBalance < Solver
             W = blkdiag(getMatrix.PostProcessing.SobolevA);
             W = blkdiag(getMatrix.PostProcessing.Reduced2Full).' * W * blkdiag(getMatrix.PostProcessing.Reduced2Full);
             
-            t = model.getTimePoints(this.TimePoints);
-            
             %% Initialize
-            switch lower(this.Strategy)
-                case 'target'
-                    if nargin < 3
-                        plan = factor((numel(t) - 1)/6);
-                        plan = sort(plan, 'descend');
-                        plan = [3, 2, plan, 1];
-                    else
-                        plan = factor((numel(t) - 1) / size(x0,2));
-                        plan = sort(plan, 'descend');
-                        plan = [size(y0,2), plan, 1];
-                    end
-                case 'plan'
-                    plan = this.Plan;
-                    if nargin == 3 && plan(1) ~= size(x0,2)
-                        plan = [size(x0,2), plan];
-                    end
-                    if plan(end) ~= 1
-                        plan(end+1) = 1;
-                    end
-                otherwise
-                    error('MotorProtor:HarmonicBalance','Unknown strategy %s. Try "target" or "plan."',this.Strategy);
-            end
-            this.Plan = plan;
-            
-            Nt = plan(1);
+            t = model.getTimePoints(this.TimePoints);
+            t = linspace(0,t(end),this.TimePoints/2 + 1);
+            Nt = numel(t) - 1;
             Nh = ceil(Nt/2)-1;
-            
-            T = t(end);
-            t = linspace(0, T, Nt+1);
+            T  = t(end);
             
             %% Allocate
             tic
@@ -108,8 +79,9 @@ classdef HarmonicBalance < Solver
                 last = true;
             end
             
-            aIter = 1;
+            aIter   = 1;
             discErr = 1;
+            pConv   = 2;
             while first || ~last
                 if first || last
                     newtonTol = this.NewtonTolerance;
@@ -122,11 +94,10 @@ classdef HarmonicBalance < Solver
                 end
                 
                 %% Subdivide Time Interval
-                if discErr > 2 * this.AdaptiveTolerance
+                if discErr > this.AdaptiveTolerance
                     aIter = aIter + 1;
-                    last = last || (aIter == length(plan));
-                   	d = plan(aIter);
-                    
+                    d = 2;
+
                     if mod(Nt,2) == 0 && d > 1
                         X = [X(:,1:Nh), X(:,Nh+1) / 2, zeros(Nx, (d-1)*Nt-1), conj(X(:,Nh+1)) / 2, X(:,(Nh+2):Nt)];
                     else
@@ -167,7 +138,7 @@ classdef HarmonicBalance < Solver
                     R = zeros(Nx,Nt);
                     
                     nIter = 1;
-                    
+                    pConv = discErr;
                     if this.Verbose
                         display(sprintf('Refining grid to %d time-points\n', Nt));
                     end
@@ -294,7 +265,7 @@ classdef HarmonicBalance < Solver
                     end
                     discErr = discErr / normErr;
                     
-                    if this.Adaptive && (discErr < this.AdaptiveTolerance * 2) && ~(first && nIter == 1)
+                    if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nIter == 1)
                         newtonTol = this.NewtonTolerance;
                         minNewton = this.MinNewtonIterations;
                         maxNewton = this.MaxNewtonIterations;
@@ -307,6 +278,7 @@ classdef HarmonicBalance < Solver
                     
                    	nIter = nIter + 1;
                 end
+                pConv = (log(pConv) - log(discErr)) / log(d);
                 first = first && ~first;
             end
             this.SimulationTime = toc;

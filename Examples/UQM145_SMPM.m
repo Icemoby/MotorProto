@@ -128,11 +128,11 @@ mesh = simulation.Mesh;
 
 %% Set Excitation
 %% Voltage Source
-% h = 1;
-% V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
+h = 1;
+V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
 
-h = 1:2:2001;
-V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/120000)));
+% h = 1:2:2001;
+% V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/120000)));
 
 stator.SourceType = SourceTypes.VoltageSource;
 stator.ParallelPaths = nParallelPaths;
@@ -158,11 +158,11 @@ stator.Circuits.HarmonicPhases      = angle(V);
 % stator.Circuits.HarmonicAmplitudes  = abs(I);
 % stator.Circuits.HarmonicPhases      = angle(I);
 
-nTimePoints = 18;
+nTimePoints = 6;
 %simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
-%simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true,'Adaptive',true,'AdaptiveTolerance',1e-2);
-simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-5);
-%simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', true, 'AdaptiveTolerance', 1e-4, 'Strategy','plan','Plan',[3,2,2,2,2,2,2,2,2,2]);
+%simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true,'Adaptive',true,'AdaptiveTolerance',1e-3);
+%simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-4);
+simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', true, 'AdaptiveTolerance', 1e-6);
 
 model.build;
 mesh.build;
@@ -193,19 +193,19 @@ solution = simulation.run;
 % solution.plot('Current','Time');
 % solution.plot('Current','Harmonic');
 % 
-% t = solution.Algorithm.Times;
-% % figure;plot(reshape([t(1:end-1);t(2:end)],1,[]),reshape([diff(t);diff(t)],1,[]));
-% %hold on;scatter(t(2:end),diff(t));
-% %figure;hist(diff(t))
-% % i = solution.getBulkVariableData('Current','Time');
-% % i = i{1};
-% % figure;hold on;
-% % plot(t,i{1});
-% % scatter(t,i{1},'ob');
-% % plot(t,i{2},'g--');
-% % scatter(t,i{2},'og');
-% % plot(t,i{3},'r-.');
-% % scatter(t,i{3},'or');
+t = solution.Algorithm.Times;
+figure;plot(reshape([t(1:end-1);t(2:end)],1,[]),reshape([diff(t);diff(t)],1,[]));
+hold on;scatter(t(2:end),diff(t));
+figure;hist(diff(t))
+i = solution.getBulkVariableData('Current','Time');
+i = i{1};
+figure;hold on;
+plot(t,i{1});
+scatter(t,i{1},'ob');
+plot(t,i{2},'g--');
+scatter(t,i{2},'og');
+plot(t,i{3},'r-.');
+scatter(t,i{3},'or');
 % % 
 % % legend('A','B','C');
 % % xlabel('Time [s]');

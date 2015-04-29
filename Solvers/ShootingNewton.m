@@ -218,7 +218,7 @@ properties:
                     shootingRes = norm(r) / norm(cell2mat(y(:,Nt+1)));
 
                     %% Calculate Error Estimates
-                    [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
+                    [ec, discErr] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
                         shootingTol = this.ShootingTolerance;
                         minShooting = this.MinShootingIterations;
@@ -261,8 +261,10 @@ properties:
                 %% Refine Grid
                 if this.Adaptive && ~last
                     [s, atol] = this.rkRefine(t, atol, this.AdaptiveTolerance, ec, pe, 2, first);
-                  	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
-                    Nt = length(t) - 1;
+                  	[y, y_t, t] = this.rkInterpolate(t, y(:,2:end), y_t(:,2:end), c, bu, s);
+                 	y   = cat(2,y(:,end),y);
+                    y_t = cat(2,y_t(:,end),y_t);
+                    Nt  = length(t) - 1;
                     
                     if this.Verbose
                         display(sprintf('\nRefining grid to %d time-steps', Nt));
@@ -412,7 +414,7 @@ properties:
                     shootingRes = norm(r) / norm(cell2mat(y(:,Nt+1)));
 
                     %% Calculate Error Estimates
-                    [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
+                    [ec, discErr] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
                         shootingTol = this.ShootingTolerance;
                         minShooting = this.MinShootingIterations;
@@ -463,7 +465,9 @@ properties:
                 %% Refine Grid
                 if this.Adaptive && ~last
                     [s, atol] = this.rkRefine(t, atol, this.AdaptiveTolerance, ec, pe, 2, first);
-                  	[y, y_t, t] = this.rkInterpolate(t, y, y_t, c, bu, s);
+                  	[y, y_t, t] = this.rkInterpolate(t, y(:,2:end), y_t(:,2:end), c, bu, s);
+                    y  = cat(2,y(:,end),y);
+                    y_t = cat(2,y_t(:,end),y_t);
                     Nt = length(t) - 1;
                     
                     if this.Verbose

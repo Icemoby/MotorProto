@@ -267,45 +267,115 @@ properties:
                 hc(end) = hc(1);
 
                 %% Calculate New Time Points
+%                 t1 = t(1:(end-1));
+%                 t2 = t(2:end);
+% 
+%                 minax = [];
+%                 s = [];
+%                 imin = [];
+%                 imax = [];
+%                 for i = 2:(Nt-1)
+%                     j = i-1;
+%                     k = i+1;
+%                     if (hc(i) <= hc(j)) && (hc(i) < hc(k))
+%                         s     = cat(2,s,t(i));
+%                         minax = cat(2,minax,-1);
+%                         imin  = cat(2,imin,i);
+%                     elseif (hc(i) >= hc(j)) && (hc(i) > hc(k))
+%                         s     = cat(2,s,t(i));
+%                         minax = cat(2,minax,1);
+%                         imax  = cat(2,imax,i);
+%                     end
+%                 end
+%                 I = find(s > 0);
+%                 if minax(I(1)) == -1
+%                     I(1) = [];
+%                 end
+%                 s = s(I);
+%                 minax = minax(I);
+%                 
+%                 I = (s <= s(1) + T/6*(1+sqrt(eps)));
+%                 s = s(I);
+%                 minax = minax(I);
+%                 assert(minax(end) == 1);
+%                 
+%                 m = length(s);
+%                 
+%                 for k = 1:2:m
+%                     if k < m %forward from max s(k) to min s(k+1)
+%                         sf = [];
+%                         sk = s(k);
+%                         while sk < s(k+1)
+%                             j = find((t1 <= sk) & (sk < t2)) + 1;
+%                             i = j;
+%                             while t(i)-sk  < hc(i)
+%                                 i = i + 1;
+%                             end
+%                             if t(i-1)-sk > hc(i)
+%                                 i = i - 1;
+%                             end
+%                             hf = min(hc(j:i));
+%                             sk = sk + hf;
+%                             sf = cat(2,sf,sk);
+%                         end
+%                         sf = (sf-s(k)) * (s(k+1)-s(k)) / (sf(end)-s(k)) + s(k);
+%                         sf(end) = [];
+%                         s = cat(2,s,sf);
+%                     end
+%                     
+%                     if k > 1 %backward from max s(k) to min s(k-1)
+%                         sb = [];
+%                         sk = s(k);
+%                         while sk > s(k-1)
+%                             j = find((t1 < sk) & (sk <= t2)) + 1;
+%                             i = j;
+%                             while sk-t(i-1) < hc(i)
+%                                 i = i - 1;
+%                             end
+%                             if sk-t(i) > hc(i)
+%                                 i = i + 1;
+%                             end
+%                             hb = min(hc(i:j));
+%                             sk = sk - hb;
+%                             sb = cat(2,sb,sk);
+%                         end
+%                         sb = (sb - s(k)) * (s(k) - s(k-1)) / (s(k)-sb(end)) + s(k);
+%                         sb(end) = [];
+%                         s = cat(2,s,sb);
+%                     end
+%                 end
+                
                 t1 = t(1:(end-1));
                 t2 = t(2:end);
-
-                minax = [];
-                s = [];
-                imin = [];
-                imax = [];
+                interval = zeros(0,2);
+                minax    = zeros(0,2);
+                
                 for i = 2:(Nt-1)
                     j = i-1;
                     k = i+1;
                     if (hc(i) <= hc(j)) && (hc(i) < hc(k))
-                        s     = cat(2,s,t(i));
-                        minax = cat(2,minax,-1);
-                        imin  = cat(2,imin,i);
+                        if ~isempty(interval) && (interval(end,2) ~= j)
+                            interval(end+1,:) = [interval(end,2),j];
+                            minax(end+1,:)    = [1,-1];
+                        end
+                        interval(end+1,:) = [j,i];
+                        minax(end+1,:)    = [-1,-1];
                     elseif (hc(i) >= hc(j)) && (hc(i) > hc(k))
-                        s     = cat(2,s,t(i));
-                        minax = cat(2,minax,1);
-                        imax  = cat(2,imax,i);
+                        if ~isempty(interval)
+                            interval(end+1,:) = [interval(end,2),i];
+                            minax(end+1,:)    = [minax(end,2),1];
+                        end
                     end
                 end
-                I = find(s > 0);
-                if minax(I(1)) == -1
-                    I(1) = [];
-                end
-                s = s(I);
-                minax = minax(I);
                 
-                I = (s <= s(1) + T/6*(1+sqrt(eps)));
-                s = s(I);
-                minax = minax(I);
-                assert(minax(end) == 1);
-                
-                m = length(s);
-                
-                for k = 1:2:m
-                    if k < m %forward from max s(k) to min s(k+1)
+                s = t(unique(interval));
+                for l = 1:size(interval,1)
+                    k1 = interval(l,1);
+                    k2 = interval(l,2);
+                    if minax(l,1) >= minax(l,2) %forward from max t(k1) to min t(k2)
                         sf = [];
-                        sk = s(k);
-                        while sk < s(k+1)
+                        sk = t(k1);
+                        while sk < t(k2)
                             j = find((t1 <= sk) & (sk < t2)) + 1;
                             i = j;
                             while t(i)-sk  < hc(i)
@@ -318,15 +388,13 @@ properties:
                             sk = sk + hf;
                             sf = cat(2,sf,sk);
                         end
-                        sf = (sf-s(k)) * (s(k+1)-s(k)) / (sf(end)-s(k)) + s(k);
+                        sf = (sf-t(k1)) * (t(k2)-t(k1)) / (sf(end)-t(k1)) + t(k1);
                         sf(end) = [];
                         s = cat(2,s,sf);
-                    end
-                    
-                    if k > 1 %backward from max s(k) to min s(k-1)
+                    else %backward from max t(k2) to min t(k1)
                         sb = [];
-                        sk = s(k);
-                        while sk > s(k-1)
+                        sk = t(k2);
+                        while sk > t(k1)
                             j = find((t1 < sk) & (sk <= t2)) + 1;
                             i = j;
                             while sk-t(i-1) < hc(i)
@@ -339,12 +407,16 @@ properties:
                             sk = sk - hb;
                             sb = cat(2,sb,sk);
                         end
-                        sb = (sb - s(k)) * (s(k) - s(k-1)) / (s(k)-sb(end)) + s(k);
+                        sb = (sb - t(k2)) * (t(k2) - t(k1)) / (t(k2)-sb(end)) + t(k2);
                         sb(end) = [];
                         s = cat(2,s,sb);
                     end
                 end
-
+                s = sort(s);
+                I = (s <= (s(1) + T/6*(1+sqrt(eps))));
+                s = s(I);
+                
+                %% Copy
                 s = sort(s);
                 s(end) = [];
                 s = [s,s+T/6,s+T/3,s+T/2,s+2*T/3,s+5*T/6];
