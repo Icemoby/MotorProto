@@ -35,7 +35,7 @@ classdef HarmonicBalance < Solver
             
             %% Initialize
             t = model.getTimePoints(this.TimePoints);
-            t = linspace(0,t(end),this.TimePoints/2 + 1);
+            t = linspace(0,t(end),this.TimePoints/3 + 1);
             Nt = numel(t) - 1;
             Nh = ceil(Nt/2)-1;
             T  = t(end);
@@ -96,7 +96,7 @@ classdef HarmonicBalance < Solver
                 %% Subdivide Time Interval
                 if discErr > this.AdaptiveTolerance
                     aIter = aIter + 1;
-                    d = 2;
+                    d = 3;
 
                     if mod(Nt,2) == 0 && d > 1
                         X = [X(:,1:Nh), X(:,Nh+1) / 2, zeros(Nx, (d-1)*Nt-1), conj(X(:,Nh+1)) / 2, X(:,(Nh+2):Nt)];
@@ -278,12 +278,12 @@ classdef HarmonicBalance < Solver
                     
                    	nIter = nIter + 1;
                 end
-                pConv = (log(pConv) - log(discErr)) / log(d);
+                this.getTimeMappingHarmonics(X,t,h,W);
                 first = first && ~first;
             end
             this.SimulationTime = toc;
             this.DiscretizationError = discErr;
-            
+
            	if this.Verbose
                 display(sprintf('Simulation Time = %0.3g seconds\n', this.SimulationTime));
             end
@@ -424,43 +424,59 @@ classdef HarmonicBalance < Solver
             end
         end
         
-        function [l, l_t] = getTimeMappingHarmonics(X, t, h, W)
-            T  = t(end);
+        function [s, l_t, L, L_t, k] = getTimeMappingHarmonics(X, t, h, W)
+            T  = t(end)-t(1);
+            M  = 10;
             Nt = length(h);
             X_t = X;
             for i = 1:Nt
                 X_t(:,i) = (1i*h(i))^2*X_t(:,i);
             end
-            x_t = ifft(X_t,[],2,'symmetric') * Nt;
             
-            nxp = zeros(1,Nt);
-            for i = 1:Nt
-                nxp(i) = sqrt(x_t(:,i)'*W*x_t(:,i));
+            %% Calculate Time-Map Derivative Harmonics
+            l_t = zeros(1,M*Nt);
+            for i = 1:(M*Nt)
+                ti = (i-1) / (M*Nt) * T;
+                x_t = real(X_t*exp(1i*h.'*ti));
+                l_t(i) = 1/sqrt(x_t.'*W*x_t);
             end
-            NXP = fft(nxp) / Nt;
-            NXP = [NXP(1:(Nt/2)),NXP(Nt/2+1)/2,zeros(1,1*Nt),NXP(Nt/2+1)/2,NXP((Nt/2+2):end)];
-            Nh  = 2*Nt + 1;
-            Nh2 = 1*Nt;
-            nxp = ifft(NXP) * Nh;
+            L_t = fft(l_t,[],2) / (M*Nt);
+            L_t = L_t / L_t(1);
+            L_t([1 end/2+1]) = 0;
+            l_t = ifft(L_t,[],2,'symmetric') * (M*Nt);
             
-            nxp = 1 ./ nxp;
-            NXP = fft(nxp,[],2) / Nh;
-            NXP = NXP.' / NXP(1);
-            NXP = NXP .* sinc(2*[0:(Nh2) (Nh2):-1:1] / Nh2).';
-            NXP(1) = [];
-            NXP(1:Nh2) = NXP(1:Nh2) ./ (1i*2*pi*(1:Nh2).');
-            NXP((Nh2+1):end) = NXP((Nh2+1):end) ./ (-1i*2*pi*(1:Nh2).');
+            figure(1);clf;
+            plot(l_t);
             
-            u   = linspace(0,1,2*Nt).';
-            u(end) = [];
+            %% Calculate Time-Map Harmonics
+            k = 1i*2*pi/T*[0:(M*Nt/2-1) 0 (-M*Nt/2+1):-1];
+            L = L_t ./ k;
+            L([1 end/2+1]) = 0;
+            s = (0:(M*Nt-1)) / (M*Nt) * T;
+            l = s + ifft(L,[],2,'symmetric') * (M*Nt);
             
-            D = exp(1i*2*pi*u*[1:Nh2,-Nh2:-1]);
+            figure(2);clf;
+            plot(s,l);
             
-            l   = T*real(u+D*NXP);
-            l_t = T*real(1+D*(NXP.*(1i*2*pi*[1:Nh2,-Nh2:-1].')));
+            %% Calculate 2Nt Time Points Corresponding to Equal Spaced Pseudo-Times
+            s = zeros(1,2*Nt+1);
+            for i = 1:(2*Nt+1)
+                tau_i = (i-1)*T/(2*Nt);
+                if i > 1
+                    s(i) = s(i-1) + T/(2*Nt);
+                else
+                    s(i) = tau_i;
+                end
+                r = tau_i - s(i) - real(L*exp(k.'*s(i)));
+                while abs(r) > T/(2*Nt)*sqrt(eps)
+                    J = -1-real(L_t*exp(k.'*s(i)));
+                    s(i) = s(i) - J \ r;
+                    r = tau_i - s(i) - real(L*exp(k.'*s(i)));
+                end
+            end
             
-%             figure;plot(u,l);
-%             figure;plot(u,l_t);
+            l_t = 1+real(L_t*exp(k.'*s));
+            figure(3);plot(s,l_t);
         end
         
         function solverOut = configureSolver(varargin)
