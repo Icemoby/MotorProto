@@ -526,7 +526,7 @@ for w = 1:2
     j = j+1;
     for i = 1:numel(atol{j})
         t = model.getTimePoints(NSteps{j-1,i});
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false, 'Strategy');
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1, 'StoreDecompositions', true, 'Adaptive', false);
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
         DiscErr{j,i} = DiscErr{j-1,i};

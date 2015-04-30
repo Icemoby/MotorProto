@@ -35,7 +35,7 @@ classdef HarmonicBalance < Solver
             
             %% Initialize
             t = model.getTimePoints(this.TimePoints);
-            t = linspace(0,t(end),this.TimePoints/3 + 1);
+            t = linspace(0,t(end),this.TimePoints/2 + 1);
             Nt = numel(t) - 1;
             Nh = ceil(Nt/2)-1;
             T  = t(end);
