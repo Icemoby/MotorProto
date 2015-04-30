@@ -132,7 +132,7 @@ properties:
             end
             
             while first || ~last
-                if first || last
+                if first% || last
                     newtonTol = this.NewtonTolerance;
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
@@ -226,9 +226,9 @@ properties:
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nNewton == 1)
-                        newtonTol = this.NewtonTolerance;
-                        minNewton = this.MinNewtonIterations;
-                        maxNewton = this.MaxNewtonIterations;
+%                         newtonTol = this.NewtonTolerance;
+%                         minNewton = this.MinNewtonIterations;
+%                         maxNewton = this.MaxNewtonIterations;
                         last = true;
                     end
                     
@@ -278,7 +278,7 @@ properties:
             end
             
             while first || ~last
-                if first || last
+                if first% || last
                     newtonTol = this.NewtonTolerance;
                     minNewton = this.MinNewtonIterations;
                     maxNewton = this.MaxNewtonIterations;
@@ -397,9 +397,9 @@ properties:
                   	%% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y, y_t, be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nNewton == 1)
-                       	newtonTol = this.NewtonTolerance;
-                        minNewton = this.MinNewtonIterations;
-                        maxNewton = this.MaxNewtonIterations;
+%                        	newtonTol = this.NewtonTolerance;
+%                         minNewton = this.MinNewtonIterations;
+%                         maxNewton = this.MaxNewtonIterations;
                         last = true;
                     end
                     

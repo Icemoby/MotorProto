@@ -836,6 +836,43 @@ for w = 1:2
                 save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
                 pause(10);
                 i = i + 1;
+                
+                %% Transient Analysis
+                if ~store
+                   	simulation.configureAlgorithm('ShootingNewton',  'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', store, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', atol,'MaxGMRESIterations',0);
+                    if init
+                        solution = simulation.run(x0{w}(:,1));
+                    else
+                        solution = simulation.run;
+                    end
+                    SimTime{j,i} = solution.Algorithm.SimulationTime;
+                    DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+                    CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+                    CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+                    Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+                    NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+
+                    clear solution;
+                    pause(10);
+                    j = j + 1;
+
+                    simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i}, 'RungeKuttaStages', stages, 'StoreDecompositions', store, 'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol,'MaxGMRESIterations',0);
+                    if init
+                        solution = simulation.run(x0{w}(:,1));
+                    else
+                        solution = simulation.run;
+                    end
+                    SimTime{j,i} = solution.Algorithm.SimulationTime;
+                    DiscErr{j,i} = solution.Algorithm.DiscretizationError;
+                    CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
+                    CoreLoss{j,i} = solution.getBulkVariableData('AverageCoreLosses');
+                    Aharmonic{j,i} = solution.getContinuumVariableData('A','Harmonic',[0,1]);
+                    NSteps{j,i} = numel(solution.Algorithm.Times)-1;
+
+                    clear solution;
+                    pause(10);
+                    j = j + 1;
+                end
             end
         end
     end

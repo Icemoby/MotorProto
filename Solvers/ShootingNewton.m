@@ -144,7 +144,7 @@ properties:
             end
             
             while first || ~last
-                if first || last
+                if first% || last
                     shootingTol = this.ShootingTolerance;
                     minShooting = this.MinShootingIterations;
                     maxShooting = this.MaxShootingIterations;
@@ -220,9 +220,9 @@ properties:
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
-                        shootingTol = this.ShootingTolerance;
-                        minShooting = this.MinShootingIterations;
-                        maxShooting = this.MaxShootingIterations;
+%                         shootingTol = this.ShootingTolerance;
+%                         minShooting = this.MinShootingIterations;
+%                         maxShooting = this.MaxShootingIterations;
                         last = true;
                     end
                     
@@ -252,6 +252,7 @@ properties:
                         end
                     elseif (this.MaxGMRESIterations == 0) || (minShooting >= nShooting)
                         y(:,1)   = y(:,Nt+1);
+                        ys0      = y{Ns,Nt};
                         y_t(:,1) = y_t(:,Nt+1);
                     end
 
@@ -316,7 +317,7 @@ properties:
                     end
                 end
                 
-                if first || last
+                if first% || last
                     shootingTol = this.ShootingTolerance;
                     minShooting = this.MinShootingIterations;
                     maxShooting = this.MaxShootingIterations;
@@ -416,9 +417,9 @@ properties:
                     %% Calculate Error Estimates
                     [ec, discErr] = this.rkErrorCoefficients(t, y(:,2:end), y_t(:,2:end), be, pe, getMatrix);
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nShooting == 1)
-                        shootingTol = this.ShootingTolerance;
-                        minShooting = this.MinShootingIterations;
-                        maxShooting = this.MaxShootingIterations;
+%                         shootingTol = this.ShootingTolerance;
+%                         minShooting = this.MinShootingIterations;
+%                         maxShooting = this.MaxShootingIterations;
                         last = true;
                     end
                     
@@ -456,6 +457,7 @@ properties:
                         end
                     elseif (this.MaxGMRESIterations == 0) || (minShooting >= nShooting)
                         y(:,1)   = y(:,Nt+1);
+                        ys0      = y{Ns,Nt};
                         y_t(:,1) = y_t(:,Nt+1);
                     end
                     

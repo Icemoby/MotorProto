@@ -12,7 +12,7 @@ classdef Iron < NonlinearMaterial
         CoreLossData = [40; 1.3; 1.8];
 
         RemanentFluxDensity = 0;
-        Conductivity = 0;
+        Conductivity = 1e7;
         Density = 7874;
     end
 end
