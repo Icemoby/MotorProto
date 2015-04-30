@@ -576,6 +576,7 @@ for w = 1:2
         j = j + 1;
         for i = 1:numel(atol{j})
             simulation.configureAlgorithm('TPFEM', 'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
+            solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
             CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
