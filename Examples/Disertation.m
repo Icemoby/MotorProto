@@ -466,7 +466,7 @@ for w = 1:2
                 atol{3+i} = atol{3};
             end
 
-            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSine1.mat');
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSine2.mat');
             NSteps    = cell(14,length(atol{1}));
             SimTime   = cell(14,length(atol{1}));
             CondLoss  = cell(14,length(atol{1}));
@@ -488,7 +488,7 @@ for w = 1:2
                 atol{3+i} = atol{3};
             end
             
-            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSquare1.mat');
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SteadyStateShootoutSquare2.mat');
             NSteps    = cell(14,length(atol{1}));
             SimTime   = cell(14,length(atol{1}));
             CondLoss  = cell(14,length(atol{1}));
@@ -509,7 +509,7 @@ for w = 1:2
     
     j = 1;
     for i = 1:numel(atol{j})
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6,'StoreDecompositions', true, 'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
         DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -526,7 +526,7 @@ for w = 1:2
     j = j+1;
     for i = 1:numel(atol{j})
         t = model.getTimePoints(NSteps{j-1,i});
-        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false);
+        simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', length(t)-1,'StoreDecompositions', true, 'Adaptive', false, 'Strategy');
         solution = simulation.run;
         SimTime{j,i} = solution.Algorithm.SimulationTime;
         DiscErr{j,i} = DiscErr{j-1,i};
@@ -560,7 +560,6 @@ for w = 1:2
         j = j + 1;
         for i = 1:numel(atol{j})
             simulation.configureAlgorithm('ShootingNewton',  'TimePoints', NSteps{j-1,i}, 'RungeKuttaStages', stages, 'StoreDecompositions', true,'SymmetricJacobian', true, 'Adaptive', false, 'AdaptiveTolerance', atol{j}(i));
-            %solution = simulation.run(x0{w}(:,1));
             solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
@@ -577,7 +576,6 @@ for w = 1:2
         j = j + 1;
         for i = 1:numel(atol{j})
             simulation.configureAlgorithm('TPFEM', 'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', true, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol{j}(i));
-            solution = simulation.run;
             SimTime{j,i} = solution.Algorithm.SimulationTime;
             DiscErr{j,i} = solution.Algorithm.DiscretizationError;
             CondLoss{j,i} = solution.getBulkVariableData('AverageConductionLosses');
@@ -615,7 +613,7 @@ for w = 1:2
         case 1
             atol = 10^-8;
 
-            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SineExact1.mat');
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SineExact2.mat');
             
             stator.SourceType = SourceTypes.VoltageSource;
             stator.ParallelPaths = nParallelPaths;
@@ -626,7 +624,7 @@ for w = 1:2
         case 2
             atol = 10^-7;
             
-            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SquareExact1.mat');
+            filename = sprintf('C:\\Users\\Jason\\Dropbox\\SquareExact2.mat');
             
             h = 1:2:2001;
             V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
@@ -639,7 +637,7 @@ for w = 1:2
     end
     pause(10);
     
-    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6,'StoreDecompositions', false, 'Adaptive', true, 'AdaptiveTolerance', atol, 'Strategy', 'plan', 'Plan', [3,2,2,2,2,2,2,2,2,2,2,2,2,2,2]);
+    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6,'StoreDecompositions', false, 'Adaptive', true, 'AdaptiveTolerance', atol);
     solution = simulation.run;
     SimTime = solution.Algorithm.SimulationTime;
     DiscErr = solution.Algorithm.DiscretizationError;
@@ -657,6 +655,12 @@ end
 stages = 3;
 for w = 1:2
     i = 1;
+    NSteps    = cell(8,8);
+    SimTime   = cell(8,8);
+    CondLoss  = cell(8,8);
+    CoreLoss  = cell(8,8);
+    Aharmonic = cell(8,8);
+    DiscErr   = cell(8,8);
     for bitype = [BackironTypes.Laminated, BackironTypes.Solid]
         rotor.BackironType = bitype;
         model.build;
@@ -665,13 +669,7 @@ for w = 1:2
             case 1
                 atol = 1e-3;
 
-                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSine1.mat');
-                NSteps    = cell(8,8);
-                SimTime   = cell(8,8);
-                CondLoss  = cell(8,8);
-                CoreLoss  = cell(8,8);
-                Aharmonic = cell(8,8);
-                DiscErr   = cell(8,8);
+                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSine2.mat');
 
                 stator.SourceType = SourceTypes.VoltageSource;
                 stator.ParallelPaths = nParallelPaths;
@@ -682,13 +680,7 @@ for w = 1:2
             case 2
                 atol = 1e-3;
 
-                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSquare1.mat');
-                NSteps    = cell(8,8);
-                SimTime   = cell(8,8);
-                CondLoss  = cell(8,8);
-                CoreLoss  = cell(8,8);
-                Aharmonic = cell(8,8);
-                DiscErr   = cell(8,8);
+                filename = sprintf('C:\\Users\\Jason\\Dropbox\\SimTimeFactorsSquare2.mat');
 
                 h = 1:2:2001;
                 V = 1i*340 / 2 * 4/pi./h .* abs(1./(1+(1i*h*f_e/12000))).*exp(-1i*pi*h/2);
@@ -813,7 +805,7 @@ for w = 1:2
 
                 simulation.configureAlgorithm('TPFEM', 'TimePoints', NSteps{j-1,i},'RungeKuttaStages', stages, 'StoreDecompositions', store, 'SymmetricJacobian', true,'Adaptive', false, 'AdaptiveTolerance', atol);
                 if init
-                    t = model.getTimePoints(NSteps{j-1,i,w});
+                    t = model.getTimePoints(NSteps{j-1,i});
                     h = t(2)-t(1);
                     [~,~,c] = TPFEM.getButcherTable(stages);
                     tt = t + h * c(1);

@@ -81,7 +81,6 @@ classdef HarmonicBalance < Solver
             
             aIter   = 1;
             discErr = 1;
-            pConv   = 2;
             while first || ~last
                 if first || last
                     newtonTol = this.NewtonTolerance;
@@ -96,7 +95,7 @@ classdef HarmonicBalance < Solver
                 %% Subdivide Time Interval
                 if discErr > this.AdaptiveTolerance
                     aIter = aIter + 1;
-                    d = 3;
+                    d = 2;
 
                     if mod(Nt,2) == 0 && d > 1
                         X = [X(:,1:Nh), X(:,Nh+1) / 2, zeros(Nx, (d-1)*Nt-1), conj(X(:,Nh+1)) / 2, X(:,(Nh+2):Nt)];
@@ -138,7 +137,6 @@ classdef HarmonicBalance < Solver
                     R = zeros(Nx,Nt);
                     
                     nIter = 1;
-                    pConv = discErr;
                     if this.Verbose
                         display(sprintf('Refining grid to %d time-points\n', Nt));
                     end
@@ -184,7 +182,7 @@ classdef HarmonicBalance < Solver
                 alpha = sqrt(alpha);
                 beta  = sqrt(beta);
                 
-                if this.Adaptive && (discErr <  2 * this.AdaptiveTolerance) && ~(first && nIter == 1)
+                if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nIter == 1)
                     last = true;
                     newtonTol = this.NewtonTolerance;
                     minNewton = this.MinNewtonIterations;
@@ -278,7 +276,7 @@ classdef HarmonicBalance < Solver
                     
                    	nIter = nIter + 1;
                 end
-                this.getTimeMappingHarmonics(X,t,h,W);
+                %this.getTimeMappingHarmonics(X,t,h,W);
                 first = first && ~first;
             end
             this.SimulationTime = toc;
@@ -443,20 +441,11 @@ classdef HarmonicBalance < Solver
             L_t = fft(l_t,[],2) / (M*Nt);
             L_t = L_t / L_t(1);
             L_t([1 end/2+1]) = 0;
-            l_t = ifft(L_t,[],2,'symmetric') * (M*Nt);
-            
-            figure(1);clf;
-            plot(l_t);
             
             %% Calculate Time-Map Harmonics
             k = 1i*2*pi/T*[0:(M*Nt/2-1) 0 (-M*Nt/2+1):-1];
             L = L_t ./ k;
             L([1 end/2+1]) = 0;
-            s = (0:(M*Nt-1)) / (M*Nt) * T;
-            l = s + ifft(L,[],2,'symmetric') * (M*Nt);
-            
-            figure(2);clf;
-            plot(s,l);
             
             %% Calculate 2Nt Time Points Corresponding to Equal Spaced Pseudo-Times
             s = zeros(1,2*Nt+1);
@@ -476,7 +465,6 @@ classdef HarmonicBalance < Solver
             end
             
             l_t = 1+real(L_t*exp(k.'*s));
-            figure(3);plot(s,l_t);
         end
         
         function solverOut = configureSolver(varargin)
