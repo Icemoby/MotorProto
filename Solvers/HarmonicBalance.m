@@ -45,7 +45,7 @@ classdef HarmonicBalance < Solver
             if nargin < 3
                 X = zeros(Nx, Nt);
             else
-                X = fft(x0,[],2) / Nt;
+                X = fft(x0,[],2) / size(x0,2);
             end
                 
             C = getMatrix.C(0,1,1);
@@ -264,9 +264,9 @@ classdef HarmonicBalance < Solver
                     discErr = discErr / normErr;
                     
                     if this.Adaptive && (discErr < this.AdaptiveTolerance) && ~(first && nIter == 1)
-                        newtonTol = this.NewtonTolerance;
-                        minNewton = this.MinNewtonIterations;
-                        maxNewton = this.MaxNewtonIterations;
+%                         newtonTol = this.NewtonTolerance;
+%                         minNewton = this.MinNewtonIterations;
+%                         maxNewton = this.MaxNewtonIterations;
                         last = true;
                     end
                     

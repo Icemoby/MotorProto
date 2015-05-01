@@ -698,11 +698,11 @@ for w = 1:2
             for store = [true,false]
                 j = 1;
                 if init
-                    t = model.getTimePoints(18);
+                    t = model.getTimePoints(6);
                     t(end) = [];
                     D = exp(1i*2*pi*f_e*M*t);
                     x_init = real(X0{w}*D);
-                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 18, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol);
+                    simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol);
                     solution = simulation.run(x_init);
                 else
                     simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 6, 'StoreDecompositions', store, 'Adaptive', true, 'AdaptiveTolerance', atol);
@@ -775,7 +775,7 @@ for w = 1:2
                 pause(10);
                 j = j + 1;
                 
-                simulation.configureAlgorithm('TPFEM', 'TimePoints', 18,'RungeKuttaStages', stages, 'StoreDecompositions', store, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol);
+                simulation.configureAlgorithm('TPFEM', 'TimePoints', 18, 'RungeKuttaStages', stages, 'StoreDecompositions', store, 'SymmetricJacobian', true,'Adaptive', true, 'AdaptiveTolerance', atol);
                 if init                
                     t = linspace(0,1/f_e,18+1);
                     h = t(2)-t(1);
@@ -832,10 +832,6 @@ for w = 1:2
                 clear solution;
                 pause(10);
                 j = j + 1;
-        
-                save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
-                pause(10);
-                i = i + 1;
                 
                 %% Transient Analysis
                 if ~store
@@ -873,6 +869,10 @@ for w = 1:2
                     pause(10);
                     j = j + 1;
                 end
+                i = i + 1;
+                
+                save(filename, 'SimTime', 'DiscErr', 'CondLoss', 'CoreLoss', 'Aharmonic','NSteps');
+                pause(10);
             end
         end
     end
