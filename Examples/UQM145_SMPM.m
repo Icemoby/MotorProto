@@ -43,8 +43,8 @@ stator.Slot.Turns = nTurnsPerSlot;
 
 %% Stranded Conductors
 stator.Slot.ConductorType                 = ConductorTypes.Circular;
-stator.Slot.Conductor.ConductorDiameter   = 1.0e-3 * 0.9 * 2 / (2^(0.0));
-stator.Slot.Conductor.InsulationThickness = 0.10e-3 * 1.1 * 2 / (2^(0.0));
+stator.Slot.Conductor.ConductorDiameter   = 1.0e-3 * 0.9 * 2 / (2^(1.0));
+stator.Slot.Conductor.InsulationThickness = 0.10e-3 * 1.1 * 2 / (2^(1.0));
 
 % stator.Slot.Conductor.ConductorDiameter = 0.7239*1e-3;
 % stator.Slot.Conductor.InsulationThickness = 0.04405*1e-3;
@@ -128,46 +128,48 @@ mesh = simulation.Mesh;
 
 %% Set Excitation
 %% Voltage Source
-h = 1;
-V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
+% h = 1;
+% V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
+% 
+% h = 1:2:2001;
+% V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/120000)));
 
-h = 1:2:2001;
-V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/120000)));
-
-stator.SourceType = SourceTypes.VoltageSource;
-stator.ParallelPaths = nParallelPaths;
-stator.Circuits.ElectricalFrequency = f_e;
-stator.Circuits.HarmonicNumbers     = h;
-stator.Circuits.HarmonicAmplitudes  = abs(V);
-stator.Circuits.HarmonicPhases      = angle(V);
+% stator.SourceType = SourceTypes.VoltageSource;
+% stator.ParallelPaths = nParallelPaths;
+% stator.Circuits.ElectricalFrequency = f_e;
+% stator.Circuits.HarmonicNumbers     = h;
+% stator.Circuits.HarmonicAmplitudes  = abs(V);
+% stator.Circuits.HarmonicPhases      = angle(V);
 
 %% Current Source
 % h = 1;
 % Iq = 500;
 % Id = -150;
 % I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
+h = 1;
+I = 0;
 
 % h = 1:2:1001;
 % h(mod(h,3)==0) = [];
 % I = 500*1i*(cos(pi*h/6)-cos(5*pi*h/6)) ./ (pi*h) .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
 
-% stator.SourceType = SourceTypes.CurrentSource;
-% stator.ParallelPaths = nParallelPaths;
-% stator.Circuits.ElectricalFrequency = f_e;
-% stator.Circuits.HarmonicNumbers     = h;
-% stator.Circuits.HarmonicAmplitudes  = abs(I);
-% stator.Circuits.HarmonicPhases      = angle(I);
+stator.SourceType = SourceTypes.CurrentSource;
+stator.ParallelPaths = nParallelPaths;
+stator.Circuits.ElectricalFrequency = f_e;
+stator.Circuits.HarmonicNumbers     = h;
+stator.Circuits.HarmonicAmplitudes  = abs(I);
+stator.Circuits.HarmonicPhases      = angle(I);
 
 %% Simulate
-nTimePoints = 6;
+nTimePoints = 54;
 %simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
 %simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true,'Adaptive',true,'AdaptiveTolerance',1e-3);
 %simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-4);
-simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', true, 'AdaptiveTolerance', 1e-3);
+simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', false, 'AdaptiveTolerance', 1e-3, 'MaxGMRESIterations', 1, 'NewtonTolerance', eps);
 
 model.build;
 mesh.build;
-%solution = simulation.run;
+solution = simulation.run;
 
 %% Plotting
 % solution.plot('A','Time',1);
