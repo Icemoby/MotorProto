@@ -319,13 +319,27 @@ classdef MatrixFactory
                     postProcessing(i).X2J   = circuits.X2J(coupling(i));
                     postProcessing(i).X_t2J = circuits.X_t2J(coupling(i));
                 else
+                	%% Bundle currents
+                    postProcessing(i).X2I   = sparse(0,nUnknowns);
+                    postProcessing(i).X_t2I = sparse(0,nUnknowns);
+                    
+                    %% Bundle voltages
+                    postProcessing(i).X2V   = sparse(0,nUnknowns);
+                    postProcessing(i).X_t2V = sparse(0,nUnknowns);
+                    
+                    %% Bundle flux linkages
+                    postProcessing(i).X2Lambda   = sparse(0,nUnknowns);
+                    postProcessing(i).X_t2Lambda = sparse(0,nUnknowns);
+                    
+                    %% Electric Field
                     n = numel(mesh(i).ElementRegions);
-                    postProcessing(i).F2E= sparse(n, 0);
+                    postProcessing(i).F2E = sparse(n, 0);
                     postProcessing(i).F2J = sparse(n, 0);
                     
                     postProcessing(i).X2E = sparse(n, nUnknowns);
                     postProcessing(i).X2J = sparse(n, nUnknowns);
                     
+                    %% Current Density
                     postProcessing(i).X_t2E = cell(1,3);
                     postProcessing(i).X_t2J = cell(1,3);
                     
@@ -355,6 +369,28 @@ classdef MatrixFactory
                         end
                     end
                 end
+                
+                %% Sobolev Norm Weighting Matrices
+                el	      = mesh(i).Elements;
+                elArea    = mesh(i).ElementAreas;
+                nElements = numel(elArea);
+                
+                ii = [el(1,:), el(2,:), el(3,:),...
+                      el(1,:), el(2,:), el(1,:),...
+                      el(2,:), el(3,:), el(3,:)];
+                
+                jj = [el(1,:), el(2,:), el(3,:),...
+                      el(2,:), el(3,:), el(3,:),...
+                      el(1,:), el(2,:), el(1,:)];
+                
+                ss = elArea / 12;
+                ss = [repmat(2*ss,1,3), repmat(ss,1,6)];
+                postProcessing(i).SobolevA = sparse(ii,jj,ss,nUnknowns,nUnknowns);
+                
+                ii = 1:nElements;
+                jj = 1:nElements;
+                ss = elArea;
+                postProcessing(i).SobolevB = sparse(ii,jj,ss,nElements,nElements);
             end
             this.PostProcessing = postProcessing;
         end
@@ -885,11 +921,6 @@ classdef MatrixFactory
             end
         end
         
-      	function harmonics = radialBoundaryHarmonics(this,iMesh)
-            warning('Use getRadialBoundaryHarmonics');
-            harmonics = getRadialBoundaryHarmonics(this,iMesh);
-        end
-        
         %% Master Loop Function
       	function structure = buildMatrices(this, structure, methodName)
             for iMesh = numel(this.Mesh):-1:1;
@@ -917,6 +948,27 @@ classdef MatrixFactory
                     y_t{i,j} = ppMatrices(i).Reduced2Full * x_t{j}(I);
                 end
             end
+        end
+        
+        function v = sobolev(this, x)
+            index    = this.Index;
+            curlN2E  = this.Jacobian.FluxDensity;
+            post     = this.PostProcessing;
+            
+            v = 0;
+            for i = 1:2
+                I = index.Global(i).X;
+                z = x(I);
+                
+                Bx = curlN2E(i).dBxdXz * z;
+                By = curlN2E(i).dBydXz * z;
+                v = v + Bx.' * post(i).SobolevB * Bx;
+                v = v + By.' * post(i).SobolevB * By;
+                
+                z = post(i).Reduced2Full * z;
+                v = v + z.' * post(i).SobolevA * z;
+            end
+            v = sqrt(v);
         end
         
         function [t, h] = getTimePoints(this, Nt)
@@ -1233,12 +1285,14 @@ classdef MatrixFactory
             
          	if strcmpi(dataType,'harmonic')
                 bx = cell2mat(bx(:, 1:(end-1)));
-                bx = fft(bx, [], 2) / (nTimes - 1);
+                %bx = fft(bx, [], 2) / (nTimes - 1);
+                bx = solver.fft(bx);
                 bx = mat2cell(bx, nRows, ones(1,nTimes-1));
                 bx = bx(:,mod(dataPoints, nTimes - 1) + 1);
                 
                 by = cell2mat(by(:, 1:(end-1)));
-                by = fft(by, [], 2) / (nTimes - 1);
+                %by = fft(by, [], 2) / (nTimes - 1);
+                by = solver.fft(by);
                 by = mat2cell(by, nRows, ones(1,nTimes-1));
                 by = by(:, mod(dataPoints, nTimes - 1) + 1);
             end
@@ -1287,12 +1341,14 @@ classdef MatrixFactory
             
          	if strcmpi(dataType,'harmonic')
                 mx = cell2mat(mx(:,1:(end-1)));
-                mx = fft(mx,[],2) / (nTimes - 1);
+                %mx = fft(mx,[],2) / (nTimes - 1);
+                mx = solver.fft(mx);
                 mx = mat2cell(mx,nRows,ones(1,nTimes-1));
                 mx = mx(:,mod(dataPoints,nTimes - 1) + 1);
                 
                 my = cell2mat(my(:,1:(end-1)));
-                my = fft(my,[],2) / (nTimes - 1);
+                %my = fft(my,[],2) / (nTimes - 1);
+                my = solver.fft(my);
                 my = mat2cell(my,nRows,ones(1,nTimes-1));
                 my = my(:,mod(dataPoints,nTimes - 1) + 1);
             end
@@ -1320,6 +1376,7 @@ classdef MatrixFactory
             l = lcond;
             for i = 1:numel(l)
                 l{i} = bsxfun(@plus, l{i}, lcore{i});
+                l{i}(l{i} == 0) = NaN;
             end
             
             text   = '(P_{loss} = %0.3g W)';
@@ -1369,7 +1426,8 @@ classdef MatrixFactory
             if strcmpi(dataType,'harmonic')
                 l = cellfun(@(x)(reshape(x,[],1)),l,'UniformOutput',false);
                 l = cell2mat(l(:,1:(end-1)));
-                l = fft(l,[],2) / (nTimes - 1);
+                %l = fft(l,[],2) / (nTimes - 1);
+                l = solver.fft(l);
                 l = mat2cell(l,nRows*nVertPerEl,ones(1,nTimes-1));
                 l = l(:,mod(dataPoints,nTimes - 1) + 1);
                 l = cellfun(@(x)(reshape(x,[],nVertPerEl)),l,'UniformOutput',false);
@@ -1516,7 +1574,8 @@ classdef MatrixFactory
             end
             
             if strcmpi(dataType,'harmonic')
-                l = fft(l(:,1:(Nt-1)),[],2) / (Nt - 1);
+                %l = fft(l(:,1:(Nt-1)),[],2) / (Nt - 1);
+                l = solver.fft(l(:,1:(Nt-1)));
             end
             
             l         = num2cell(l,2);
@@ -1528,7 +1587,12 @@ classdef MatrixFactory
             switch lower(dataType)
                 case {'default','time'}
                     [l, figLabels, figTitles] = InstantaneousConductionLosses(this, solver, 'Time');
-                    l = cellfun(@(x)(mean(x)), l).';
+                    Nt = numel(solver.Times) - 1;
+                    for i = 1:numel(l)
+                        l{i} = solver.fft(l{i}(1:Nt));
+                        l{i} = real(l{i}(1));
+                    end
+                    l = cell2mat(l).';
                     l = {l};
                 case 'harmonic'
                    	x        = solver.X;
@@ -1539,11 +1603,13 @@ classdef MatrixFactory
                     nRows    = nRows(:,1);
                     
                     x        = cell2mat(x);
-                    x        = fft(full(x(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    %x        = fft(full(x(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    x        = solver.fft(full(x(:,1:(Nt-1))));
                     x        = mat2cell(x,nRows,ones(1,Nt-1));
                     
                     x_t      = cell2mat(x_t);
-                    x_t      = fft(full(x_t(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    %x_t      = fft(full(x_t(:,1:(Nt-1))),[],2) / (Nt - 1);
+                    x_t      = solver.fft(full(x_t(:,1:(Nt-1))));
                     x_t      = mat2cell(x_t,nRows,ones(1,Nt-1));
                     
                     mesh     = this.Mesh;
@@ -1658,7 +1724,8 @@ classdef MatrixFactory
             
             if strcmpi(dataType,'harmonic')
                 for j = 1:nAssemblies
-                    tau{j} = fft(tau{j}(1:(Nt-1)),[],2) / (Nt - 1);
+                    %tau{j} = fft(tau{j}(1:(Nt-1)),[],2) / (Nt - 1);
+                    tau{j} = solver.fft(tau{j}(1:(Nt-1)));
                 end
             end
             
@@ -1737,7 +1804,8 @@ classdef MatrixFactory
                     end
                 
                     if strcmpi(dataType,'harmonic')
-                        v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        %v{i} = fft(v{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        v{i} = solver.fft(v{i}(:,1:(end-1)));
                     end
                     v{i} = num2cell(v{i},2);
                 else
@@ -1775,7 +1843,8 @@ classdef MatrixFactory
                     end
                 
                     if strcmpi(dataType,'harmonic')
-                        lambda{i} = fft(lambda{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        %lambda{i} = fft(lambda{i}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        lambda{i} = solver.fft(lambda{i}(:,1:(end-1)));
                     end
                     lambda{i} = num2cell(lambda{i},2);
                 else
@@ -1819,7 +1888,8 @@ classdef MatrixFactory
                     end
                     
                     if strcmpi(dataType, 'harmonic')
-                        i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        %i{j} = fft(i{j}(:,1:(end-1)), [] ,2) / (Nt - 1);
+                        i{j} = solver.fft(i{j}(:,1:(end-1)));
                     end
                     i{j} = num2cell(i{j},2);
                 else

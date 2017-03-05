@@ -32,7 +32,7 @@ stator.Poles               = nPoles;
 stator.Teeth               = nTeeth;
 stator.InnerRadius         = statorInnerRadius;
 stator.OuterRadius         = statorOuterRadius;
-stator.DefaultMaterial     = Arnon7;
+stator.DefaultMaterial     = Iron;
 stator.SourceType          = SourceTypes.CurrentSource;
 stator.CouplingType        = CouplingTypes.Dynamic;
 stator.WindingType         = WindingTypes.Distributed;
@@ -43,8 +43,8 @@ stator.Slot.Turns = nTurnsPerSlot;
 
 %% Stranded Conductors
 stator.Slot.ConductorType                 = ConductorTypes.Circular;
-stator.Slot.Conductor.ConductorDiameter   = 1.0e-3 * 0.9 * 2 / (2^(0.0));
-stator.Slot.Conductor.InsulationThickness = 0.10e-3 * 1.1 * 2 / (2^(0.0));
+stator.Slot.Conductor.ConductorDiameter   = 1.0e-3 * 0.9 * 2 / (2^(1.0));
+stator.Slot.Conductor.InsulationThickness = 0.10e-3 * 1.1 * 2 / (2^(1.0));
 
 % stator.Slot.Conductor.ConductorDiameter = 0.7239*1e-3;
 % stator.Slot.Conductor.InsulationThickness = 0.04405*1e-3;
@@ -74,7 +74,7 @@ rotor.Length              = len;
 rotor.ElectricalFrequency = f_r * nPoles / 2;
 rotor.InnerRadius         = rotorInnerRadius;
 rotor.OuterRadius         = rotorOuterRadius;
-rotor.DefaultMaterial     = Arnon7;
+rotor.DefaultMaterial     = Iron;
 rotor.OperatingMode       = OperatingModes.Synchronous;
 rotor.InitialAngle        = pi/nPoles*0;
 rotor.BackironType        = BackironTypes.Laminated;
@@ -117,39 +117,55 @@ rotor.addRegion('trimUHP', trimUHP, Air, DynamicsTypes.Static);
 rotor.addRegion('trimLHP', trimLHP, Air, DynamicsTypes.Static);
 
 retainingRing = Geometry2D.draw('Sector', 'Radius', [rotorOuterRadius-pmRing, rotorOuterRadius], 'Angle', 2 * pi / nPoles, 'Rotation', - pi / nPoles,'PlotStyle',{'b'});
-rotor.addRegion('ring', retainingRing, Arnon7, DynamicsTypes.Static);
+rotor.addRegion('ring', retainingRing, Iron, DynamicsTypes.Static);
 
 %% Set mesh parameters
-mesh                       = simulation.Mesh;
-mesh(1).MaximumElementSize = pmWidth / 4;
-mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
+mesh = simulation.Mesh;
+% mesh(1).MaximumElementSize = pmWidth / 4;
+% mesh(2).MaximumElementSize = (2*pi*statorInnerRadius)*(0.5/nTeeth)*0.28;
+% mesh(1).MaximumAirgapEdgeLength = [inf, 2*pi*rotorOuterRadius / nTeeth / 10];
+% mesh(2).MaximumAirgapEdgeLength = [2*pi*statorInnerRadius / nTeeth / 10, inf];
 
 %% Set Excitation
 %% Voltage Source
-stator.SourceType = SourceTypes.VoltageSource;
-stator.ParallelPaths = nParallelPaths;
-stator.Circuits.ElectricalFrequency = f_e;
-stator.Circuits.HarmonicNumbers     = 1;
-stator.Circuits.HarmonicAmplitudes  = 340 / sqrt(3);
-stator.Circuits.HarmonicPhases      = -pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256);
-
-%% Current Source
-% Iq = 150;
-% Id = 500;
-% I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
+% h = 1;
+% V = 340 / sqrt(3) * exp(1i*(-pi/2 + pi/6 + pi*(-1/8+1/16-1/32+1/64-1/128-1/256)));
 % 
-% stator.SourceType = SourceTypes.CurrentSource;
+% h = 1:2:2001;
+% V = 1i * 340 / 2 * 4/pi./h .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/120000)));
+
+% stator.SourceType = SourceTypes.VoltageSource;
 % stator.ParallelPaths = nParallelPaths;
 % stator.Circuits.ElectricalFrequency = f_e;
-% stator.Circuits.HarmonicNumbers    = 1;
-% stator.Circuits.HarmonicAmplitudes = abs(I);
-% stator.Circuits.HarmonicPhases     = angle(I);
+% stator.Circuits.HarmonicNumbers     = h;
+% stator.Circuits.HarmonicAmplitudes  = abs(V);
+% stator.Circuits.HarmonicPhases      = angle(V);
 
+%% Current Source
+% h = 1;
+% Iq = 500;
+% Id = -150;
+% I  = Iq*exp(1i*(-120)*pi/180) + Id*exp(1i*(-30)*pi/180);
+h = 1;
+I = 0;
+
+% h = 1:2:1001;
+% h(mod(h,3)==0) = [];
+% I = 500*1i*(cos(pi*h/6)-cos(5*pi*h/6)) ./ (pi*h) .* exp(1i*(pi/(10*exp(1))*h)) .* abs(1./(1+(1i*h*f_e/12000)));
+
+stator.SourceType = SourceTypes.CurrentSource;
+stator.ParallelPaths = nParallelPaths;
+stator.Circuits.ElectricalFrequency = f_e;
+stator.Circuits.HarmonicNumbers     = h;
+stator.Circuits.HarmonicAmplitudes  = abs(I);
+stator.Circuits.HarmonicPhases      = angle(I);
+
+%% Simulate
 nTimePoints = 54;
-% simulation.configureAlgorithm('Static', 'TimePoints', nTimePoints, 'Verbose', true);
-% simulation.configureAlgorithm('ShootingNewton', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 4, 'ShootingTolerance', 1e-6, 'NewtonTolerance', 1e-6, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true,'MaxNewtonIterations',20);
-% simulation.configureAlgorithm('TPFEM', 'TimePoints', nTimePoints, 'RungeKuttaStages', 2, 'StorageLevel', 3, 'Verbose', true, 'MaxGMRESIterations', 50, 'NewtonTolerance', 1e-8, 'GMRESTolerance', 1e-6, 'SymmetricJacobian', true);
-simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', 2*3^4-1, 'Verbose', true, 'AdaptiveTol', 1e-2, 'NewtonTol', 1e-2, 'GMRESTol', 1e-4, 'ColocationTol', 1e-5, 'Strategy','plan','Plan',[3,2,3,3,3]);
+%simulation.configureAlgorithm('Static',          'TimePoints', nTimePoints, 'Verbose', true);
+%simulation.configureAlgorithm('ShootingNewton',  'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true,'Adaptive',true,'AdaptiveTolerance',1e-3);
+%simulation.configureAlgorithm('TPFEM',           'TimePoints', nTimePoints, 'RungeKuttaStages', 3, 'StoreDecompositions', true, 'Verbose', true, 'SymmetricJacobian', true, 'Adaptive', true, 'AdaptiveTolerance', 1e-4);
+simulation.configureAlgorithm('HarmonicBalance', 'TimePoints', nTimePoints,                        'StoreDecompositions', true, 'Verbose', true,                            'Adaptive', false, 'AdaptiveTolerance', 1e-3, 'MaxGMRESIterations', 1, 'NewtonTolerance', eps);
 
 model.build;
 mesh.build;
@@ -161,30 +177,66 @@ solution = simulation.run;
 % solution.plot('H','Time',1);
 % solution.plot('M','Time',1);
 % solution.plot('A','Harmonic',[0, 1]);
-% solution.plot('B','Harmonic',[0, 1]);
+%solution.plot('B','Harmonic',[6]);
 % solution.plot('H','Harmonic',[0, 1]);
 % solution.plot('M','Harmonic',[0, 1]);
-solution.plot('LossDensity', 'UseSinglePlot', true);
-solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
+% solution.plot('LossDensity', 'UseSinglePlot', true);
+% solution.plot('LossDensity', 'UseSinglePlot', true, 'DataFunction', @(x)(log10(x)), 'DataFunctionString', 'log_{10}');
 % solution.plot('J','Time',1);
 % solution.plot('J','Harmonic',1);
 % solution.plot('E','Time',1);
 % solution.plot('E','Harmonic',1);
-% 
-solution.plot('Flux Linkage','Time');
-solution.plot('Flux Linkage','Harmonic');
-solution.plot('Torque','Time');
-solution.plot('Torque','Harmonic');
-solution.plot('Voltage','Time');
-solution.plot('Voltage','Harmonic');
-solution.plot('Current','Time');
-solution.plot('Current','Harmonic');
 
-v = solution.getBulkVariableData('Voltage','Time');
-figure;plot(v{1}{1}-v{1}{2})
-hold on;plot(v{1}{2}-v{1}{3},'g--');
-hold on;plot(v{1}{3}-v{1}{1},'r-.');
-legend('AB','BC','CA');
-xlabel('Time [s]');
-ylabel('Voltage [V]');
-title('Line to Line Voltage');
+solution.plot('Flux Linkage','Time');
+% solution.plot('Flux Linkage','Harmonic');
+solution.plot('Torque','Time');
+% solution.plot('Torque','Harmonic');
+solution.plot('Voltage','Time');
+% solution.plot('Voltage','Harmonic');
+solution.plot('Current','Time');
+% solution.plot('Current','Harmonic');
+% 
+% t = solution.Algorithm.Times;
+% figure;plot(reshape([t(1:end-1);t(2:end)],1,[]),reshape([diff(t);diff(t)],1,[]));
+% hold on;scatter(t(2:end),diff(t));
+% figure;hist(diff(t))
+% i = solution.getBulkVariableData('Current','Time');
+% i = i{1};
+% figure;hold on;
+% plot(t,i{1});
+% scatter(t,i{1},'ob');
+% plot(t,i{2},'g--');
+% scatter(t,i{2},'og');
+% plot(t,i{3},'r-.');
+% scatter(t,i{3},'or');
+% % 
+% % legend('A','B','C');
+% % xlabel('Time [s]');
+% % ylabel('Voltage [V]');
+% % title('Phase Currents');
+% % 
+% v = solution.getBulkVariableData('Voltage','Time');
+% % 
+% % figure;hold on;
+% % plot(t,v{1}{1})
+% % plot(t,v{1}{2},'g--');
+% % plot(t,v{1}{3},'r-.');
+% % scatter(t,v{1}{1},'ob')
+% % scatter(t,v{1}{2},'og');
+% % scatter(t,v{1}{3},'or');
+% % legend('A','B','C');
+% % xlabel('Time [s]');
+% % ylabel('Voltage [V]');
+% % title('Phase Voltage');
+% % 
+% figure;hold on;
+% plot(t,v{1}{1}-v{1}{2})
+% plot(t,v{1}{2}-v{1}{3},'g--');
+% plot(t,v{1}{3}-v{1}{1},'r-.');
+% % scatter(t,v{1}{1}-v{1}{2},'ob')
+% % scatter(t,v{1}{2}-v{1}{3},'og');
+% % scatter(t,v{1}{3}-v{1}{1},'or');
+% legend('AB','BC','CA');
+% xlabel('Time [s]');
+% ylabel('Voltage [V]');
+% title('Line to Line Voltage');

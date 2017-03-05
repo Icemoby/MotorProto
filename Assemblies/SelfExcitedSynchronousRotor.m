@@ -1,5 +1,7 @@
 classdef SelfExcitedSynchronousRotor < PoleAndToothAssembly
     properties
+        Poles
+        Teeth
      	FieldSlot
         FieldSlots
         TransformerSlot
@@ -167,7 +169,7 @@ classdef SelfExcitedSynchronousRotor < PoleAndToothAssembly
           	dHull = Geometry2D.draw('Sector', 'Radius', rad, 'Angle', ang, 'Rotation', rot, 'PlotStyle', {'b'});
             this.DomainHull = copy(dHull);
             dHull = dHull - [this.Regions.Geometry];
-            addModelRegion(this, [this.Name,'_DefaultRegion'], dHull, this.DefaultMaterial, DynamicsTypes.Static, -1);
+            addModelRegion(this, [this.Name,'_DefaultRegion'], dHull, this.DefaultMaterial, DynamicsTypes.Static);
             
             this.ModeledFraction = fp;
             
